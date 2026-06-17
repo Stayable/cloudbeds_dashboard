@@ -27,18 +27,21 @@ export type Property = {
 };
 
 // Each property has its own scoped Cloudbeds API key in env var
-// CLOUDBEDS_API_KEY_<CODE>. A key resolves its own property, so no propertyID is
-// passed. Davenport verified 2026-06-18 via getHotels: API propertyID 318197,
-// org 206670. Other API IDs are unverified — confirm each via getHotels.
+// CLOUDBEDS_API_KEY_<CODE>. The CODE here MUST match the env var suffix you set
+// in Vercel. A key resolves its own property, so no propertyID is passed. API
+// propertyIDs verified 2026-06-18 via getHotels (all org 206670).
+// NOTE: the JN env var currently holds Davenport's key by mistake (returns
+// 318197) — replace with Jacksonville North's real key. LL/OR propertyIDs to be
+// confirmed once codes match and diagnostics re-run.
 export const PROPERTIES: Property[] = [
   { id: "44199", code: "DP", apiPropertyId: "318197", name: "Davenport", county: "Polk", active: true, pilot: true },
-  { id: "4645", code: "LK", apiPropertyId: null, name: "Lakeland", county: "Polk", active: "unconfirmed" },
-  { id: "2295", code: "KE", apiPropertyId: null, name: "Kissimmee East", county: "Osceola", active: "unconfirmed" },
-  { id: "5399", code: "KW", apiPropertyId: null, name: "Kissimmee West", county: "Osceola", active: "unconfirmed" },
-  { id: "6802", code: "JW", apiPropertyId: null, name: "Jacksonville West", county: "Duval", active: "unconfirmed" },
-  { id: "812", code: "JN", apiPropertyId: null, name: "Jacksonville North", county: "Duval", active: "unconfirmed" },
-  { id: "2535", code: "SA", apiPropertyId: null, name: "St. Augustine", county: "St. Johns", active: "unconfirmed" },
-  { id: "8700", code: "OB", apiPropertyId: null, name: "Orlando OBT", county: "Orange", active: "unconfirmed" },
+  { id: "4645", code: "LL", apiPropertyId: null, name: "Lakeland", county: "Polk", active: true },
+  { id: "2295", code: "KE", apiPropertyId: "210986", name: "Kissimmee East", county: "Osceola", active: true },
+  { id: "5399", code: "KW", apiPropertyId: "210969", name: "Kissimmee West", county: "Osceola", active: true },
+  { id: "6802", code: "JW", apiPropertyId: "210987", name: "Jacksonville West", county: "Duval", active: true },
+  { id: "812", code: "JN", apiPropertyId: null, name: "Jacksonville North", county: "Duval", active: true }, // env key wrong (returns Davenport) — replace
+  { id: "2535", code: "SA", apiPropertyId: "208155", name: "St. Augustine", county: "St. Johns", active: true },
+  { id: "8700", code: "OR", apiPropertyId: null, name: "Orlando OBT", county: "Orange", active: true },
 ];
 
 export const PILOT_PROPERTY = PROPERTIES.find((p) => p.pilot)!;
