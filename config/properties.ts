@@ -25,11 +25,19 @@ export type Property = {
   /** True for the property we wired/tested first. */
   pilot?: boolean;
   /**
-   * Exclude from the portfolio average AND the current-occupancy strip (still
-   * shown as a tab). Use for properties with no bookings that would distort the
-   * aggregate — e.g. Jacksonville North.
+   * Default OFF in the portfolio average (user can toggle it back on live).
+   * Use for properties that would distort the aggregate — e.g. Jacksonville
+   * North (no bookings).
    */
   excludeFromAggregate?: boolean;
+  /**
+   * Manual capacity adjustment applied to the occupancy denominator, e.g. -20
+   * for rooms pulled out of inventory for renovation. Occupancy is then
+   * roomsOccupied / (capacity + capacityAdjustment).
+   */
+  capacityAdjustment?: number;
+  /** Short reason for capacityAdjustment, shown on the property's tab. */
+  adjustmentNote?: string;
 };
 
 // Each property has its own scoped Cloudbeds API key in env var
@@ -41,7 +49,7 @@ export type Property = {
 export const PROPERTIES: Property[] = [
   { id: "44199", code: "DP", apiPropertyId: "318197", name: "Davenport", county: "Polk", active: true, pilot: true },
   { id: "4645", code: "LL", apiPropertyId: "210972", name: "Lakeland", county: "Polk", active: true },
-  { id: "2295", code: "KE", apiPropertyId: "210986", name: "Kissimmee East", county: "Osceola", active: true },
+  { id: "2295", code: "KE", apiPropertyId: "210986", name: "Kissimmee East", county: "Osceola", active: true, capacityAdjustment: -20, adjustmentNote: "20 rooms out for renovation" },
   { id: "5399", code: "KW", apiPropertyId: "210969", name: "Kissimmee West", county: "Osceola", active: true },
   { id: "6802", code: "JW", apiPropertyId: "210987", name: "Jacksonville West", county: "Duval", active: true },
   { id: "812", code: "JN", apiPropertyId: "206628", name: "Jacksonville North", county: "Duval", active: true, excludeFromAggregate: true },
