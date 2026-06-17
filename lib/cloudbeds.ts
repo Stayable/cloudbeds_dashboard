@@ -67,10 +67,22 @@ async function cbGet<T = unknown>(
 }
 
 /**
- * Current operating snapshot for a property (occupancy, arrivals/departures,
- * in-house, etc.). Field shapes are intentionally untyped here — verify the
- * real response against the live API before typing the UI (CLAUDE.md §6).
+ * Properties this API key can access, with their real Cloudbeds property IDs.
+ * Source of truth for the property ID — do not assume it from config (the
+ * "None of the included property id's match" error means the passed ID was
+ * wrong; a single-property key resolves its own property from the token).
  */
-export function getDashboard(propertyID: string) {
-  return cbGet(`/getDashboard`, { propertyID });
+export function getHotels() {
+  return cbGet(`/getHotels`);
+}
+
+/**
+ * Current operating snapshot for a property (occupancy, arrivals/departures,
+ * in-house, etc.). For a single-property key, omit `propertyID` and let the
+ * token resolve its own property — passing a mismatched ID errors. Field shapes
+ * are intentionally untyped; verify against the live response before typing the
+ * UI (CLAUDE.md §6).
+ */
+export function getDashboard(propertyID?: string) {
+  return cbGet(`/getDashboard`, propertyID ? { propertyID } : {});
 }

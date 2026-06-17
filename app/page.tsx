@@ -1,5 +1,5 @@
 import { PILOT_PROPERTY } from "@/config/properties";
-import { getDashboard } from "@/lib/cloudbeds";
+import { getDashboard, getHotels } from "@/lib/cloudbeds";
 
 // Render per-request so the runtime env var (CLOUDBEDS_API_KEY) is always read
 // live — the upstream Cloudbeds call is still cached 10 min in lib/cloudbeds.ts
@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const property = PILOT_PROPERTY;
-  const result = await getDashboard(property.id);
+  // Don't pass a hardcoded propertyID — let the single-property key resolve its
+  // own property. getHotels reveals the key's real property ID for verification.
+  const [hotels, result] = await Promise.all([getHotels(), getDashboard()]);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
@@ -40,11 +42,37 @@ export default async function DashboardPage() {
         ))}
       </section>
 
+      {/* Key access — reveals the real property ID(s) this key can reach. */}
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">
+            Properties this key can access (getHotels)
+          </h2>
+          <span
+            className={
+              "rounded-full px-2.5 py-0.5 text-xs font-medium " +
+              (hotels.ok
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-amber-50 text-amber-700")
+            }
+          >
+            {hotels.ok ? "ok" : "error"}
+          </span>
+        </div>
+        <pre className="max-h-72 overflow-auto rounded-lg bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+          {JSON.stringify(hotels.ok ? hotels.data : hotels, null, 2)}
+        </pre>
+        <p className="mt-2 text-xs text-slate-400">
+          Config has Davenport as ID {property.id} — confirm it matches the
+          property ID returned here.
+        </p>
+      </section>
+
       {/* Live response diagnostic — lets us map real fields before typing the UI. */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-700">
-            Cloudbeds live response
+            Cloudbeds live response (getDashboard)
           </h2>
           <span
             className={
