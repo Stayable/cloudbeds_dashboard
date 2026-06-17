@@ -2,11 +2,19 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Phase 0 access decisions are made and the
-> Cloudbeds API key is **created**. Next action is **Phase 2 — app skeleton**
-> (Next.js scaffold + server-side Cloudbeds client), wiring the **Davenport
-> (44199)** pilot first. Before coding, drop the API key into `.env.local` as
-> `CLOUDBEDS_API_KEY` and confirm whether the key is single-property or portfolio.
+> **Pickup (next CLI session):** Phase 0 decisions all made. Cloudbeds API key
+> **created and confirmed Davenport-only (per-property)**. Auth verified against
+> docs: static API key, header `Authorization: Bearer cbat_…`, base URL
+> `https://hotels.cloudbeds.com/api/v1.3`, no OAuth/token rotation, no DB. Key
+> auto-invalidates after 30 days of inactivity. Next action is **Phase 2 — app
+> skeleton** (Next.js scaffold + server-side Cloudbeds client), Davenport (44199)
+> pilot first. Drop the key into `.env.local` as `CLOUDBEDS_API_KEY` (never commit).
+>
+> **Cloudbeds auth reference (verified 06/18/26):**
+> - Base URL: `https://hotels.cloudbeds.com/api/v1.3`
+> - Header: `Authorization: Bearer cbat_…` (alt: `x-api-key: cbat_…`)
+> - Key scope: single-property (Davenport) — portfolio needs key-per-property.
+> - Client ID/Secret = OAuth app identity, **unused** (we use the static key).
 
 ---
 
@@ -22,7 +30,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
       (Data Insights Occupancy/Reservations/Financial, Dashboard, Hotel, Room,
       Roomblock, Reservation). No guest scopes, no write/delete. Key value to be
       stored in `.env.local` / Vercel env as `CLOUDBEDS_API_KEY` — never committed.
-- [ ] **Key scoping**: confirm key covers all 6 active properties vs. per-property.
+- [x] **Key scoping**: confirmed **per-property**. The created key (ID/Secret/API
+      key) is **Davenport-only**. Cloudbeds keys grant access to either one
+      property *or* the whole org; this one is single-property. **Portfolio view
+      (Phase 4) will need one key per active property.**
 - [ ] **Active properties**: confirm which **6 of 8** are live in Cloudbeds and
       get exact property IDs verified.
 - [ ] **Pilot scope**: confirm Davenport (44199) as the first property to wire.
