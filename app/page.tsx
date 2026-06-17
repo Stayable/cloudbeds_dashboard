@@ -12,8 +12,11 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const portfolio = await getPortfolio();
 
-  // Aggregate across properties that returned live data.
-  const live = portfolio.flatMap((p) => (p.result?.ok ? [p.result.data] : []));
+  // Aggregate across properties that returned live data, excluding any flagged
+  // out of the aggregate (e.g. Jacksonville North — no bookings).
+  const live = portfolio.flatMap((p) =>
+    p.result?.ok && !p.property.excludeFromAggregate ? [p.result.data] : [],
+  );
   const totalCapacity = live.reduce((s, d) => s + d.capacity, 0);
   const totalOccupied = live.reduce((s, d) => s + d.roomsOccupied, 0);
   const totalInHouse = live.reduce((s, d) => s + d.inHouse, 0);
@@ -23,9 +26,15 @@ export default async function DashboardPage() {
   const portfolioOcc = totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : null;
 
   const configuredCount = portfolio.filter((p) => p.configured).length;
+  const excludedNames = portfolio
+    .filter((p) => p.property.excludeFromAggregate)
+    .map((p) => p.property.name);
 
-  // Rank all properties by current occupancy (reporting first, highest first).
-  const occRanked = [...portfolio].sort((a, b) => {
+  // Rank properties by current occupancy (reporting first, highest first),
+  // excluding any flagged out of the aggregate (e.g. JN).
+  const occRanked = portfolio
+    .filter((p) => !p.property.excludeFromAggregate)
+    .sort((a, b) => {
     const ao = a.result?.ok ? a.result.data.percentageOccupied : -1;
     const bo = b.result?.ok ? b.result.data.percentageOccupied : -1;
     return bo - ao;
@@ -108,6 +117,12 @@ export default async function DashboardPage() {
             );
           })}
         </div>
+        {excludedNames.length > 0 && (
+          <p className="mt-2 text-xs text-slate-400">
+            {excludedNames.join(", ")} excluded from the average (no bookings) —
+            still viewable in the tabs below.
+          </p>
+        )}
       </section>
 
       {/* Individual property data — clickable tabs */}

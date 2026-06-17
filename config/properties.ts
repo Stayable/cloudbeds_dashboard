@@ -24,6 +24,12 @@ export type Property = {
   active: boolean | "unconfirmed";
   /** True for the property we wired/tested first. */
   pilot?: boolean;
+  /**
+   * Exclude from the portfolio average AND the current-occupancy strip (still
+   * shown as a tab). Use for properties with no bookings that would distort the
+   * aggregate — e.g. Jacksonville North.
+   */
+  excludeFromAggregate?: boolean;
 };
 
 // Each property has its own scoped Cloudbeds API key in env var
@@ -38,7 +44,7 @@ export const PROPERTIES: Property[] = [
   { id: "2295", code: "KE", apiPropertyId: "210986", name: "Kissimmee East", county: "Osceola", active: true },
   { id: "5399", code: "KW", apiPropertyId: "210969", name: "Kissimmee West", county: "Osceola", active: true },
   { id: "6802", code: "JW", apiPropertyId: "210987", name: "Jacksonville West", county: "Duval", active: true },
-  { id: "812", code: "JN", apiPropertyId: "206628", name: "Jacksonville North", county: "Duval", active: true },
+  { id: "812", code: "JN", apiPropertyId: "206628", name: "Jacksonville North", county: "Duval", active: true, excludeFromAggregate: true },
   { id: "2535", code: "SA", apiPropertyId: "208155", name: "St. Augustine", county: "St. Johns", active: true },
   { id: "8700", code: "OR", apiPropertyId: "210971", name: "Orlando OBT", county: "Orange", active: true },
 ];
