@@ -86,7 +86,7 @@ export async function GET(req: Request) {
         ],
       },
       settings: { totals: false },
-      mode: "Run",
+      query: { mode: "Run" },
     };
     const result = await call("POST", endpoint, key, pid, requestBody);
     return NextResponse.json(
