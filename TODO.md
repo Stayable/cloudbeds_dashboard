@@ -2,13 +2,13 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Phase 0 decisions all made. Cloudbeds API key
-> **created and confirmed Davenport-only (per-property)**. Auth verified against
-> docs: static API key, header `Authorization: Bearer cbat_…`, base URL
-> `https://hotels.cloudbeds.com/api/v1.3`, no OAuth/token rotation, no DB. Key
-> auto-invalidates after 30 days of inactivity. Next action is **Phase 2 — app
-> skeleton** (Next.js scaffold + server-side Cloudbeds client), Davenport (44199)
-> pilot first. Drop the key into `.env.local` as `CLOUDBEDS_API_KEY` (never commit).
+> **Pickup (next CLI session):** Phases 2–3 live. Next.js app deployed on Vercel,
+> server-side Cloudbeds client working, **Davenport showing live getDashboard
+> metrics** (occupancy %, rooms, in-house, arrivals/departures, blocked, etc.).
+> Davenport API propertyID confirmed **318197** (≠ 44199 business code). Next:
+> (1) wire **ADR/RevPAR/revenue via Data Insights** endpoints; (2) daily/weekly/
+> monthly toggle; (3) verify numbers vs Cloudbeds UI; (4) PIN gate before sharing
+> the URL publicly (CLAUDE.md §5 rule 5).
 >
 > **Cloudbeds auth reference (verified 06/18/26):**
 > - Base URL: `https://hotels.cloudbeds.com/api/v1.3`
@@ -46,19 +46,23 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 - [x] `start-claude.bat` — Windows launcher (pull + run Claude Code).
 - [x] `scripts/clone-repo.ps1` — PowerShell clone helper.
 
-## Phase 2 — App skeleton
+## Phase 2 — App skeleton ✅
 
-- [ ] Initialize Next.js (App Router) + TypeScript.
-- [ ] `config/properties.ts` — property list with IDs (start: Davenport 44199).
-- [ ] Server-side Cloudbeds API client (env-var creds, no browser exposure).
-- [ ] `.env.example` documenting required env vars (no real secrets committed).
-- [ ] Server-side response caching (5–15 min TTL).
+- [x] Initialize Next.js (App Router) + TypeScript + Tailwind.
+- [x] `config/properties.ts` — property list. **Davenport API propertyID = 318197**
+      (business ID 44199 is NOT the API ID); others' `apiPropertyId` unverified.
+- [x] Server-side Cloudbeds API client (`lib/cloudbeds.ts`), env-var creds,
+      Bearer auth, `{success,data}` envelope handling, no browser exposure.
+- [x] `.env.example` documenting `CLOUDBEDS_API_KEY` (no real secrets committed).
+- [x] Server-side response caching (10-min TTL via Next data cache).
 
 ## Phase 3 — Occupancy view (pilot: Davenport)
 
-- [ ] Daily occupancy for Davenport (44199).
+- [x] Daily occupancy for Davenport (live from getDashboard: % occupied, rooms
+      occupied/capacity, in-house, arrivals/departures, stayovers, blocked, etc.).
 - [ ] Daily/weekly/monthly toggle (weekly & monthly aggregate daily data).
 - [ ] Verify numbers against Cloudbeds UI for the same dates.
+- [ ] ADR / RevPAR / revenue via Data Insights endpoints (not in getDashboard).
 
 ## Phase 4 — Portfolio status metrics
 
