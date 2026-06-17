@@ -72,15 +72,16 @@ export async function GET(req: Request) {
     const requestBody = {
       property_ids: [Number(pid)],
       dataset_id: 7,
-      // stay_date lives in group_rows (the row dimension) — must NOT also be a
-      // column, or Cloudbeds rejects it as a duplicate.
+      // Occupancy/adr/revpar auto-aggregate. Count/currency fields need an
+      // explicit aggregation — trying cdf.modifier:"sum" (same key group_rows
+      // uses for dates) to recover rooms_sold/capacity/room_revenue.
       columns: [
-        { cdf: { column: "rooms_sold" } },
-        { cdf: { column: "capacity_count" } },
+        { cdf: { column: "rooms_sold", modifier: "sum" } },
+        { cdf: { column: "capacity_count", modifier: "sum" } },
         { cdf: { column: "occupancy" } },
         { cdf: { column: "adr" } },
         { cdf: { column: "revpar" } },
-        { cdf: { column: "room_revenue" } },
+        { cdf: { column: "room_revenue", modifier: "sum" } },
       ],
       group_rows: [{ cdf: { column: "stay_date" }, modifier: "day" }],
       filters: {
