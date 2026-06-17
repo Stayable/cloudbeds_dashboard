@@ -4,15 +4,24 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 > **Pickup (next CLI session):** Live on Vercel at cloudbeds-dashboard-jade.vercel.app.
 > **All 8 properties wired** with per-property keys (CLOUDBEDS_API_KEY_<CODE>); all
-> API propertyIDs verified (see config/properties.ts). One-page portfolio view:
-> aggregate occupancy + ranked current-occupancy strip + clickable per-property
-> tabs. **PIN gate live**. **Data Insights period view live** (occupancy/ADR/
-> RevPAR by date range; presets + custom; per-property table + portfolio summary).
-> Discovery endpoints (/api/insights-probe, /api/diagnostics) removed. Open items:
-> (1) verify DI numbers vs Cloudbeds UI; (2) exact revenue (DI aggregation key —
-> ask Cloudbeds support, or use Finances dataset id 1); (3) custom domain
-> dashboard.rentstayable.com; (4) optional: revenue-weighted period ADR/occ,
-> daily breakdown chart. DI query shape recorded in memory data-insights-occupancy.
+> API propertyIDs verified (see config/properties.ts). **PIN gate live.**
+>
+> **Dashboard is now OCCUPANCY-FIRST** (redesigned this session): headline =
+> Portfolio Occupancy driven by a date filter (Yesterday / Last 7 / Last 30 /
+> This month + custom From/To, Eastern). Occupancy = daily avg over range from
+> Data Insights (dataset 7). Per-property: occupancy strip with include/exclude-
+> average toggles + KE −20 renovation re-basing; detail tab shows Occupancy(range
+> avg)+daily bars AND the "Today (live snapshot)" cards (rooms occupied/in-house/
+> arrivals/departures/stayovers/blocked/bookings/cancellations from getDashboard).
+> **ADR/RevPAR/revenue REMOVED** from UI per request. Components: OccupancyView,
+> PeriodControls (PortfolioView/PropertyTabs deleted). Discovery endpoints removed.
+>
+> Open items: (1) verify DI occupancy vs Cloudbeds UI for a known date;
+> (2) "Today (live)" cards are always today regardless of range — flagged, make
+> range-aware only if asked; (3) custom domain dashboard.rentstayable.com;
+> (4) if exact revenue ever wanted again: DI count/currency columns need an
+> aggregation key not in public docs (ask Cloudbeds support / Finances dataset 1).
+> DI query shape recorded in memory data-insights-occupancy.
 >
 > Codes: DP Davenport · LL Lakeland · KE Kissimmee East · KW Kissimmee West ·
 > JW Jacksonville West · JN Jacksonville North (usually 0 occ) · SA St. Augustine
