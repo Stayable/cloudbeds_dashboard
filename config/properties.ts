@@ -29,19 +29,18 @@ export type Property = {
 // Each property has its own scoped Cloudbeds API key in env var
 // CLOUDBEDS_API_KEY_<CODE>. The CODE here MUST match the env var suffix you set
 // in Vercel. A key resolves its own property, so no propertyID is passed. API
-// propertyIDs verified 2026-06-18 via getHotels (all org 206670).
-// JN key corrected (was Davenport's); JN is live but typically has no bookings,
-// so expect 0% occupancy — that's valid data, not an error. LL/OR/JN
-// propertyIDs to be filled once diagnostics is re-run.
+// All 8 API propertyIDs verified 2026-06-18 via getHotels (all org 206670) and
+// confirmed against propertyName. JN is live but usually has no bookings, so
+// expect 0% occupancy — valid data, not an error.
 export const PROPERTIES: Property[] = [
   { id: "44199", code: "DP", apiPropertyId: "318197", name: "Davenport", county: "Polk", active: true, pilot: true },
-  { id: "4645", code: "LL", apiPropertyId: null, name: "Lakeland", county: "Polk", active: true },
+  { id: "4645", code: "LL", apiPropertyId: "210972", name: "Lakeland", county: "Polk", active: true },
   { id: "2295", code: "KE", apiPropertyId: "210986", name: "Kissimmee East", county: "Osceola", active: true },
   { id: "5399", code: "KW", apiPropertyId: "210969", name: "Kissimmee West", county: "Osceola", active: true },
   { id: "6802", code: "JW", apiPropertyId: "210987", name: "Jacksonville West", county: "Duval", active: true },
-  { id: "812", code: "JN", apiPropertyId: null, name: "Jacksonville North", county: "Duval", active: true }, // key corrected; usually 0 bookings -> 0% occ
+  { id: "812", code: "JN", apiPropertyId: "206628", name: "Jacksonville North", county: "Duval", active: true },
   { id: "2535", code: "SA", apiPropertyId: "208155", name: "St. Augustine", county: "St. Johns", active: true },
-  { id: "8700", code: "OR", apiPropertyId: null, name: "Orlando OBT", county: "Orange", active: true },
+  { id: "8700", code: "OR", apiPropertyId: "210971", name: "Orlando OBT", county: "Orange", active: true },
 ];
 
 export const PILOT_PROPERTY = PROPERTIES.find((p) => p.pilot)!;
