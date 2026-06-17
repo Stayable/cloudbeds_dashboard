@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const PRESETS: { key: string; label: string }[] = [
-  { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
   { key: "last7", label: "Last 7 days" },
   { key: "last30", label: "Last 30 days" },
