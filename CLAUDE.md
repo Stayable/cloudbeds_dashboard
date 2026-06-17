@@ -85,8 +85,11 @@ Cloudbeds API
 3. **Read-only.** This app never writes to Cloudbeds.
 4. Cache API responses server-side (short TTL, e.g. 5–15 min) to stay within
    Cloudbeds rate limits and keep the page fast.
-5. Consider Vercel password protection or an unguessable URL even though login
-   is out of scope — public revenue data is sensitive.
+5. **PIN gate** (decided): no full login, but access is gated by a PIN stored in
+   a Vercel env var. A server-side check sets an httpOnly cookie. Free, no DB.
+6. **No database.** Read live from Cloudbeds + cache server-side. Neon/Postgres
+   not needed. Add Vercel KV later only if we persist rotating tokens or
+   historical time-series (not required with the static API key).
 
 ---
 
@@ -112,9 +115,31 @@ range, not separate API calls.
   period) — nice-to-have, confirm availability.
 
 ### API notes
-- Auth: OAuth 2.0 (preferred) or API key. **Pending: Kyle to confirm the exact
-  scopes/permissions Cloudbeds offers** before we finalize integration. Likely
-  needs read scopes for dashboard, reservations, rooms, and hotel/property info.
+- **Auth: API key (scoped key set)** — chosen over OAuth. No redirect URI, no
+  token rotation, no extra storage. Server-to-server, ideal for a BI dashboard.
+  (OAuth's redirect-URI flow was the alternative; not used.)
+- **Scope rule: Read-only, aggregate-only, no guest scopes.** Least privilege —
+  do not even request guest data; it's the technical guardrail behind §5 rule 2.
+
+  **Scopes to enable (Read only):**
+  - Data Insights Occupancy — occupancy %, ADR, RevPAR, rooms sold/available
+  - Dashboard — today's arrivals / departures / in-house / stayovers
+  - Hotel — property name, inventory, metadata
+  - Room — room counts / total inventory
+  - Roomblock — out-of-order / blocked rooms
+  - Data Insights Reservations — reservation aggregates, pace/pickup
+  - Data Insights Financial Transactions — revenue
+  - Reservation — backstop for arrival/departure counts
+  - *(optional)* Data Insights Invoices, Data Insights Payments, Rate,
+    Marketsegment
+
+  **Never enable:** Guest, Data Insights Guests (PII); any Write or Delete;
+  Door Lock Key, Housekeeping, Night Audit, Communication, User, etc.
+
+- **Key scoping**: confirm whether the key is per-property or covers all 6 active
+  properties. Pilot (Davenport 44199) can start with a single-property key; the
+  portfolio view needs multi-property access or one key per property.
+- Store the key in a Vercel env var (e.g. `CLOUDBEDS_API_KEY`). Server-side only.
 - Verify endpoint names and field shapes against current Cloudbeds API docs at
   build time — do not assume field names from memory.
 

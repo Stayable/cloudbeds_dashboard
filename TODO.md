@@ -8,11 +8,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 - [?] **URL**: confirm `dashboard.rentstayable.com` (recommended) vs.
       `rentstayable.com/dashboard`. Affects DNS + Vercel config.
-- [?] **Public access posture**: fully public, unguessable URL, or Vercel
-      password protection? (Revenue data is sensitive — see CLAUDE.md §5.)
-- [ ] **Cloudbeds API permissions**: Kyle to share the scope/permission options.
-      Confirm read scopes for dashboard, reservations, rooms, property info.
-- [ ] **Auth method**: OAuth 2.0 client credentials vs. API key — pick one.
+- [x] **Public access posture**: PIN gate via Vercel env var + httpOnly cookie
+      (no full login, no DB). See CLAUDE.md §5.
+- [x] **Auth method**: API key (scoped key set) — chosen over OAuth. No redirect
+      URI needed.
+- [~] **Cloudbeds API key**: create key with Read-only scopes per CLAUDE.md §6
+      (Data Insights Occupancy/Reservations/Financial, Dashboard, Hotel, Room,
+      Roomblock, Reservation). No guest scopes, no write/delete.
+- [ ] **Key scoping**: confirm key covers all 6 active properties vs. per-property.
 - [ ] **Active properties**: confirm which **6 of 8** are live in Cloudbeds and
       get exact property IDs verified.
 - [ ] **Pilot scope**: confirm Davenport (44199) as the first property to wire.
