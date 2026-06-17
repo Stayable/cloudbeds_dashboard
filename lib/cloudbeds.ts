@@ -1,11 +1,14 @@
 // Server-side Cloudbeds API client. NEVER import this from a client component.
-// The API key lives in a server-only env var and must never reach the browser
+// API keys live in server-only env vars and must never reach the browser
 // (CLAUDE.md §5 rule 1). This module is read-only — it never writes to Cloudbeds.
 //
 // Auth (verified against Cloudbeds docs 2026-06-18):
 //   Base URL : https://hotels.cloudbeds.com/api/v1.3
 //   Header   : Authorization: Bearer cbat_...   (alt: x-api-key: cbat_...)
-//   Scope    : the current key is Davenport (44199) only — per-property.
+//   Scope    : one scoped key per property. Each key resolves its own property,
+//              so we do NOT pass propertyID. Env var: CLOUDBEDS_API_KEY_<CODE>.
+
+import { PROPERTIES, type Property } from "@/config/properties";
 
 const BASE_URL = "https://hotels.cloudbeds.com/api/v1.3";
 
@@ -17,35 +20,30 @@ export type CloudbedsResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; status: number; error: string; body?: unknown };
 
-function getApiKey(): string | null {
-  const key = process.env.CLOUDBEDS_API_KEY;
-  return key && key.trim().length > 0 ? key.trim() : null;
+/** Read a property's scoped key from env. Davenport keeps a legacy fallback. */
+export function readKey(code: string): string | null {
+  const direct = process.env[`CLOUDBEDS_API_KEY_${code}`];
+  if (direct && direct.trim().length > 0) return direct.trim();
+  // Migration cushion: Davenport may still use the original unsuffixed var.
+  if (code === "DP") {
+    const legacy = process.env.CLOUDBEDS_API_KEY;
+    if (legacy && legacy.trim().length > 0) return legacy.trim();
+  }
+  return null;
 }
 
 async function cbGet<T = unknown>(
+  apiKey: string,
   path: string,
   params: Record<string, string> = {},
 ): Promise<CloudbedsResult<T>> {
-  const key = getApiKey();
-  if (!key) {
-    return {
-      ok: false,
-      status: 0,
-      error:
-        "CLOUDBEDS_API_KEY is not set. Add it to .env.local (local) or Vercel env (deployed). Server-side only — no NEXT_PUBLIC_ prefix.",
-    };
-  }
-
   const url = new URL(`${BASE_URL}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
   let res: Response;
   try {
     res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${key}`,
-        Accept: "application/json",
-      },
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
       next: { revalidate: REVALIDATE_SECONDS },
     });
   } catch (e) {
@@ -113,23 +111,29 @@ export type DashboardData = {
   capacity: number;
 };
 
-/**
- * Properties this API key can access, with their real Cloudbeds property IDs.
- * Source of truth for the property ID — do not assume it from config (the
- * "None of the included property id's match" error means the passed ID was
- * wrong; a single-property key resolves its own property from the token).
- */
-export function getHotels() {
-  return cbGet<Hotel[]>(`/getHotels`);
+/** Properties this key can access (use to verify a property's real API ID). */
+export function getHotels(apiKey: string) {
+  return cbGet<Hotel[]>(apiKey, `/getHotels`);
 }
 
-/**
- * Current operating snapshot for a property (occupancy, arrivals/departures,
- * in-house, etc.). For a single-property key, omit `propertyID` and let the
- * token resolve its own property — passing a mismatched ID errors. Field shapes
- * are intentionally untyped; verify against the live response before typing the
- * UI (CLAUDE.md §6).
- */
-export function getDashboard(propertyID?: string) {
-  return cbGet<DashboardData>(`/getDashboard`, propertyID ? { propertyID } : {});
+/** Current operating snapshot. Key resolves its own property — no propertyID. */
+export function getDashboard(apiKey: string) {
+  return cbGet<DashboardData>(apiKey, `/getDashboard`);
+}
+
+export type PropertyDashboard = {
+  property: Property;
+  configured: boolean; // a key is set for this property
+  result: CloudbedsResult<DashboardData> | null;
+};
+
+/** Fetch every configured property's dashboard in parallel. */
+export async function getPortfolio(): Promise<PropertyDashboard[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyDashboard> => {
+      const key = readKey(property.code);
+      if (!key) return { property, configured: false, result: null };
+      return { property, configured: true, result: await getDashboard(key) };
+    }),
+  );
 }
