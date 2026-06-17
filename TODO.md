@@ -6,10 +6,11 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > **All 8 properties wired** with per-property keys (CLOUDBEDS_API_KEY_<CODE>); all
 > API propertyIDs verified (see config/properties.ts). One-page portfolio view:
 > aggregate occupancy + ranked current-occupancy strip + clickable per-property
-> tabs. Open items, priority order: (1) **PIN gate** — URL is still public
-> (CLAUDE.md §5 rule 5); (2) **ADR/RevPAR/revenue via Data Insights**; (3) remove
-> or gate /api/diagnostics; (4) daily/weekly/monthly toggle; (5) verify numbers
-> vs Cloudbeds UI; (6) custom domain dashboard.rentstayable.com.
+> tabs. **PIN gate is live** (DASHBOARD_PIN set in Vercel; gates app +
+> /api/diagnostics). Open items, priority order: (1) **ADR/RevPAR/revenue via
+> Data Insights**; (2) daily/weekly/monthly toggle; (3) verify numbers vs
+> Cloudbeds UI; (4) custom domain dashboard.rentstayable.com; (5) optionally
+> remove /api/diagnostics now that the ID map is complete.
 >
 > Codes: DP Davenport · LL Lakeland · KE Kissimmee East · KW Kissimmee West ·
 > JW Jacksonville West · JN Jacksonville North (usually 0 occ) · SA St. Augustine
@@ -82,10 +83,11 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## Phase 5 — Deploy
 
-- [ ] Set env vars in Vercel (server-side secrets).
-- [ ] Deploy to Vercel.
-- [ ] Apply chosen access posture (password protection / unguessable URL).
-- [ ] Wire DNS for chosen URL.
+- [x] Set env vars in Vercel (per-property keys + DASHBOARD_PIN).
+- [x] Deploy to Vercel (cloudbeds-dashboard-jade.vercel.app).
+- [x] Access posture: PIN gate (middleware + httpOnly cookie); also gates
+      /api/diagnostics. Active when DASHBOARD_PIN is set.
+- [ ] Wire DNS for dashboard.rentstayable.com.
 - [ ] Smoke test: data loads, no PII exposed, no secrets in client bundle.
 
 ## Phase 6 — Hardening
