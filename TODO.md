@@ -6,11 +6,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > **All 8 properties wired** with per-property keys (CLOUDBEDS_API_KEY_<CODE>); all
 > API propertyIDs verified (see config/properties.ts). One-page portfolio view:
 > aggregate occupancy + ranked current-occupancy strip + clickable per-property
-> tabs. **PIN gate is live** (DASHBOARD_PIN set in Vercel; gates app +
-> /api/diagnostics). Open items, priority order: (1) **ADR/RevPAR/revenue via
-> Data Insights**; (2) daily/weekly/monthly toggle; (3) verify numbers vs
-> Cloudbeds UI; (4) custom domain dashboard.rentstayable.com; (5) optionally
-> remove /api/diagnostics now that the ID map is complete.
+> tabs. **PIN gate live**. **Data Insights period view live** (occupancy/ADR/
+> RevPAR by date range; presets + custom; per-property table + portfolio summary).
+> Discovery endpoints (/api/insights-probe, /api/diagnostics) removed. Open items:
+> (1) verify DI numbers vs Cloudbeds UI; (2) exact revenue (DI aggregation key —
+> ask Cloudbeds support, or use Finances dataset id 1); (3) custom domain
+> dashboard.rentstayable.com; (4) optional: revenue-weighted period ADR/occ,
+> daily breakdown chart. DI query shape recorded in memory data-insights-occupancy.
 >
 > Codes: DP Davenport · LL Lakeland · KE Kissimmee East · KW Kissimmee West ·
 > JW Jacksonville West · JN Jacksonville North (usually 0 occ) · SA St. Augustine
@@ -66,9 +68,12 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 - [x] Daily occupancy for Davenport (live from getDashboard: % occupied, rooms
       occupied/capacity, in-house, arrivals/departures, stayovers, blocked, etc.).
-- [ ] Daily/weekly/monthly toggle (weekly & monthly aggregate daily data).
+- [x] Date-range period view via Data Insights (dataset 7): occupancy/ADR/RevPAR
+      by day; presets (Yesterday/Last 7/Last 30/This month) + custom From/To,
+      Eastern. Portfolio summary + per-property table.
+- [x] ADR / RevPAR live (Data Insights). Revenue = est. (RevPAR × room count) —
+      exact revenue needs a DI aggregation key not in public docs (follow-up).
 - [ ] Verify numbers against Cloudbeds UI for the same dates.
-- [ ] ADR / RevPAR / revenue via Data Insights endpoints (not in getDashboard).
 
 ## Phase 4 — Portfolio status metrics
 
