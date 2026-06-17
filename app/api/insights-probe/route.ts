@@ -84,8 +84,8 @@ export async function GET(req: Request) {
       group_rows: [{ cdf: { column: "stay_date" }, modifier: "day" }],
       filters: {
         and: [
-          { cdf: { column: "stay_date" }, operator: "greater_than_equal", value: "2026-06-10" },
-          { cdf: { column: "stay_date" }, operator: "less_than_equal", value: "2026-06-16" },
+          { cdf: { column: "stay_date" }, operator: "greater_than_or_equal", value: "2026-06-10" },
+          { cdf: { column: "stay_date" }, operator: "less_than_or_equal", value: "2026-06-16" },
         ],
       },
       settings: { totals: false, details: false },
