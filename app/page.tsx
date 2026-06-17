@@ -1,4 +1,5 @@
-import { type PropertyDashboard, getPortfolio } from "@/lib/cloudbeds";
+import PropertyTabs from "@/components/PropertyTabs";
+import { getPortfolio } from "@/lib/cloudbeds";
 
 // Render per-request so runtime env vars (CLOUDBEDS_API_KEY_*) are always read
 // live — upstream Cloudbeds calls are still cached 10 min (Next data cache).
@@ -6,77 +7,6 @@ export const dynamic = "force-dynamic";
 
 function pct(n: number) {
   return `${n.toFixed(1)}%`;
-}
-
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-medium text-slate-900">{value}</span>
-    </div>
-  );
-}
-
-function PropertyCard({ pd }: { pd: PropertyDashboard }) {
-  const { property, configured, result } = pd;
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-base font-semibold text-slate-900">{property.name}</h3>
-        <span className="text-xs text-slate-400">
-          {property.code} · ID {property.id}
-        </span>
-      </div>
-      <p className="text-xs text-slate-400">{property.county} County</p>
-
-      {!configured ? (
-        <p className="mt-4 rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-400">
-          Awaiting key
-          <br />
-          <code className="text-xs">CLOUDBEDS_API_KEY_{property.code}</code>
-        </p>
-      ) : result && result.ok ? (
-        (() => {
-          const d = result.data;
-          return (
-            <>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-slate-900">
-                  {pct(d.percentageOccupied)}
-                </span>
-                <span className="text-xs text-slate-500">
-                  {d.roomsOccupied}/{d.capacity} rooms
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-accent"
-                  style={{ width: `${Math.min(100, d.percentageOccupied)}%` }}
-                />
-              </div>
-              <div className="mt-4 space-y-1.5">
-                <StatRow label="In-house (guests)" value={`${d.inHouse} (${d.guestsInHouse})`} />
-                <StatRow label="Arrivals / Departures" value={`${d.arrivals} / ${d.departures}`} />
-                <StatRow label="Stayovers" value={String(d.stayovers)} />
-                <StatRow
-                  label="Blocked / OOO"
-                  value={`${d.roomsBlocked} / ${d.roomBlocks.out_of_service}`}
-                />
-              </div>
-            </>
-          );
-        })()
-      ) : (
-        <div className="mt-4 rounded-lg bg-amber-50 px-3 py-3 text-xs text-amber-900">
-          <p className="font-medium">
-            {result && result.status ? `HTTP ${result.status}` : "Error"}
-          </p>
-          <p className="mt-0.5">{result ? result.error : "Unknown error"}</p>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default async function DashboardPage() {
@@ -94,6 +24,13 @@ export default async function DashboardPage() {
 
   const configuredCount = portfolio.filter((p) => p.configured).length;
 
+  // Rank all properties by current occupancy (reporting first, highest first).
+  const occRanked = [...portfolio].sort((a, b) => {
+    const ao = a.result?.ok ? a.result.data.percentageOccupied : -1;
+    const bo = b.result?.ok ? b.result.data.percentageOccupied : -1;
+    return bo - ao;
+  });
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       {/* Header */}
@@ -109,9 +46,9 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {/* Portfolio summary */}
+      {/* Portfolio aggregate occupancy */}
       {portfolioOcc !== null && (
-        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:mb-8 sm:p-6">
+        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Portfolio Occupancy
           </p>
@@ -129,20 +66,56 @@ export default async function DashboardPage() {
               style={{ width: `${Math.min(100, portfolioOcc)}%` }}
             />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatRow label="In-house" value={String(totalInHouse)} />
-            <StatRow label="Arrivals" value={String(totalArrivals)} />
-            <StatRow label="Departures" value={String(totalDepartures)} />
-            <StatRow label="Blocked" value={String(totalBlocked)} />
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-slate-500">In-house</span>
+              <span className="font-medium text-slate-900">{totalInHouse}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-slate-500">Arrivals</span>
+              <span className="font-medium text-slate-900">{totalArrivals}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-slate-500">Departures</span>
+              <span className="font-medium text-slate-900">{totalDepartures}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-slate-500">Blocked</span>
+              <span className="font-medium text-slate-900">{totalBlocked}</span>
+            </div>
           </div>
         </section>
       )}
 
-      {/* Per-property grid */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {portfolio.map((pd) => (
-          <PropertyCard key={pd.property.code} pd={pd} />
-        ))}
+      {/* Current occupancy by property — quick glance, ranked */}
+      <section className="mb-6 sm:mb-8">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+          Current occupancy by property
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {occRanked.map((pd) => {
+            const occ = pd.result?.ok ? pd.result.data.percentageOccupied : null;
+            return (
+              <div
+                key={pd.property.code}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+              >
+                <p className="truncate text-xs text-slate-500">{pd.property.name}</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {occ !== null ? pct(occ) : "—"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Individual property data — clickable tabs */}
+      <section>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+          Property detail
+        </p>
+        <PropertyTabs portfolio={portfolio} />
       </section>
 
       <p className="mt-6 text-xs text-slate-400">
