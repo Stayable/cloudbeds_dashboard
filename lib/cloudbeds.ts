@@ -137,3 +137,103 @@ export async function getPortfolio(): Promise<PropertyDashboard[]> {
     }),
   );
 }
+
+// --- Data Insights (date-ranged occupancy / ADR / RevPAR) -------------------
+// Confirmed query shape (see memory data-insights-occupancy). occupancy/adr/
+// revpar auto-aggregate; counts/currency are not requested (no aggregation key
+// in public docs) — revenue is derived as RevPAR × capacity by the caller.
+
+const DI_BASE = "https://api.cloudbeds.com/datainsights/v1.1";
+
+export type OccupancyRow = {
+  date: string; // YYYY-MM-DD
+  occupancy: number; // %
+  adr: number;
+  revpar: number;
+};
+
+/** Daily occupancy/ADR/RevPAR for a property over [start, end] (YYYY-MM-DD). */
+export async function getInsightsOccupancy(
+  apiKey: string,
+  apiPropertyId: string,
+  start: string,
+  end: string,
+): Promise<CloudbedsResult<OccupancyRow[]>> {
+  const body = {
+    property_ids: [Number(apiPropertyId)],
+    dataset_id: 7,
+    columns: [
+      { cdf: { column: "occupancy" } },
+      { cdf: { column: "adr" } },
+      { cdf: { column: "revpar" } },
+    ],
+    group_rows: [{ cdf: { column: "stay_date" }, modifier: "day" }],
+    filters: {
+      and: [
+        { cdf: { column: "stay_date" }, operator: "greater_than_or_equal", value: start },
+        { cdf: { column: "stay_date" }, operator: "less_than_or_equal", value: end },
+      ],
+    },
+    settings: { totals: false, details: false },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${DI_BASE}/reports/query/data?mode=Run`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-PROPERTY-ID": apiPropertyId,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: `Network error reaching Data Insights: ${String(e)}` };
+  }
+
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* keep raw */
+  }
+  if (!res.ok) {
+    return { ok: false, status: res.status, error: `Data Insights HTTP ${res.status}`, body: parsed };
+  }
+
+  const records = (parsed as { records?: Record<string, Record<string, { aggregated?: number }>> })?.records ?? {};
+  const agg = (cell?: { aggregated?: number }) =>
+    typeof cell?.aggregated === "number" ? cell.aggregated : 0;
+  const rows: OccupancyRow[] = Object.keys(records)
+    .sort()
+    .map((date) => {
+      const r = records[date] ?? {};
+      return { date, occupancy: agg(r.occupancy), adr: agg(r.adr), revpar: agg(r.revpar) };
+    });
+  return { ok: true, data: rows };
+}
+
+export type PropertyInsights = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<OccupancyRow[]> | null;
+};
+
+/** Date-ranged occupancy for every configured property, in parallel. */
+export async function getPortfolioInsights(start: string, end: string): Promise<PropertyInsights[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyInsights> => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return { property, configured: false, result: null };
+      return {
+        property,
+        configured: true,
+        result: await getInsightsOccupancy(key, property.apiPropertyId, start, end),
+      };
+    }),
+  );
+}
