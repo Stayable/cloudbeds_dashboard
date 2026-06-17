@@ -2,13 +2,18 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Phases 2–3 live. Next.js app deployed on Vercel,
-> server-side Cloudbeds client working, **Davenport showing live getDashboard
-> metrics** (occupancy %, rooms, in-house, arrivals/departures, blocked, etc.).
-> Davenport API propertyID confirmed **318197** (≠ 44199 business code). Next:
-> (1) wire **ADR/RevPAR/revenue via Data Insights** endpoints; (2) daily/weekly/
-> monthly toggle; (3) verify numbers vs Cloudbeds UI; (4) PIN gate before sharing
-> the URL publicly (CLAUDE.md §5 rule 5).
+> **Pickup (next CLI session):** Live on Vercel at cloudbeds-dashboard-jade.vercel.app.
+> **All 8 properties wired** with per-property keys (CLOUDBEDS_API_KEY_<CODE>); all
+> API propertyIDs verified (see config/properties.ts). One-page portfolio view:
+> aggregate occupancy + ranked current-occupancy strip + clickable per-property
+> tabs. Open items, priority order: (1) **PIN gate** — URL is still public
+> (CLAUDE.md §5 rule 5); (2) **ADR/RevPAR/revenue via Data Insights**; (3) remove
+> or gate /api/diagnostics; (4) daily/weekly/monthly toggle; (5) verify numbers
+> vs Cloudbeds UI; (6) custom domain dashboard.rentstayable.com.
+>
+> Codes: DP Davenport · LL Lakeland · KE Kissimmee East · KW Kissimmee West ·
+> JW Jacksonville West · JN Jacksonville North (usually 0 occ) · SA St. Augustine
+> · OR Orlando OBT.
 >
 > **Cloudbeds auth reference (verified 06/18/26):**
 > - Base URL: `https://hotels.cloudbeds.com/api/v1.3`
@@ -66,13 +71,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## Phase 4 — Portfolio status metrics
 
-- [ ] Per-property + portfolio occupancy %.
-- [ ] Rooms sold / available / out-of-order / total.
-- [ ] ADR and RevPAR.
-- [ ] Today: arrivals / departures / in-house / stayovers (counts only).
-- [ ] Period revenue.
+- [x] Per-property + portfolio occupancy % (capacity-weighted aggregate).
+- [x] Rooms sold / out-of-order / total (per property + tabs).
+- [ ] ADR and RevPAR — via Data Insights (not in getDashboard).
+- [x] Today: arrivals / departures / in-house / stayovers (counts only).
+- [ ] Period revenue — via Data Insights.
 - [ ] Pace/pickup (if available — confirm).
-- [ ] Expand from Davenport to the other active properties.
+- [x] Expanded to all 8 properties — per-property keys (CLOUDBEDS_API_KEY_<CODE>),
+      all API propertyIDs verified. One-page portfolio view + per-property tabs.
 
 ## Phase 5 — Deploy
 
