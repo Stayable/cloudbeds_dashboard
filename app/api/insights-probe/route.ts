@@ -72,8 +72,9 @@ export async function GET(req: Request) {
     const requestBody = {
       property_ids: [Number(pid)],
       dataset_id: 7,
+      // stay_date lives in group_rows (the row dimension) — must NOT also be a
+      // column, or Cloudbeds rejects it as a duplicate.
       columns: [
-        { cdf: { column: "stay_date" } },
         { cdf: { column: "rooms_sold" } },
         { cdf: { column: "capacity_count" } },
         { cdf: { column: "occupancy" } },
