@@ -63,8 +63,55 @@ async function cbGet<T = unknown>(
   if (!res.ok) {
     return { ok: false, status: res.status, error: `Cloudbeds returned HTTP ${res.status}`, body: parsed };
   }
+
+  // Cloudbeds wraps every response in a { success, data, message } envelope and
+  // returns success:false WITH HTTP 200 for logical errors (e.g. property-ID
+  // mismatch). Treat success:false as an error, and unwrap the inner `data`.
+  if (parsed && typeof parsed === "object" && "success" in parsed) {
+    const env = parsed as { success: boolean; data?: unknown; message?: string };
+    if (!env.success) {
+      return { ok: false, status: res.status, error: env.message ?? "Cloudbeds returned success:false", body: parsed };
+    }
+    return { ok: true, data: env.data as T };
+  }
+
   return { ok: true, data: parsed as T };
 }
+
+/** Property record from getHotels (subset of fields we rely on). */
+export type Hotel = {
+  propertyID: string;
+  organizationID: string;
+  propertyName: string;
+  propertyTimezone: string;
+  propertyCurrency?: { currencyCode: string; currencySymbol: string; currencyPosition: string };
+};
+
+/**
+ * getDashboard response (verified against the live Davenport response
+ * 2026-06-18). Note: `arrivals`/`departures` come back as STRINGS. ADR/RevPAR/
+ * revenue are NOT in this endpoint — those need the Data Insights endpoints.
+ */
+export type DashboardData = {
+  property_now: string;
+  timezone: string;
+  gmt_offset_hours: number;
+  roomsOccupied: number;
+  percentageOccupied: number;
+  arrivals: string;
+  departures: string;
+  inHouse: number;
+  guestsInHouse: number;
+  arrivalsConfirmed: number;
+  departuresConfirmed: number;
+  bookings: number;
+  stayovers: number;
+  cancellations: number;
+  roomsBlocked: number;
+  roomBlocks: { blocked_dates: number; out_of_service: number };
+  percentageBlocked: number;
+  capacity: number;
+};
 
 /**
  * Properties this API key can access, with their real Cloudbeds property IDs.
@@ -73,7 +120,7 @@ async function cbGet<T = unknown>(
  * wrong; a single-property key resolves its own property from the token).
  */
 export function getHotels() {
-  return cbGet(`/getHotels`);
+  return cbGet<Hotel[]>(`/getHotels`);
 }
 
 /**
@@ -84,5 +131,5 @@ export function getHotels() {
  * UI (CLAUDE.md §6).
  */
 export function getDashboard(propertyID?: string) {
-  return cbGet(`/getDashboard`, propertyID ? { propertyID } : {});
+  return cbGet<DashboardData>(`/getDashboard`, propertyID ? { propertyID } : {});
 }
