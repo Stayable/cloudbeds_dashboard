@@ -64,7 +64,9 @@ export async function GET(req: Request) {
 
   // --- Candidate occupancy query (POST) ---
   if (query) {
-    const endpoint = `${DI_BASE}/reports/query/data`;
+    // `mode` is a URL query-string param (webargs error path was query.mode),
+    // not a body field.
+    const endpoint = `${DI_BASE}/reports/query/data?mode=Run`;
     const requestBody = {
       property_ids: [Number(pid)],
       dataset_id: 7,
@@ -86,7 +88,6 @@ export async function GET(req: Request) {
         ],
       },
       settings: { totals: false },
-      query: { mode: "Run" },
     };
     const result = await call("POST", endpoint, key, pid, requestBody);
     return NextResponse.json(
