@@ -2,19 +2,20 @@ import { NextResponse } from "next/server";
 import { PILOT_PROPERTY } from "@/config/properties";
 import { readKey } from "@/lib/cloudbeds";
 
-// Probe the Data Insights API for the pilot property (Davenport). This is a
-// discovery step for the daily/weekly/monthly occupancy toggle: it confirms
-// whether the key/plan can reach Data Insights at all, and lists the available
-// datasets (so we can find the Occupancy dataset_id + its columns). Gated by the
-// PIN middleware. Remove once Data Insights is wired or ruled out.
+// Probe the Data Insights API for the pilot property (Davenport). Discovery step
+// for the daily/weekly/monthly occupancy toggle. Confirmed: access OK, Occupancy
+// dataset = id 7 (id 4 is the unsupported legacy one). Gated by PIN middleware.
 //
-// Endpoint per docs: GET https://api.cloudbeds.com/datainsights/v1.1/datasets
+//   GET /api/insights-probe            -> lists datasets
+//   GET /api/insights-probe?dataset=7  -> dataset 7 detail (columns / CDFs)
+//
+// Base: https://api.cloudbeds.com/datainsights/v1.1
 // Headers: Authorization: Bearer <key>, X-PROPERTY-ID: <apiPropertyId>
 export const dynamic = "force-dynamic";
 
 const DI_BASE = "https://api.cloudbeds.com/datainsights/v1.1";
 
-export async function GET() {
+export async function GET(req: Request) {
   const property = PILOT_PROPERTY; // Davenport, API propertyID 318197
   const key = readKey(property.code);
   if (!key) {
@@ -24,7 +25,8 @@ export async function GET() {
     return NextResponse.json({ error: "No apiPropertyId for pilot" }, { status: 400 });
   }
 
-  const endpoint = `${DI_BASE}/datasets`;
+  const dataset = new URL(req.url).searchParams.get("dataset");
+  const endpoint = dataset ? `${DI_BASE}/datasets/${dataset}` : `${DI_BASE}/datasets`;
   let result: Record<string, unknown>;
   try {
     const res = await fetch(endpoint, {
