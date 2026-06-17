@@ -67,27 +67,28 @@ export async function GET(req: Request) {
     // `mode` is a URL query-string param (webargs error path was query.mode),
     // not a body field.
     const endpoint = `${DI_BASE}/reports/query/data?mode=Run`;
+    // Iter: drop `metric` (measures aggregate via group_rows); filters use an
+    // `{and:[...]}` combinator; settings requires `details`.
     const requestBody = {
       property_ids: [Number(pid)],
       dataset_id: 7,
       columns: [
         { cdf: { column: "stay_date" } },
-        { cdf: { column: "rooms_sold" }, metric: "sum" },
-        { cdf: { column: "capacity_count" }, metric: "sum" },
-        { cdf: { column: "occupancy" }, metric: "sum" },
-        { cdf: { column: "adr" }, metric: "sum" },
-        { cdf: { column: "revpar" }, metric: "sum" },
-        { cdf: { column: "room_revenue" }, metric: "sum" },
+        { cdf: { column: "rooms_sold" } },
+        { cdf: { column: "capacity_count" } },
+        { cdf: { column: "occupancy" } },
+        { cdf: { column: "adr" } },
+        { cdf: { column: "revpar" } },
+        { cdf: { column: "room_revenue" } },
       ],
       group_rows: [{ cdf: { column: "stay_date" }, modifier: "day" }],
       filters: {
-        operator: "and",
-        filters: [
+        and: [
           { cdf: { column: "stay_date" }, operator: "greater_than_equal", value: "2026-06-10" },
           { cdf: { column: "stay_date" }, operator: "less_than_equal", value: "2026-06-16" },
         ],
       },
-      settings: { totals: false },
+      settings: { totals: false, details: false },
     };
     const result = await call("POST", endpoint, key, pid, requestBody);
     return NextResponse.json(
