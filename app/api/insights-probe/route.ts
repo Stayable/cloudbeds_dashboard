@@ -76,12 +76,12 @@ export async function GET(req: Request) {
       // explicit aggregation — trying cdf.modifier:"sum" (same key group_rows
       // uses for dates) to recover rooms_sold/capacity/room_revenue.
       columns: [
-        { cdf: { column: "rooms_sold" }, modifier: "sum" },
-        { cdf: { column: "capacity_count" }, modifier: "sum" },
+        { cdf: { column: "rooms_sold" }, aggregation: "sum" },
+        { cdf: { column: "capacity_count" }, aggregation: "sum" },
         { cdf: { column: "occupancy" } },
         { cdf: { column: "adr" } },
         { cdf: { column: "revpar" } },
-        { cdf: { column: "room_revenue" }, modifier: "sum" },
+        { cdf: { column: "room_revenue" }, aggregation: "sum" },
       ],
       group_rows: [{ cdf: { column: "stay_date" }, modifier: "day" }],
       filters: {
