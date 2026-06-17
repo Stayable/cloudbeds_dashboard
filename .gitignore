@@ -1,0 +1,17 @@
+# Secrets — never commit Cloudbeds credentials
+.env
+.env.local
+.env*.local
+
+# Node / Next.js (for the build phase)
+node_modules/
+.next/
+out/
+dist/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/

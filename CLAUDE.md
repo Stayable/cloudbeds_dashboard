@@ -1,0 +1,149 @@
+# CLAUDE.md — Cloudbeds Dashboard
+
+Guidance for Claude Code working in this repository. Read this first.
+
+---
+
+## 1. What this is
+
+A **public, view-only dashboard** that surfaces Cloudbeds operating data for the
+Stayable portfolio. Primary view is **occupancy**, with supporting status
+metrics (see §6). Deploys to **Vercel**. No login — purely for viewing.
+
+- Owner: RISE8 Companies / Stayable (Stayable Fund I — SFI).
+- Pilot property: **Davenport (44199)**.
+- Target URL: `dashboard.rentstayable.com` (recommended subdomain) or
+  `rentstayable.com/dashboard` (path via proxy). Decide before DNS step.
+
+This is the **planning/scaffolding stage**. Do not build the app until the
+checklist in `TODO.md` Phase 0 is signed off.
+
+---
+
+## 2. Company context
+
+RISE8 Companies is a vertically integrated real estate investment and operations
+firm (Boca Raton, FL) that owns and operates the **Stayable** extended-stay hotel
+brand — 8 Florida properties, 6 currently active in Cloudbeds.
+
+All work product reflects this institutional context. Be direct, dense, no
+fluff. Never fabricate figures, dates, or approvals — if a number is unverified,
+mark it unverified.
+
+---
+
+## 3. Properties (reference IDs on every property-specific output)
+
+| Property            | Cloudbeds Property ID | County     | Active in Cloudbeds |
+|---------------------|-----------------------|------------|---------------------|
+| Lakeland            | 4645                  | Polk       | confirm             |
+| Kissimmee East      | 2295                  | Osceola    | confirm             |
+| Kissimmee West      | 5399                  | Osceola    | confirm             |
+| Jacksonville West   | 6802                  | Duval      | confirm             |
+| Jacksonville North  | 812                   | Duval      | confirm             |
+| St. Augustine       | 2535                  | St. Johns  | confirm             |
+| Davenport           | 44199                 | Polk       | **pilot**           |
+| Orlando OBT         | 8700                  | Orange     | confirm             |
+
+> 8 properties total, 6 active. **Which 6 are active is unconfirmed** — verify
+> against Cloudbeds before wiring the property list. Start with Davenport (44199).
+
+The canonical list lives in code at `config/properties.ts` once built. Keep this
+table and that file in sync.
+
+---
+
+## 4. Tech stack
+
+- **Next.js** (App Router) — Vercel-native, supports server-side data fetching.
+- **Vercel** for hosting + env-var secret management + (optional) password
+  protection.
+- **Cloudbeds API** (OAuth 2.0 / API key) — called **server-side only**.
+- TypeScript. Keep dependencies minimal.
+
+---
+
+## 5. Architecture & security (non-negotiable)
+
+```
+Browser (public, no auth)
+   │  requests aggregated metrics only
+   ▼
+Next.js server (API routes / server components)
+   │  holds Cloudbeds credentials in Vercel env vars (server-side)
+   ▼
+Cloudbeds API
+```
+
+**Hard rules:**
+1. **Credentials never reach the browser.** Cloudbeds API key / OAuth tokens
+   live in Vercel environment variables and are used only in server code. No
+   `NEXT_PUBLIC_` prefix on any secret.
+2. **No guest PII on the public page — ever.** Expose aggregated metrics only
+   (occupancy %, room counts, ADR/RevPAR, arrivals/departures *counts*). No
+   guest names, no reservation-level detail.
+3. **Read-only.** This app never writes to Cloudbeds.
+4. Cache API responses server-side (short TTL, e.g. 5–15 min) to stay within
+   Cloudbeds rate limits and keep the page fast.
+5. Consider Vercel password protection or an unguessable URL even though login
+   is out of scope — public revenue data is sensitive.
+
+---
+
+## 6. Cloudbeds data — what we show
+
+### Occupancy cadence (answer to "what's possible")
+- **Daily** — native. Per-day occupancy from the dashboard/reservations
+  endpoints. This is the core view.
+- **Weekly** — computed by aggregating daily occupancy over a 7-day range.
+- **Monthly** — computed by aggregating daily occupancy over the month (and
+  month-to-date).
+
+All three are feasible; weekly/monthly are roll-ups of daily data over a date
+range, not separate API calls.
+
+### Metrics to surface (current status of the portfolio)
+- **Occupancy %** (per property + portfolio total), daily/weekly/monthly toggle.
+- **Rooms**: sold / available / out-of-order, total inventory.
+- **ADR** (Average Daily Rate) and **RevPAR** (Revenue per Available Room).
+- **Today's activity**: arrivals, departures, in-house, stayovers (counts only).
+- **Revenue** (period total).
+- **Pace / pickup** if exposed by the API (bookings on the books vs. prior
+  period) — nice-to-have, confirm availability.
+
+### API notes
+- Auth: OAuth 2.0 (preferred) or API key. **Pending: Kyle to confirm the exact
+  scopes/permissions Cloudbeds offers** before we finalize integration. Likely
+  needs read scopes for dashboard, reservations, rooms, and hotel/property info.
+- Verify endpoint names and field shapes against current Cloudbeds API docs at
+  build time — do not assume field names from memory.
+
+---
+
+## 7. File naming convention (RISE8 standard)
+
+Property-specific deliverables: `Title_PropertyID_MMDDYY`
+(e.g., `OccupancyReport_44199_061726`).
+
+**Exception:** standard tooling files keep their conventional names so they
+function correctly — `CLAUDE.md`, `TODO.md`, `package.json`, config files, the
+`.bat`/`.ps1` helper scripts. The convention applies to generated reports and
+investor/lender/legal outputs, not framework files.
+
+Final report/export outputs save to the user's OneDrive `/outputs` folder.
+
+---
+
+## 8. Dev workflow
+
+- Develop on branch **`claude/nifty-thompson-ts8zny`**. Create locally if
+  missing. Never push to another branch without explicit permission.
+- Commit with clear messages. Push with `git push -u origin <branch>`.
+- **Do not open a pull request unless explicitly asked.**
+- Repo scope is limited to `stayable/cloudbeds_dashboard`.
+
+## 9. Local dev (Windows, Kyle's machine)
+
+- Repo lives at `C:\Users\Kyle Estocapio\Git-Claude\cloudbeds_dashboard`.
+- `start-claude.bat` — pulls latest and launches Claude Code CLI.
+- `scripts/clone-repo.ps1` — one-time clone into `C:\Users\Kyle Estocapio\Git-Claude`.
