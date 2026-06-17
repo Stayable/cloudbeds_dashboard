@@ -4,12 +4,20 @@ import { useState } from "react";
 
 export type Daily = { date: string; occupancy: number };
 export type Live = {
+  roomsOccupied: number;
+  capacity: number;
   inHouse: number;
   guestsInHouse: number;
   arrivals: string;
+  arrivalsConfirmed: number;
   departures: string;
+  departuresConfirmed: number;
   stayovers: number;
   roomsBlocked: number;
+  outOfService: number;
+  percentageBlocked: number;
+  bookings: number;
+  cancellations: number;
 } | null;
 
 export type OccProperty = {
@@ -30,6 +38,16 @@ export type OccProperty = {
 
 function pct(n: number) {
   return `${n.toFixed(1)}%`;
+}
+
+function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{value}</p>
+      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    </div>
+  );
 }
 
 // Re-base occupancy onto effective (post-adjustment) capacity:
@@ -112,11 +130,25 @@ function Detail({ p }: { p: OccProperty }) {
       </section>
 
       {p.live && (
-        <p className="mt-3 text-xs text-slate-500">
-          <span className="font-medium text-slate-700">Live now (today):</span>{" "}
-          {p.live.inHouse} in-house ({p.live.guestsInHouse} guests) · {p.live.arrivals} arr ·{" "}
-          {p.live.departures} dep · {p.live.stayovers} stayovers · {p.live.roomsBlocked} blocked
-        </p>
+        <section className="mt-5">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            Today (live snapshot)
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <StatTile label="Rooms Occupied" value={String(p.live.roomsOccupied)} sub={`of ${p.live.capacity} total`} />
+            <StatTile label="In-House" value={String(p.live.inHouse)} sub={`${p.live.guestsInHouse} guests`} />
+            <StatTile label="Arrivals" value={String(p.live.arrivals)} sub={`${p.live.arrivalsConfirmed} confirmed`} />
+            <StatTile label="Departures" value={String(p.live.departures)} sub={`${p.live.departuresConfirmed} confirmed`} />
+            <StatTile label="Stayovers" value={String(p.live.stayovers)} />
+            <StatTile
+              label="Rooms Blocked"
+              value={String(p.live.roomsBlocked)}
+              sub={`${p.live.outOfService} OOO · ${pct(p.live.percentageBlocked)}`}
+            />
+            <StatTile label="Bookings (today)" value={String(p.live.bookings)} />
+            <StatTile label="Cancellations" value={String(p.live.cancellations)} />
+          </div>
+        </section>
       )}
     </>
   );

@@ -26,14 +26,23 @@ export default async function DashboardPage({
     const ins = insByCode.get(pd.property.code);
     const rows = ins?.result?.ok ? ins.result.data : [];
     const rawOcc = rows.length ? rows.reduce((s, r) => s + r.occupancy, 0) / rows.length : null;
-    const live = pd.result?.ok
+    const d = pd.result?.ok ? pd.result.data : null;
+    const live = d
       ? {
-          inHouse: pd.result.data.inHouse,
-          guestsInHouse: pd.result.data.guestsInHouse,
-          arrivals: pd.result.data.arrivals,
-          departures: pd.result.data.departures,
-          stayovers: pd.result.data.stayovers,
-          roomsBlocked: pd.result.data.roomsBlocked,
+          roomsOccupied: d.roomsOccupied,
+          capacity: d.capacity,
+          inHouse: d.inHouse,
+          guestsInHouse: d.guestsInHouse,
+          arrivals: d.arrivals,
+          arrivalsConfirmed: d.arrivalsConfirmed,
+          departures: d.departures,
+          departuresConfirmed: d.departuresConfirmed,
+          stayovers: d.stayovers,
+          roomsBlocked: d.roomsBlocked,
+          outOfService: d.roomBlocks.out_of_service,
+          percentageBlocked: d.percentageBlocked,
+          bookings: d.bookings,
+          cancellations: d.cancellations,
         }
       : null;
     return {
@@ -88,9 +97,9 @@ export default async function DashboardPage({
       <p className="mt-6 text-xs text-slate-400">
         Occupancy is the daily average over the selected range (Cloudbeds Data
         Insights). Aggregated metrics only · no guest PII · read-only · cached up
-        to 10 min. Note: per-property &ldquo;Live now&rdquo; counts are always
-        today&apos;s figures regardless of the range — flagged for later if we
-        want range-aware operational metrics.
+        to 10 min. Note: each property&apos;s &ldquo;Today (live snapshot)&rdquo;
+        cards are always today&apos;s figures regardless of the selected range —
+        flagged for later if we want range-aware operational metrics.
       </p>
     </main>
   );
