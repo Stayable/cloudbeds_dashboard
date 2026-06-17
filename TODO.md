@@ -2,6 +2,12 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Pickup (next CLI session):** Phase 0 access decisions are made and the
+> Cloudbeds API key is **created**. Next action is **Phase 2 — app skeleton**
+> (Next.js scaffold + server-side Cloudbeds client), wiring the **Davenport
+> (44199)** pilot first. Before coding, drop the API key into `.env.local` as
+> `CLOUDBEDS_API_KEY` and confirm whether the key is single-property or portfolio.
+
 ---
 
 ## Phase 0 — Decisions & access (do before building)
@@ -12,9 +18,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
       (no full login, no DB). See CLAUDE.md §5.
 - [x] **Auth method**: API key (scoped key set) — chosen over OAuth. No redirect
       URI needed.
-- [~] **Cloudbeds API key**: create key with Read-only scopes per CLAUDE.md §6
+- [x] **Cloudbeds API key**: created with Read-only scopes per CLAUDE.md §6
       (Data Insights Occupancy/Reservations/Financial, Dashboard, Hotel, Room,
-      Roomblock, Reservation). No guest scopes, no write/delete.
+      Roomblock, Reservation). No guest scopes, no write/delete. Key value to be
+      stored in `.env.local` / Vercel env as `CLOUDBEDS_API_KEY` — never committed.
 - [ ] **Key scoping**: confirm key covers all 6 active properties vs. per-property.
 - [ ] **Active properties**: confirm which **6 of 8** are live in Cloudbeds and
       get exact property IDs verified.

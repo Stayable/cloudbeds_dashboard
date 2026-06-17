@@ -15,8 +15,10 @@ metrics (see §6). Deploys to **Vercel**. No login — purely for viewing.
 - Target URL: `dashboard.rentstayable.com` (recommended subdomain) or
   `rentstayable.com/dashboard` (path via proxy). Decide before DNS step.
 
-This is the **planning/scaffolding stage**. Do not build the app until the
-checklist in `TODO.md` Phase 0 is signed off.
+**Current stage:** Phase 0 complete — access posture (PIN gate), auth (API key),
+and the read-only Cloudbeds key are all decided/created. **Next: Phase 2 app
+skeleton** (Next.js + server-side Cloudbeds client), Davenport (44199) pilot
+first. See `TODO.md` for the live checklist.
 
 ---
 
