@@ -10,8 +10,10 @@
 ## 1. Goal
 
 Extend the existing occupancy-first Cloudbeds dashboard from one view into
-three, each for a different audience, plus add a newly-feasible **Lease vs
-Transient** metric — all without opening Guest scope or adding an API key.
+three, each for a different audience; add a newly-feasible **Lease vs Transient**
+metric (no Guest scope, no new API key); and turn the public view into a
+**requirements-intake form** backed by a database (the sanctioned first use of
+persistence — see §6a), with a **feedback channel** for Rob on the exec view.
 
 | Route     | Audience                       | Gate                          |
 |-----------|--------------------------------|-------------------------------|
@@ -99,6 +101,10 @@ aggregation key not in public docs); only a `RevPAR × rooms` estimate is honest
 and we will not ship a labeled-estimate revenue figure to the CEO unless asked.
 Documented as a deferred item.
 
+4. **Feedback box** — a textarea where Rob can leave feedback on his dashboard.
+   Posts to `POST /api/feedback` → Neon (`source='exec-feedback'`). Exec-gated,
+   so no public abuse surface. Simple confirmation on submit.
+
 Aesthetic: IB-clean (dark headers, clean grid, no chartjunk), mobile-responsive.
 
 ---
@@ -131,21 +137,68 @@ in-house totals for Davenport. Adjust keyword lists if mismatched.
 
 ---
 
-## 6. Test `/test` (public, no PIN)
+## 6. Test `/test` (public, no PIN) — interactive intake form
 
-A **static showcase** of all ~100 catalog data points from
-`outputs/CloudbedsDataCatalog_Stayable_061926.xlsx`, each rendered with a
-**hardcoded SAMPLE value**, watermarked **"SAMPLE — not live data."**
+`/test` is an **intake form**, not just a showcase. Teams fill it out and submit
+to a database, replacing the need for live chats to gather requirements.
 
-- **No Cloudbeds calls.** Pure static render → no real data, no PII, safe to be
-  public with no PIN.
-- Purpose: teams browse the full metric menu and tell us what they need.
-- Catalog points are read from the xlsx at build time of the spec → enumerated
-  into a typed `config/catalog-sample.ts` (metric name, category, sample value,
-  format). Grouped by the catalog's categories.
-- Optional affordance: a visual "✓ I want this" toggle per metric (client-side
-  only, no backend) so teams can mark picks during a review session.
-- Mobile-responsive card/grid.
+- **Catalog as the selectable menu.** All ~100 catalog points from
+  `outputs/CloudbedsDataCatalog_Stayable_061926.xlsx`, enumerated into a typed
+  `config/catalog-sample.ts` (metric name, category, **SAMPLE value**, format),
+  grouped by category. Each metric shows its SAMPLE value (watermarked
+  "SAMPLE — not live data") **next to a checkbox**, so teams see what they're
+  picking. No Cloudbeds calls — pure static catalog + fake values.
+- **Form fields:**
+  - `name` (required)
+  - `role` (required, free text)
+  - `team` (required, select): **Crystal · Remote Property Managers ·
+    Property Managers & Attendants · Other** (free text if Other). Taxonomy is
+    explicitly revisitable after submissions land.
+  - `metrics` (multi-select over the catalog; ≥1 required)
+  - `notes` (optional free text)
+- **Soft 24-hour window:** a banner asks teams to submit within 24 hours. **No
+  hard cutoff** — the form stays open; nothing auto-closes.
+- **Submit → `POST /api/submit`** → row in Neon Postgres (see §6a).
+- Mobile-responsive card/grid; works with no auth.
+
+## 6a. Persistence (Neon Postgres) + submission/feedback APIs
+
+Reverses CLAUDE.md §6 "No database" — the sanctioned "later" trigger
+(persisting submissions). Storage is **Neon Postgres via the Vercel
+Marketplace**; connection string in a server-only env var (`DATABASE_URL` /
+`POSTGRES_URL`). Server-side only; never exposed to the browser.
+
+**One table, both sources:**
+
+```sql
+create table submissions (
+  id          bigserial primary key,
+  created_at  timestamptz not null default now(),
+  source      text not null,          -- 'team-intake' | 'exec-feedback'
+  name        text,
+  role        text,
+  team        text,
+  metrics     jsonb,                   -- array of catalog metric keys (intake only)
+  notes       text                     -- intake notes, or Rob's feedback body
+);
+```
+
+**Write paths:**
+- `POST /api/submit` — **public**, from `/test`. **BotID-protected** (Vercel
+  BotID, GA), plus required-field + ≥1-metric server-side validation. Inserts
+  `source='team-intake'`.
+- `POST /api/feedback` — **exec-gated** (behind the exec PIN, like `/exec`),
+  from Rob's feedback box. Inserts `source='exec-feedback'`, `name='Rob'`
+  (prefilled), `notes=<feedback>`.
+
+**Read / export:** a read-only script `scripts/export-submissions.mjs` dumps the
+table to `outputs/Submissions_Stayable_<MMDDYY>.xlsx` (IB formatting) so Kyle can
+review and act per team. No admin UI in this scope.
+
+**Abuse posture:** the only public write is `/api/submit`. Mitigations: BotID,
+required fields, ≥1 metric, light server-side rate limiting, low-sensitivity
+data (name/role — no secrets, no guest PII). Documented as the one new public
+write surface.
 
 ---
 
@@ -157,8 +210,12 @@ A **static showcase** of all ~100 catalog data points from
 - The **open security finding** — re-issue all 8 keys without Guest / DI Guests
   scopes — is **unaffected and still recommended**. This work does not depend on
   it and does not make it worse.
-- `/test` is hardcoded fake data → zero PII risk despite being public.
-- `EXEC_PIN` stored in Vercel env + `.env.local` (gitignored). Never committed.
+- `/test` shows hardcoded fake data → zero PII risk despite being public. The
+  new public write (`/api/submit`) is BotID-protected and stores only
+  low-sensitivity name/role/picks — no secrets, no guest PII.
+- `EXEC_PIN` and `DATABASE_URL` stored in Vercel env + `.env.local`
+  (gitignored). Never committed.
+- `/api/feedback` is exec-gated; not a public write surface.
 
 ---
 
@@ -173,8 +230,14 @@ A **static showcase** of all ~100 catalog data points from
 | `lib/lease.ts` | **new** — classification rule |
 | `app/exec/page.tsx` | **new** — exec view |
 | `components/ExecView.tsx` | **new** — leaderboard + KPI + lease mix, mobile-responsive |
-| `app/test/page.tsx` | **new** — static showcase |
+| `app/test/page.tsx` | **new** — intake form (static catalog + checkboxes) |
+| `components/IntakeForm.tsx` | **new** — client form (name/role/team/metrics/notes) |
 | `config/catalog-sample.ts` | **new** — enumerated catalog points + sample values |
+| `lib/db.ts` | **new** — Neon client + `insertSubmission()` |
+| `app/api/submit/route.ts` | **new** — public, BotID-protected intake write |
+| `app/api/feedback/route.ts` | **new** — exec-gated feedback write |
+| `components/ExecFeedback.tsx` | **new** — Rob's feedback textarea |
+| `scripts/export-submissions.mjs` | **new** — dump table → `outputs/*.xlsx` |
 | `config/properties.ts` | unchanged |
 
 ---
@@ -184,8 +247,11 @@ A **static showcase** of all ~100 catalog data points from
 - Exact revenue (blocked; needs Cloudbeds support or Finances dataset key).
 - Range-aware "Today (live)" cards (pre-existing flag, unchanged).
 - DNS / custom domain (`dashboard.rentstayable.com`) — separate task.
-- Persisting team "✓ I want this" picks (visual only for now).
 - Re-issuing the 8 keys without Guest scope (separate security task).
+- Admin UI for browsing submissions (export script only for now).
+- Hard 24h auto-close (soft banner only, per decision).
+- Provisioning the Neon DB itself (Vercel Marketplace step, done before/at
+  implementation; spec assumes `DATABASE_URL` is available).
 
 ---
 
@@ -195,5 +261,9 @@ A **static showcase** of all ~100 catalog data points from
   multi-plan comma cases and the precedence rule.
 - Middleware: base PIN cannot reach `/exec`; exec PIN reaches both; `/test`
   reachable with no cookie.
-- `/test`: renders with no env vars / no network (it must work offline).
+- `/test`: form renders with no env vars / no network (static catalog must work
+  offline). Submit requires `DATABASE_URL`.
+- `/api/submit`: rejects missing required fields / zero metrics; happy-path
+  inserts one row with `source='team-intake'`. `/api/feedback`: rejects without
+  exec cookie; inserts `source='exec-feedback'`.
 - Lease-mix sanity check vs Davenport `getDashboard` in-house count.
