@@ -2,30 +2,46 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** **BLOCKED on Kyle pasting the Neon
-> `DATABASE_URL`** into `.env.local` (real pooled string from Neon console —
-> sensitive vars can't be `vercel env pull`ed, come back empty). Once pasted,
-> run `node scripts/db-init.mjs` to create+verify the `submissions` table, then
-> proceed to **writing-plans** for the three-dashboard build.
+> **Pickup (next CLI session):** **Three-dashboard build COMPLETE & verified
+> (Task 13, 06/24/26).** Gate green: `npm test` 38/38, `tsc --noEmit` clean,
+> `npm run build` lists `/`, `/exec`, `/test`, `/login`, `/api/auth`,
+> `/api/submit`, `/api/feedback`; no secrets in `.next/static`.
+> **Next real action — deploy (needs Kyle/permission, CLAUDE.md §8):**
+>   1. `vercel env add EXEC_PIN production` → value `STYBLCEO` (also Preview).
+>   2. Confirm `DATABASE_URL` already set on Vercel Prod+Preview (it is, per
+>      provisioning below).
+>   3. Redeploy, then smoke `/`, `/exec`, `/test` on the live URL.
+>   4. Wire DNS `dashboard.rentstayable.com` (still open).
 >
-> **THREE-DASHBOARD PROJECT (spec approved this session):** see
+> **Open lease-mix caveats (carry-forward from Tasks 5 & 13):**
+>   - **Ratio-only:** lease-mix `total` is summed `room_count` over in-house
+>     reservation rows, NOT physical rooms. Davenport 06/24: lease total 644 vs
+>     getDashboard inHouse 109 / capacity 152. ExecView renders it as
+>     monthly/weekly/transient **percentages only** — never as a room count.
+>     Keep it a ratio; do not surface the raw total as "rooms".
+>   - **"In-House" string unverified on 7 properties:** the `reservation_status`
+>     value `"In-House"` is confirmed live on Davenport only. Spot-check the
+>     other 7 post-deploy (group dataset 3 by `reservation_status`); if a
+>     property uses a different string, its lease mix would read empty.
+>
+> **THREE-DASHBOARD PROJECT (spec approved & BUILT):** see
 > `docs/superpowers/specs/2026-06-23-three-dashboard-stayable-design.md`.
-> - `/` Base (existing, unchanged) · `/exec` Rob/CEO (PIN `STYBLCEO`) ·
+> - [x] `/` Base (existing, unchanged) · `/exec` Rob/CEO (PIN `STYBLCEO`) ·
 >   `/test` public (no PIN) intake form.
-> - **Role-based PIN** middleware: exec unlocks base+exec; base unlocks base;
+> - [x] **Role-based PIN** middleware: exec unlocks base+exec; base unlocks base;
 >   `/test` excluded from gate. New env `EXEC_PIN=STYBLCEO`.
-> - **Exec view:** occupancy + WoW/MoM trend + leaderboard · ADR & RevPAR ·
+> - [x] **Exec view:** occupancy + WoW/MoM trend + leaderboard · ADR & RevPAR ·
 >   Lease-vs-Transient mix (Monthly/Weekly) · Rob feedback box. Revenue still
 >   EXCLUDED (exact blocked; no fake estimate to CEO).
-> - **/test = intake form:** name/role/team (Crystal · Remote Property Managers ·
+> - [x] **/test = intake form:** name/role/team (Crystal · Remote Property Managers ·
 >   Property Managers & Attendants · Other) + catalog metric multi-select (each
 >   shows SAMPLE value) + notes → `POST /api/submit` → Neon. BotID-protected.
 >   Soft 24h banner, no hard close.
-> - **Persistence:** Neon Postgres (`neon-cb-dashboard`, Vercel Marketplace) —
+> - [x] **Persistence:** Neon Postgres (`neon-cb-dashboard`, Vercel Marketplace) —
 >   sanctioned reversal of §6 "no DB". Single `submissions` table; `source`
 >   = 'team-intake' | 'exec-feedback'. Export script → `outputs/*.xlsx`.
-> - **All three mobile-responsive** (closes Phase 6 mobile item).
-> - **NEW public write surface** (`/api/submit`) — BotID + validation.
+> - [x] **All three mobile-responsive** (closes Phase 6 mobile item).
+> - [x] **NEW public write surface** (`/api/submit`) — BotID + validation.
 >
 > **✅ Lease-vs-Transient solved PII-FREE** (no Guest scope, no new key): derive
 > from DI **Reservations dataset 3** rate plan (`Monthly Lease`/`Weekly Lease`
@@ -159,7 +175,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 - [ ] Loading / empty / error states per property.
 - [ ] Rate-limit handling & graceful degradation if Cloudbeds is down.
-- [ ] Mobile-responsive layout (IB-clean aesthetic: dark headers, clean grid).
+- [x] Mobile-responsive layout (IB-clean aesthetic: dark headers, clean grid).
+      Done across `/`, `/exec`, `/test` in the three-dashboard build.
 - [ ] Auto-refresh interval for the live view.
 
 ---

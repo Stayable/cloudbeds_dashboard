@@ -88,10 +88,17 @@ Cloudbeds API
 4. Cache API responses server-side (short TTL, e.g. 5–15 min) to stay within
    Cloudbeds rate limits and keep the page fast.
 5. **PIN gate** (decided): no full login, but access is gated by a PIN stored in
-   a Vercel env var. A server-side check sets an httpOnly cookie. Free, no DB.
-6. **No database.** Read live from Cloudbeds + cache server-side. Neon/Postgres
-   not needed. Add Vercel KV later only if we persist rotating tokens or
-   historical time-series (not required with the static API key).
+   a Vercel env var. **Role-based:** `DASHBOARD_PIN` unlocks base `/`; `EXEC_PIN`
+   (`STYBLCEO`) unlocks base `/` AND `/exec`. A server-side check sets an httpOnly
+   cookie. `/test` is excluded from the gate (public intake form).
+6. **Database (scoped reversal of the original "no DB").** Cloudbeds data itself
+   is still **read-and-cache only** — never persisted, no DB on the read path.
+   A single **Neon Postgres** `submissions` table (server-only, via `DATABASE_URL`)
+   now backs two public/exec **write** surfaces: `/api/submit` (the `/test`
+   team-intake form) and `/api/feedback` (the exec feedback box), distinguished by
+   a `source` column (`team-intake` | `exec-feedback`). **No guest PII** is stored
+   — the table holds only submitter-entered name/role/team/notes + selected
+   catalog metric names. Cloudbeds remains untouched by this table.
 
 ---
 
