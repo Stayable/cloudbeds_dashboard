@@ -281,6 +281,17 @@ async function getLeaseMix(
       and: [
         { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: asOf },
         { cdf: { column: "checkout_date" }, operator: "greater_than", value: asOf },
+        // In-house snapshot (CLAUDE.md §5 / spec §5): the count must be physically
+        // in-house rooms, not every reservation whose dates merely straddle asOf.
+        // Verified live on Davenport (318197) 2026-06-24 via probe-lease-query.mjs:
+        // dataset 3 status column is `reservation_status`; distinct values present
+        // on the overlap set were { "In-House": 644, "Confirmed": 1, "Cancelled": 2 }.
+        // "Confirmed" = booked, dates straddle asOf, but not yet checked in (a
+        // no-show / not-arrived) and "Cancelled" = a killed reservation — both must
+        // be dropped or they inflate the mix (esp. monthly leases at +30 room_count).
+        // Operator `equals` with value "In-House" is accepted by the API and yields
+        // the in-house-only set (647 -> 644 for Davenport on this date).
+        { cdf: { column: "reservation_status" }, operator: "equals", value: "In-House" },
       ],
     },
     // details:true is REQUIRED — see shape note above; details:false drops the measure.
