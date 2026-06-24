@@ -441,6 +441,142 @@ export async function getPortfolioReservations(start: string, end: string): Prom
   );
 }
 
+// --- Finance transactions (date-ranged, PII-free) ---------------------------
+// DI dataset 1 (Finances). Like dataset 3 it carries guest PII
+// (primary_guest_full_name, invoice_guest_name, …) — we request ONLY numeric
+// measures + safe dimensions and sum client-side. Verified live against
+// Davenport 2026-06-25:
+//   measures: debit_amount (charges), credit_amount (payments/credits),
+//             balance_due_amount (net transaction amount).
+//   dims: transaction_type, payment_method. Date filter: service_date in range.
+//
+// ⚠ KNOWN LIMITATION — NOT WIRED INTO ANY PAGE YET. Dataset 1 only returns
+// measure values with settings.details:true, which Cloudbeds HARD-CAPS at 1500
+// rows (response `aggregated_count: 1500`). details:false / totals:true return
+// empty `records`. Finance is transaction-level, so a busy property/range blows
+// past 1500 and a client-side sum SILENTLY UNDERCOUNTS. Until an uncapped path
+// is confirmed (per-day chunking that stays < 1500, or a true server-side sum),
+// these functions must not feed user-facing totals. /rob §5 shows an honest
+// "paused" note instead. (Dataset 3 reservations use the same details:true
+// pattern but are reservation-level — well under the cap for current data — so
+// §4 is safe today; revisit if a property/range ever approaches 1500.)
+
+export type FinanceAggregates = {
+  charges: number; // Σ debit_amount
+  paymentsCredits: number; // Σ credit_amount
+  net: number; // Σ balance_due_amount
+  typeMix: Record<string, number>; // charges by transaction_type
+  paymentMethodMix: Record<string, number>; // payments by payment_method
+};
+
+async function diDataset1Grouped(
+  apiKey: string,
+  apiPropertyId: string,
+  groupColumn: string,
+  measureColumns: string[],
+  start: string,
+  end: string,
+): Promise<CloudbedsResult<Dataset3Grouped>> {
+  const body = {
+    property_ids: [Number(apiPropertyId)],
+    dataset_id: 1,
+    columns: measureColumns.map((column) => ({ cdf: { column } })),
+    group_rows: [{ cdf: { column: groupColumn } }],
+    filters: {
+      and: [
+        { cdf: { column: "service_date" }, operator: "greater_than_or_equal", value: start },
+        { cdf: { column: "service_date" }, operator: "less_than_or_equal", value: end },
+      ],
+    },
+    settings: { totals: false, details: true },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${DI_BASE}/reports/query/data?mode=Run`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-PROPERTY-ID": apiPropertyId,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: `Network error reaching Data Insights: ${String(e)}` };
+  }
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* keep raw */
+  }
+  if (!res.ok) return { ok: false, status: res.status, error: `Data Insights HTTP ${res.status}`, body: parsed };
+
+  const p = parsed as { index?: unknown[]; records?: Record<string, unknown[]> };
+  const index = (Array.isArray(p?.index) ? p.index : []).map((row) =>
+    Array.isArray(row) ? String(row[0] ?? "") : String(row ?? ""),
+  );
+  const records: Record<string, number[]> = {};
+  for (const col of measureColumns) {
+    const arr = Array.isArray(p?.records?.[col]) ? p.records![col] : [];
+    records[col] = arr.map((x) => (typeof x === "number" ? x : 0));
+  }
+  return { ok: true, data: { index, records } };
+}
+
+async function getFinanceAggregates(
+  apiKey: string,
+  apiPropertyId: string,
+  start: string,
+  end: string,
+): Promise<CloudbedsResult<FinanceAggregates>> {
+  const [byType, byMethod] = await Promise.all([
+    diDataset1Grouped(apiKey, apiPropertyId, "transaction_type", ["debit_amount", "credit_amount", "balance_due_amount"], start, end),
+    diDataset1Grouped(apiKey, apiPropertyId, "payment_method", ["credit_amount"], start, end),
+  ]);
+  if (!byType.ok) return byType;
+
+  const agg: FinanceAggregates = { charges: 0, paymentsCredits: 0, net: 0, typeMix: {}, paymentMethodMix: {} };
+  const t = byType.data;
+  for (let i = 0; i < t.index.length; i++) {
+    const type = t.index[i] || "Other";
+    const debit = t.records.debit_amount[i] ?? 0;
+    agg.charges += debit;
+    agg.paymentsCredits += t.records.credit_amount[i] ?? 0;
+    agg.net += t.records.balance_due_amount[i] ?? 0;
+    if (debit !== 0) agg.typeMix[type] = (agg.typeMix[type] ?? 0) + debit;
+  }
+  if (byMethod.ok) {
+    for (let i = 0; i < byMethod.data.index.length; i++) {
+      const method = byMethod.data.index[i] || "Unspecified";
+      const credit = byMethod.data.records.credit_amount[i] ?? 0;
+      if (credit !== 0) agg.paymentMethodMix[method] = (agg.paymentMethodMix[method] ?? 0) + credit;
+    }
+  }
+  return { ok: true, data: agg };
+}
+
+export type PropertyFinance = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<FinanceAggregates> | null;
+};
+
+/** Finance aggregates for every configured property over [start, end]. */
+export async function getPortfolioFinance(start: string, end: string): Promise<PropertyFinance[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyFinance> => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return { property, configured: false, result: null };
+      return { property, configured: true, result: await getFinanceAggregates(key, property.apiPropertyId, start, end) };
+    }),
+  );
+}
+
 // --- Lease mix (in-house monthly / weekly / transient) ----------------------
 // Probe-verified against live Davenport (318197) on 2026-06-24 via
 // scripts/probe-lease-query.mjs. Verified column names (the plan's guesses were

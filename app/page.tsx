@@ -4,6 +4,13 @@ import PeriodControls from "@/components/PeriodControls";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
+import SectionNav, { type NavItem } from "@/components/SectionNav";
+
+const NAV: NavItem[] = [
+  { id: "portfolio", label: "Portfolio", n: 1 },
+  { id: "by-property", label: "By property", n: 2 },
+  { id: "detail", label: "Detail", n: 3 },
+];
 
 // Render per-request so runtime env vars (CLOUDBEDS_API_KEY_*) are always read
 // live — upstream Cloudbeds calls are still cached 10 min (Next data cache).
@@ -62,7 +69,12 @@ export default async function DashboardPage({
         <PeriodControls preset={preset} start={start} end={end} />
       </section>
 
-      <OccupancyView properties={properties} />
+      <div className="lg:flex lg:gap-8">
+        <SectionNav items={NAV} />
+        <div className="min-w-0 flex-1">
+          <OccupancyView properties={properties} />
+        </div>
+      </div>
 
       <p className="mt-6 text-xs text-slate-400">
         Occupancy is the daily average over the selected range (Cloudbeds Data

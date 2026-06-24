@@ -20,6 +20,7 @@ const NAV: NavItem[] = [
   { id: "occupancy", label: "Occupancy", n: 2 },
   { id: "revenue", label: "Revenue & rate", n: 3 },
   { id: "reservations", label: "Reservations", n: 4 },
+  { id: "finance", label: "Finance", n: 5 },
   { id: "notes", label: "Notes", n: null },
 ];
 
@@ -117,9 +118,29 @@ export default async function RobPage({
             <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} showFinancials />
           </section>
 
-          {/* Honest note on what's not (yet) shown */}
+          {/* Section 5 — Finance (blocked: see note) */}
+          <section id="finance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+            <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · charges, payments, net · aggregates only`} />
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+              <p className="font-medium">Verified the data is reachable — holding the numbers back until they&apos;re trustworthy.</p>
+              <p className="mt-1">
+                The Cloudbeds Finances dataset (debits, credits, net, by transaction type /
+                payment method) is wired and returns data, but its API caps a detailed pull at
+                <span className="font-semibold"> 1,500 transactions per property</span> and does
+                not expose an uncapped server-side total. Davenport alone exceeds that in a week,
+                so any figure shown here would silently <span className="font-semibold">undercount</span>.
+              </p>
+              <p className="mt-1">
+                Rather than display a wrong total, this section is paused until the correct
+                aggregation path is confirmed (per-day chunking under the cap, or a reporting
+                endpoint that returns true sums). No placeholder numbers.
+              </p>
+            </div>
+          </section>
+
+          {/* Honest note on what's not shown */}
           <div className="mb-10 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-            <p className="font-medium text-slate-700">A few of your selections aren&apos;t shown here:</p>
+            <p className="font-medium text-slate-700">A couple of your selections still aren&apos;t shown:</p>
             <ul className="mt-2 space-y-1">
               <li>
                 <span className="font-medium">Housekeeping</span> (room condition/status,
@@ -127,19 +148,12 @@ export default async function RobPage({
                 the dashboard never enables the Housekeeping API scope.
               </li>
               <li>
-                <span className="font-medium">Finance transactions</span> (debits/credits,
-                transaction/fee/tax types, payment method, GL, add-ons) — needs a separate
-                Financial-Transactions data source we haven&apos;t wired yet.
-              </li>
-              <li>
                 <span className="font-medium">A few reservation/segment fields</span>
                 (booking window, cancellation/no-show fees, commission %, reservation source,
                 market segment) — not exposed as aggregatable columns we&apos;ve verified.
               </li>
             </ul>
-            <p className="mt-2 text-xs text-slate-400">
-              No placeholder numbers — these are listed, not faked.
-            </p>
+            <p className="mt-2 text-xs text-slate-400">No placeholder numbers — these are listed, not faked.</p>
           </div>
 
           {/* Notes / feedback (posts as Rob's exec feedback) */}

@@ -5,8 +5,15 @@ import { resolveRange, priorWindow, priorMonthWindow } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioLeaseMix } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import PeriodControls from "@/components/PeriodControls";
+import SectionNav, { type NavItem } from "@/components/SectionNav";
 
 export const dynamic = "force-dynamic";
+
+const NAV: NavItem[] = [
+  { id: "analytics", label: "Analytics", n: 1 },
+  { id: "operational", label: "Operational", n: 2 },
+  { id: "legend", label: "Legend", n: null },
+];
 
 // Raw average occupancy (vs full capacity) over a property's daily rows.
 function avgOcc(rows: { occupancy: number }[]): number | null {
@@ -166,20 +173,24 @@ export default async function ExecPage({
         <PeriodControls preset={preset} start={start} end={end} />
       </section>
 
+      <div className="lg:flex lg:gap-8">
+        <SectionNav items={NAV} />
+
+        <div className="min-w-0 flex-1">
       {/* Executive analytics first. */}
-      <section className="mb-8">
+      <section id="analytics" className="mb-8 scroll-mt-20 lg:scroll-mt-6">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Executive analytics</h2>
         <ExecView data={data} />
       </section>
 
       {/* Operational view below — same content as the public / dashboard. */}
-      <section className="mb-8">
+      <section id="operational" className="mb-8 scroll-mt-20 lg:scroll-mt-6">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Operational dashboard</h2>
         <OccupancyView properties={occProperties} />
       </section>
 
       {/* Legend — abbreviations used across both sections. */}
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <section id="legend" className="mb-6 scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:scroll-mt-6">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Legend — abbreviations</p>
         <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <div className="flex gap-2">
@@ -226,6 +237,8 @@ export default async function ExecPage({
         Lease vs Transient is an in-house snapshot as of {end}, derived from rate plan only — no guest PII.
         Revenue is intentionally excluded. Aggregated metrics only · read-only · cached up to 10 min.
       </p>
+        </div>
+      </div>
     </main>
   );
 }

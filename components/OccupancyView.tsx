@@ -188,7 +188,7 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Headline: portfolio occupancy for the selected range */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <section id="portfolio" className="scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:scroll-mt-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Portfolio Occupancy
@@ -213,7 +213,7 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
       </section>
 
       {/* Occupancy by property with include-in-average toggles */}
-      <section>
+      <section id="by-property" className="scroll-mt-20 lg:scroll-mt-6">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Occupancy by property — tap to view detail, toggle to include in the average
         </p>
@@ -261,7 +261,7 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
       </section>
 
       {/* Per-property detail */}
-      <section>
+      <section id="detail" className="scroll-mt-20 lg:scroll-mt-6">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Property detail
         </p>
