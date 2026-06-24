@@ -17,8 +17,11 @@ export default function LoginPage() {
       body: JSON.stringify({ pin }),
     });
     if (res.ok) {
-      // Hard navigation so the new cookie is applied before middleware runs.
-      window.location.assign("/");
+      // Redirect back to the originally-requested path (?next=), default "/".
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next");
+      const dest = next && next.startsWith("/") ? next : "/"; // only same-site paths
+      window.location.assign(dest); // hard nav so the cookie applies before middleware
     } else {
       setLoading(false);
       setError(true);

@@ -1,24 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, pinToken } from "@/lib/auth";
+import { AUTH_COOKIE, decideAccess, expectedTokens } from "@/lib/auth";
 
-// Gate every route behind a PIN cookie. Disabled (open) when DASHBOARD_PIN is
-// not set, so a misconfigured deploy never locks itself out. Protects the app
-// AND /api/diagnostics; lets /login and /api/auth through so users can sign in.
+// Role-based PIN gate. Disabled (open) when DASHBOARD_PIN is unset, so a
+// misconfigured deploy never locks itself out. /test and /api/submit are the
+// public surfaces (excluded in the matcher). /exec needs the exec token.
 export async function middleware(req: NextRequest) {
-  const pin = process.env.DASHBOARD_PIN;
-  if (!pin) return NextResponse.next();
-
+  const expected = await expectedTokens();
   const token = req.cookies.get(AUTH_COOKIE)?.value;
-  if (token && token === (await pinToken(pin))) return NextResponse.next();
-
+  if (decideAccess(req.nextUrl.pathname, token, expected) === "allow") {
+    return NextResponse.next();
+  }
   const url = req.nextUrl.clone();
+  const next = req.nextUrl.pathname + req.nextUrl.search;
   url.pathname = "/login";
-  url.search = "";
+  url.search = `?next=${encodeURIComponent(next)}`;
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  // Protect everything except the login page, the auth endpoint, Next internals
-  // and static files.
-  matcher: ["/((?!login|api/auth|_next/static|_next/image|favicon.ico|robots.txt).*)"],
+  // Protect everything except: login, auth endpoint, the PUBLIC intake page and
+  // its write endpoint, Next internals, and static files.
+  matcher: [
+    "/((?!login|api/auth|api/submit|test|_next/static|_next/image|favicon.ico|robots.txt).*)",
+  ],
 };
