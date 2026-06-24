@@ -2,7 +2,58 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Live on Vercel at cloudbeds-dashboard-jade.vercel.app.
+> **Pickup (next CLI session):** **BLOCKED on Kyle pasting the Neon
+> `DATABASE_URL`** into `.env.local` (real pooled string from Neon console —
+> sensitive vars can't be `vercel env pull`ed, come back empty). Once pasted,
+> run `node scripts/db-init.mjs` to create+verify the `submissions` table, then
+> proceed to **writing-plans** for the three-dashboard build.
+>
+> **THREE-DASHBOARD PROJECT (spec approved this session):** see
+> `docs/superpowers/specs/2026-06-23-three-dashboard-stayable-design.md`.
+> - `/` Base (existing, unchanged) · `/exec` Rob/CEO (PIN `STYBLCEO`) ·
+>   `/test` public (no PIN) intake form.
+> - **Role-based PIN** middleware: exec unlocks base+exec; base unlocks base;
+>   `/test` excluded from gate. New env `EXEC_PIN=STYBLCEO`.
+> - **Exec view:** occupancy + WoW/MoM trend + leaderboard · ADR & RevPAR ·
+>   Lease-vs-Transient mix (Monthly/Weekly) · Rob feedback box. Revenue still
+>   EXCLUDED (exact blocked; no fake estimate to CEO).
+> - **/test = intake form:** name/role/team (Crystal · Remote Property Managers ·
+>   Property Managers & Attendants · Other) + catalog metric multi-select (each
+>   shows SAMPLE value) + notes → `POST /api/submit` → Neon. BotID-protected.
+>   Soft 24h banner, no hard close.
+> - **Persistence:** Neon Postgres (`neon-cb-dashboard`, Vercel Marketplace) —
+>   sanctioned reversal of §6 "no DB". Single `submissions` table; `source`
+>   = 'team-intake' | 'exec-feedback'. Export script → `outputs/*.xlsx`.
+> - **All three mobile-responsive** (closes Phase 6 mobile item).
+> - **NEW public write surface** (`/api/submit`) — BotID + validation.
+>
+> **✅ Lease-vs-Transient solved PII-FREE** (no Guest scope, no new key): derive
+> from DI **Reservations dataset 3** rate plan (`Monthly Lease`/`Weekly Lease`
+> = Kyle's `*ML`/`*WL`). Probe: `scripts/probe-lease-transient.mjs`. Rule lives
+> in `lib/lease.ts` (planned). See memory `lease-vs-transient`.
+>
+> **Provisioning done this session:** Neon DB created + connected; full var set
+> (`DATABASE_URL`, `POSTGRES_*`) on Vercel Production+Preview. Project linked
+> locally (`stayable-admins-projects/cloudbeds-dashboard`). `@neondatabase/
+> serverless` installed. `.vercel` gitignored. **Table NOT yet created** (see
+> Pickup blocker).
+>
+> **(Deferred) Rob's data-catalog approval** —
+> `outputs/CloudbedsDataCatalog_Stayable_061926.xlsx` (100 points, Yes/No
+> column). Gold re-add candidates: **ADR, RevPAR, Total Room/Total Revenue**.
+> Exec view brings ADR/RevPAR/lease back regardless.
+>
+> **⚠️ Security finding (this session):** the Davenport key is OVER-SCOPED — it can
+> read full guest PII (verified live: `getGuestList` → 200, 100 guest records;
+> DI Guests/Reservations datasets return PII). Dashboard never calls those, so no
+> leak today, but re-issue all 8 keys WITHOUT Guest / Data Insights Guests scopes
+> so PII is blocked by design (CLAUDE.md §6). Other 7 keys likely same.
+>
+> **Output location changed:** project `outputs/` ONLY. Do NOT write to OneDrive
+> (CLAUDE.md §7 updated). `.env.local` now holds the real Davenport key
+> (gitignored). Probe scripts in `scripts/probe-*.mjs` are read-only, no secrets.
+>
+> **Live on Vercel at cloudbeds-dashboard-jade.vercel.app.**
 > **All 8 properties wired** with per-property keys (CLOUDBEDS_API_KEY_<CODE>); all
 > API propertyIDs verified (see config/properties.ts). **PIN gate live.**
 >

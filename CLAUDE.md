@@ -157,7 +157,9 @@ function correctly — `CLAUDE.md`, `TODO.md`, `package.json`, config files, the
 `.bat`/`.ps1` helper scripts. The convention applies to generated reports and
 investor/lender/legal outputs, not framework files.
 
-Final report/export outputs save to the user's OneDrive `/outputs` folder.
+Final report/export outputs save to the project `outputs/` folder
+(`C:\Users\Kyle Estocapio\Git-Claude\cloudbeds_dashboard\outputs`). **Do not
+write to OneDrive — ever.** Outputs live in the project folder only.
 
 ---
 
