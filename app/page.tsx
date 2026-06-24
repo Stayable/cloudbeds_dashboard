@@ -1,8 +1,9 @@
 import Link from "next/link";
-import OccupancyView, { type OccProperty } from "@/components/OccupancyView";
+import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
+import { buildOccProperties } from "@/lib/occupancy";
 
 // Render per-request so runtime env vars (CLOUDBEDS_API_KEY_*) are always read
 // live — upstream Cloudbeds calls are still cached 10 min (Next data cache).
@@ -21,47 +22,7 @@ export default async function DashboardPage({
     getPortfolioInsights(start, end),
   ]);
 
-  const insByCode = new Map(insights.map((i) => [i.property.code, i]));
-
-  const properties: OccProperty[] = portfolio.map((pd) => {
-    const ins = insByCode.get(pd.property.code);
-    const rows = ins?.result?.ok ? ins.result.data : [];
-    const rawOcc = rows.length ? rows.reduce((s, r) => s + r.occupancy, 0) / rows.length : null;
-    const d = pd.result?.ok ? pd.result.data : null;
-    const live = d
-      ? {
-          roomsOccupied: d.roomsOccupied,
-          capacity: d.capacity,
-          inHouse: d.inHouse,
-          guestsInHouse: d.guestsInHouse,
-          arrivals: d.arrivals,
-          arrivalsConfirmed: d.arrivalsConfirmed,
-          departures: d.departures,
-          departuresConfirmed: d.departuresConfirmed,
-          stayovers: d.stayovers,
-          roomsBlocked: d.roomsBlocked,
-          outOfService: d.roomBlocks.out_of_service,
-          percentageBlocked: d.percentageBlocked,
-          bookings: d.bookings,
-          cancellations: d.cancellations,
-        }
-      : null;
-    return {
-      code: pd.property.code,
-      name: pd.property.name,
-      county: pd.property.county,
-      id: pd.property.id,
-      configured: pd.configured,
-      capacity: pd.result?.ok ? pd.result.data.capacity : 0,
-      adjustment: pd.property.capacityAdjustment ?? 0,
-      adjustmentNote: pd.property.adjustmentNote,
-      excludeDefault: !!pd.property.excludeFromAggregate,
-      rawOcc,
-      daily: rows.map((r) => ({ date: r.date, occupancy: r.occupancy })),
-      live,
-      error: ins?.result && !ins.result.ok ? ins.result.error : null,
-    };
-  });
+  const properties = buildOccProperties(portfolio, insights);
 
   const reportingCount = properties.filter((p) => p.rawOcc !== null).length;
   const configuredCount = properties.filter((p) => p.configured).length;

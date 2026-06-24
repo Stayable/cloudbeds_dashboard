@@ -1,7 +1,9 @@
 import Link from "next/link";
 import ExecView, { type ExecData, type ExecProperty } from "@/components/ExecView";
+import OccupancyView from "@/components/OccupancyView";
 import { resolveRange, priorWindow, priorMonthWindow } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioLeaseMix } from "@/lib/cloudbeds";
+import { buildOccProperties } from "@/lib/occupancy";
 import PeriodControls from "@/components/PeriodControls";
 
 export const dynamic = "force-dynamic";
@@ -139,6 +141,10 @@ export default async function ExecPage({
     properties,
   };
 
+  // The same operational explorer the public / dashboard shows (property
+  // selector, occupancy strip, per-property detail + "Today" live cards).
+  const occProperties = buildOccProperties(portfolio, cur);
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
@@ -160,7 +166,60 @@ export default async function ExecPage({
         <PeriodControls preset={preset} start={start} end={end} />
       </section>
 
-      <ExecView data={data} />
+      {/* Operational view first — same content as the public / dashboard. */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Operational dashboard</h2>
+        <OccupancyView properties={occProperties} />
+      </section>
+
+      {/* Executive analytics below. */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Executive analytics</h2>
+        <ExecView data={data} />
+      </section>
+
+      {/* Legend — abbreviations used across both sections. */}
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Legend — abbreviations</p>
+        <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">ADR</dt>
+            <dd className="text-slate-600">Average Daily Rate — room revenue per occupied room-night.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">RevPAR</dt>
+            <dd className="text-slate-600">Revenue Per Available Room — room revenue per available room-night.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">WoW</dt>
+            <dd className="text-slate-600">Week-over-week — vs. the prior equal-length window.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">MoM</dt>
+            <dd className="text-slate-600">Month-over-month — vs. the same window one month earlier.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">Occupancy</dt>
+            <dd className="text-slate-600">Rooms sold ÷ capacity, capacity-adjusted for rooms out of service.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">In-House</dt>
+            <dd className="text-slate-600">Rooms with a currently checked-in guest.</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">Stayovers</dt>
+            <dd className="text-slate-600">Guests staying through (not arriving or departing today).</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">OOO</dt>
+            <dd className="text-slate-600">Out of service — rooms unsellable (maintenance/renovation).</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="font-semibold text-slate-900">Lease vs Transient</dt>
+            <dd className="text-slate-600">In-house mix by rate plan (monthly/weekly lease vs. nightly), shown as a ratio.</dd>
+          </div>
+        </dl>
+      </section>
 
       <p className="mt-6 text-xs text-slate-400">
         Occupancy/ADR/RevPAR are daily averages over the selected range (Cloudbeds Data Insights).

@@ -18,9 +18,16 @@ export default function TestPage() {
         </p>
       </header>
 
-      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
         Please submit your selections within <span className="font-semibold">24 hours</span> if you can.
         The form stays open — there is no hard deadline.
+      </div>
+
+      <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <span className="font-semibold text-slate-700">Note:</span> not every metric below will appear on
+        your final dashboard. Availability depends on your role and permissions — some of these will be
+        hidden or removed depending on who you are. Pick what you&apos;d find useful; we&apos;ll scope the
+        live view to what your role is allowed to see.
       </div>
 
       <IntakeForm groups={CATALOG_BY_CATEGORY} />
