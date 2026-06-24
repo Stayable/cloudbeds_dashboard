@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildReservationSummary } from "@/lib/reservations";
+import { buildReservationSummary, buildReservationViews } from "@/lib/reservations";
 import type { PropertyReservations } from "@/lib/cloudbeds";
 
 function prop(over: Partial<PropertyReservations> = {}): PropertyReservations {
@@ -8,6 +8,22 @@ function prop(over: Partial<PropertyReservations> = {}): PropertyReservations {
     configured: true,
     result: null,
     ...over,
+  };
+}
+
+function reporting(code: string, name: string, rooms: number): PropertyReservations {
+  return {
+    property: { code, name } as PropertyReservations["property"],
+    configured: true,
+    result: {
+      ok: true,
+      data: {
+        rooms, roomNights: rooms * 5, guests: rooms, grandTotal: rooms * 100, paid: rooms * 90, balanceDue: rooms * 10,
+        statusMix: { "In-House": rooms },
+        leaseMix: { monthly: 0, weekly: 0, transient: rooms, total: rooms },
+        roomTypeCategoryMix: { Private: rooms },
+      },
+    },
   };
 }
 
@@ -58,5 +74,24 @@ describe("buildReservationSummary", () => {
     expect(s.reporting).toBe(0);
     expect(s.rooms).toBe(0);
     expect(s.statusMix).toEqual({});
+  });
+});
+
+describe("buildReservationViews", () => {
+  it("returns [ALL, ...per reporting property], ALL first and merged", () => {
+    const views = buildReservationViews([
+      reporting("DP", "Davenport", 10),
+      reporting("OBT", "Orlando OBT", 5),
+      prop({ configured: false, result: null }), // ignored
+    ]);
+    expect(views.map((v) => v.key)).toEqual(["ALL", "DP", "OBT"]);
+    expect(views[0].label).toBe("All properties");
+    expect(views[0].rooms).toBe(15); // merged
+    expect(views[1].rooms).toBe(10); // Davenport only
+    expect(views[2].rooms).toBe(5);
+  });
+
+  it("returns empty when nothing reports", () => {
+    expect(buildReservationViews([prop({ result: { ok: false, status: 0, error: "x" } })])).toEqual([]);
   });
 });

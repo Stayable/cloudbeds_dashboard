@@ -1,6 +1,10 @@
-// Presentational §4 reservations view for /crystal. Server component. All values
-// are PII-free aggregates (totals/counts/breakdowns) — no per-reservation rows.
-import type { ReservationSummary } from "@/lib/reservations";
+"use client";
+
+// §4 reservations view for /crystal, with a property selector ("All properties"
+// + one per reporting property). All values are PII-free aggregates
+// (totals/counts/breakdowns) — no per-reservation rows.
+import { useState } from "react";
+import type { ReservationView } from "@/lib/reservations";
 
 function money(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -47,13 +51,15 @@ function MixBars({ title, mix }: { title: string; mix: Record<string, number> })
 }
 
 export default function CrystalReservations({
-  summary,
+  views,
   rangeLabel,
 }: {
-  summary: ReservationSummary;
+  views: ReservationView[];
   rangeLabel: string;
 }) {
-  if (summary.reporting === 0) {
+  const [activeKey, setActiveKey] = useState(views[0]?.key ?? "ALL");
+
+  if (views.length === 0) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
         No reservation data returned for the selected range (no reporting properties).
@@ -61,19 +67,43 @@ export default function CrystalReservations({
     );
   }
 
-  const lease = summary.leaseMix;
+  const view = views.find((v) => v.key === activeKey) ?? views[0];
+  const lease = view.leaseMix;
+  const isAll = view.key === "ALL";
+
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Tile label="Rooms on books" value={num(summary.rooms)} sub="active in range, excl. cancelled" />
-        <Tile label="Room nights" value={num(summary.roomNights)} />
-        <Tile label="Guests" value={num(summary.guests)} />
-        <Tile label="Grand total" value={money(summary.grandTotal)} sub="full reservation value" />
-        <Tile label="Paid" value={money(summary.paid)} />
-        <Tile label="Balance due" value={money(summary.balanceDue)} />
+      {/* Property selector */}
+      <div className="flex flex-wrap gap-2">
+        {views.map((v) => {
+          const active = v.key === view.key;
+          return (
+            <button
+              key={v.key}
+              onClick={() => setActiveKey(v.key)}
+              className={
+                "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
+                (active
+                  ? "border-accent bg-accent/10 text-accent"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+              }
+            >
+              {v.key === "ALL" ? "All properties" : v.label}
+            </button>
+          );
+        })}
       </div>
 
-      <MixBars title="Reservation status mix (rooms)" mix={summary.statusMix} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <Tile label="Rooms on books" value={num(view.rooms)} sub="active in range, excl. cancelled" />
+        <Tile label="Room nights" value={num(view.roomNights)} />
+        <Tile label="Guests" value={num(view.guests)} />
+        <Tile label="Grand total" value={money(view.grandTotal)} sub="full reservation value" />
+        <Tile label="Paid" value={money(view.paid)} />
+        <Tile label="Balance due" value={money(view.balanceDue)} />
+      </div>
+
+      <MixBars title="Reservation status mix (rooms)" mix={view.statusMix} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Lease vs transient (rooms on books)</p>
@@ -88,13 +118,13 @@ export default function CrystalReservations({
         )}
       </section>
 
-      <MixBars title="Room type category (rooms)" mix={summary.roomTypeCategoryMix} />
+      <MixBars title="Room type category (rooms)" mix={view.roomTypeCategoryMix} />
 
       <p className="text-xs text-slate-400">
+        {isAll ? "All reporting properties combined. " : `${view.label} only. `}
         Reservations whose stay overlaps {rangeLabel}. Currency, room-night, and guest
         totals exclude cancelled / no-show and reflect full reservation values (not
-        prorated to the range). Aggregates only — no guest-level detail. {summary.reporting}{" "}
-        propert{summary.reporting === 1 ? "y" : "ies"} reporting.
+        prorated to the range). Aggregates only — no guest-level detail.
       </p>
     </div>
   );

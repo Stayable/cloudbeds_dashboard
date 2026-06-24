@@ -21,6 +21,62 @@ function addInto(target: Record<string, number>, src: Record<string, number>) {
   for (const [k, v] of Object.entries(src)) target[k] = (target[k] ?? 0) + v;
 }
 
+// A selectable view in the §4 UI: the merged "ALL" roll-up plus one per
+// reporting property. Same display shape either way.
+export type ReservationView = {
+  key: string; // "ALL" or property code
+  label: string;
+  rooms: number;
+  roomNights: number;
+  guests: number;
+  grandTotal: number;
+  paid: number;
+  balanceDue: number;
+  statusMix: Record<string, number>;
+  leaseMix: { monthly: number; weekly: number; transient: number; total: number };
+  roomTypeCategoryMix: Record<string, number>;
+};
+
+/** Build [ALL, ...per reporting property] views. Empty when nothing reports. */
+export function buildReservationViews(list: PropertyReservations[]): ReservationView[] {
+  const reporting = list.filter((p) => p.result?.ok);
+  if (reporting.length === 0) return [];
+
+  const all = buildReservationSummary(list);
+  const allView: ReservationView = {
+    key: "ALL",
+    label: "All properties",
+    rooms: all.rooms,
+    roomNights: all.roomNights,
+    guests: all.guests,
+    grandTotal: all.grandTotal,
+    paid: all.paid,
+    balanceDue: all.balanceDue,
+    statusMix: all.statusMix,
+    leaseMix: all.leaseMix,
+    roomTypeCategoryMix: all.roomTypeCategoryMix,
+  };
+
+  const propViews: ReservationView[] = reporting.map((p) => {
+    const a = p.result!.ok ? p.result!.data : null;
+    return {
+      key: p.property.code,
+      label: p.property.name,
+      rooms: a?.rooms ?? 0,
+      roomNights: a?.roomNights ?? 0,
+      guests: a?.guests ?? 0,
+      grandTotal: a?.grandTotal ?? 0,
+      paid: a?.paid ?? 0,
+      balanceDue: a?.balanceDue ?? 0,
+      statusMix: a?.statusMix ?? {},
+      leaseMix: a?.leaseMix ?? { monthly: 0, weekly: 0, transient: 0, total: 0 },
+      roomTypeCategoryMix: a?.roomTypeCategoryMix ?? {},
+    };
+  });
+
+  return [allView, ...propViews];
+}
+
 export function buildReservationSummary(list: PropertyReservations[]): ReservationSummary {
   const out: ReservationSummary = {
     reporting: 0,
