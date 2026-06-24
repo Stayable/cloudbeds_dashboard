@@ -30,10 +30,17 @@ export default function IntakeForm({
     e.preventDefault();
     setStatus("saving");
     setErrorMsg("");
+    const trimmedOther = otherTeam.trim();
+    const composedNotes =
+      team === "Other" && trimmedOther
+        ? notes.trim()
+          ? `[Team: ${trimmedOther}] ${notes.trim()}`
+          : `[Team: ${trimmedOther}]`
+        : notes;
     const res = await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, role, team: team === "Other" ? "Other" : team, metrics, notes }),
+      body: JSON.stringify({ name, role, team: team === "Other" ? "Other" : team, metrics, notes: composedNotes }),
     });
     if (res.ok) {
       setStatus("done");
