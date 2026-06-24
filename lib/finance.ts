@@ -12,6 +12,7 @@ export type FinanceView = {
   net: number;
   typeMix: Record<string, number>;
   paymentMethodMix: Record<string, number>;
+  capped: boolean; // totals may undercount (a day hit the 1500-row cap)
 };
 
 function addInto(target: Record<string, number>, src: Record<string, number>) {
@@ -30,6 +31,7 @@ export function buildFinanceViews(list: PropertyFinance[]): FinanceView[] {
     net: 0,
     typeMix: {},
     paymentMethodMix: {},
+    capped: false,
   };
   const perProperty: FinanceView[] = reporting.map((p) => {
     const a = p.result!.ok ? (p.result!.data as FinanceAggregates) : null;
@@ -41,12 +43,14 @@ export function buildFinanceViews(list: PropertyFinance[]): FinanceView[] {
       net: a?.net ?? 0,
       typeMix: a?.typeMix ?? {},
       paymentMethodMix: a?.paymentMethodMix ?? {},
+      capped: a?.capped ?? false,
     };
     all.charges += v.charges;
     all.paymentsCredits += v.paymentsCredits;
     all.net += v.net;
     addInto(all.typeMix, v.typeMix);
     addInto(all.paymentMethodMix, v.paymentMethodMix);
+    if (v.capped) all.capped = true;
     return v;
   });
 

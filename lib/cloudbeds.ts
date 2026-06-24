@@ -10,6 +10,7 @@
 
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
+import { dayCount, shiftYmd } from "@/lib/dates";
 
 const BASE_URL = "https://hotels.cloudbeds.com/api/v1.3";
 
@@ -450,16 +451,15 @@ export async function getPortfolioReservations(start: string, end: string): Prom
 //             balance_due_amount (net transaction amount).
 //   dims: transaction_type, payment_method. Date filter: service_date in range.
 //
-// ⚠ KNOWN LIMITATION — NOT WIRED INTO ANY PAGE YET. Dataset 1 only returns
-// measure values with settings.details:true, which Cloudbeds HARD-CAPS at 1500
-// rows (response `aggregated_count: 1500`). details:false / totals:true return
-// empty `records`. Finance is transaction-level, so a busy property/range blows
-// past 1500 and a client-side sum SILENTLY UNDERCOUNTS. Until an uncapped path
-// is confirmed (per-day chunking that stays < 1500, or a true server-side sum),
-// these functions must not feed user-facing totals. /rob §5 shows an honest
-// "paused" note instead. (Dataset 3 reservations use the same details:true
-// pattern but are reservation-level — well under the cap for current data — so
-// §4 is safe today; revisit if a property/range ever approaches 1500.)
+// Dataset 1 only returns measure values with settings.details:true, which
+// Cloudbeds HARD-CAPS at 1500 detail rows per query (response
+// `aggregated_count: 1500`); details:false/totals:true return empty `records`.
+// Finance is transaction-level, so a whole-range query can exceed 1500 and a
+// naive sum would silently undercount. FIX (verified live 2026-06-25): chunk the
+// query PER DAY — each day returns far fewer rows than the cap (Davenport peak
+// ~250/day) and the per-day sums reconcile exactly to the true total. We still
+// flag `capped:true` if any single day hits 1500, so the UI can warn rather than
+// quietly undercount.
 
 export type FinanceAggregates = {
   charges: number; // Σ debit_amount
@@ -467,6 +467,7 @@ export type FinanceAggregates = {
   net: number; // Σ balance_due_amount
   typeMix: Record<string, number>; // charges by transaction_type
   paymentMethodMix: Record<string, number>; // payments by payment_method
+  capped: boolean; // true if any day hit the 1500-row cap (totals may undercount)
 };
 
 async function diDataset1Grouped(
@@ -528,33 +529,61 @@ async function diDataset1Grouped(
   return { ok: true, data: { index, records } };
 }
 
+const FINANCE_ROW_CAP = 1500;
+
 async function getFinanceAggregates(
   apiKey: string,
   apiPropertyId: string,
   start: string,
   end: string,
 ): Promise<CloudbedsResult<FinanceAggregates>> {
-  const [byType, byMethod] = await Promise.all([
-    diDataset1Grouped(apiKey, apiPropertyId, "transaction_type", ["debit_amount", "credit_amount", "balance_due_amount"], start, end),
-    diDataset1Grouped(apiKey, apiPropertyId, "payment_method", ["credit_amount"], start, end),
-  ]);
-  if (!byType.ok) return byType;
+  // Per-day chunking to stay under the 1500 detail-row cap (see note above).
+  const n = dayCount(start, end);
+  const days = Array.from({ length: n }, (_, i) => shiftYmd(start, i));
 
-  const agg: FinanceAggregates = { charges: 0, paymentsCredits: 0, net: 0, typeMix: {}, paymentMethodMix: {} };
-  const t = byType.data;
-  for (let i = 0; i < t.index.length; i++) {
-    const type = t.index[i] || "Other";
-    const debit = t.records.debit_amount[i] ?? 0;
-    agg.charges += debit;
-    agg.paymentsCredits += t.records.credit_amount[i] ?? 0;
-    agg.net += t.records.balance_due_amount[i] ?? 0;
-    if (debit !== 0) agg.typeMix[type] = (agg.typeMix[type] ?? 0) + debit;
-  }
-  if (byMethod.ok) {
-    for (let i = 0; i < byMethod.data.index.length; i++) {
-      const method = byMethod.data.index[i] || "Unspecified";
-      const credit = byMethod.data.records.credit_amount[i] ?? 0;
-      if (credit !== 0) agg.paymentMethodMix[method] = (agg.paymentMethodMix[method] ?? 0) + credit;
+  const perDay = await Promise.all(
+    days.map(async (d) => {
+      const [byType, byMethod] = await Promise.all([
+        diDataset1Grouped(apiKey, apiPropertyId, "transaction_type", ["debit_amount", "credit_amount", "balance_due_amount"], d, d),
+        diDataset1Grouped(apiKey, apiPropertyId, "payment_method", ["credit_amount"], d, d),
+      ]);
+      return { byType, byMethod };
+    }),
+  );
+
+  // If every day failed, surface the first error.
+  const firstErr = perDay.find((r) => !r.byType.ok)?.byType;
+  if (firstErr && perDay.every((r) => !r.byType.ok)) return firstErr as CloudbedsResult<FinanceAggregates>;
+
+  const agg: FinanceAggregates = {
+    charges: 0,
+    paymentsCredits: 0,
+    net: 0,
+    typeMix: {},
+    paymentMethodMix: {},
+    capped: false,
+  };
+
+  for (const { byType, byMethod } of perDay) {
+    if (byType.ok) {
+      const t = byType.data;
+      if (t.index.length >= FINANCE_ROW_CAP) agg.capped = true;
+      for (let i = 0; i < t.index.length; i++) {
+        const type = t.index[i] || "Other";
+        const debit = t.records.debit_amount[i] ?? 0;
+        agg.charges += debit;
+        agg.paymentsCredits += t.records.credit_amount[i] ?? 0;
+        agg.net += t.records.balance_due_amount[i] ?? 0;
+        if (debit !== 0) agg.typeMix[type] = (agg.typeMix[type] ?? 0) + debit;
+      }
+    }
+    if (byMethod.ok) {
+      if (byMethod.data.index.length >= FINANCE_ROW_CAP) agg.capped = true;
+      for (let i = 0; i < byMethod.data.index.length; i++) {
+        const method = byMethod.data.index[i] || "Unspecified";
+        const credit = byMethod.data.records.credit_amount[i] ?? 0;
+        if (credit !== 0) agg.paymentMethodMix[method] = (agg.paymentMethodMix[method] ?? 0) + credit;
+      }
     }
   }
   return { ok: true, data: agg };

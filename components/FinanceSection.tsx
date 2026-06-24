@@ -86,6 +86,13 @@ export default function FinanceSection({
         })}
       </div>
 
+      {view.capped && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          A single day hit the Cloudbeds 1,500-transaction cap, so these totals may
+          undercount. Narrow the date range for an exact figure.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <Tile label="Charges (debits)" value={money(view.charges)} sub="service date in range" />
         <Tile label="Payments & credits" value={money(view.paymentsCredits)} />

@@ -14,6 +14,7 @@ function fin(code: string, name: string, charges: number): PropertyFinance {
         net: charges * 0.1,
         typeMix: { "Room Rate": charges },
         paymentMethodMix: { Card: charges * 0.9 },
+        capped: false,
       },
     },
   };

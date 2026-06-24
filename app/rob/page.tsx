@@ -3,13 +3,15 @@ import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
+import FinanceSection from "@/components/FinanceSection";
 import ExecFeedback from "@/components/ExecFeedback";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights, getPortfolioReservations } from "@/lib/cloudbeds";
+import { getPortfolio, getPortfolioInsights, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
 import { buildReservationViews } from "@/lib/reservations";
+import { buildFinanceViews } from "@/lib/finance";
 
 // Rob's CEO view — tailored to his /test selections. Exec-gated (middleware:
 // requiredLevel("/rob") => exec; Rob unlocks with the existing EXEC_PIN).
@@ -46,16 +48,18 @@ export default async function RobPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights, reservations] = await Promise.all([
+  const [portfolio, insights, reservations, finance] = await Promise.all([
     getPortfolio(),
     getPortfolioInsights(start, end),
     getPortfolioReservations(start, end),
+    getPortfolioFinance(start, end),
   ]);
 
   const properties = buildOccProperties(portfolio, insights);
   const days = dayCount(start, end);
   const revenue = buildRevenueSummary(portfolio, insights, days);
   const reservationViews = buildReservationViews(reservations);
+  const financeViews = buildFinanceViews(finance);
   const rangeLabel = start === end ? start : `${start} → ${end}`;
 
   return (
@@ -118,24 +122,10 @@ export default async function RobPage({
             <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} showFinancials />
           </section>
 
-          {/* Section 5 — Finance (blocked: see note) */}
+          {/* Section 5 — Finance */}
           <section id="finance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · charges, payments, net · aggregates only`} />
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-              <p className="font-medium">Verified the data is reachable — holding the numbers back until they&apos;re trustworthy.</p>
-              <p className="mt-1">
-                The Cloudbeds Finances dataset (debits, credits, net, by transaction type /
-                payment method) is wired and returns data, but its API caps a detailed pull at
-                <span className="font-semibold"> 1,500 transactions per property</span> and does
-                not expose an uncapped server-side total. Davenport alone exceeds that in a week,
-                so any figure shown here would silently <span className="font-semibold">undercount</span>.
-              </p>
-              <p className="mt-1">
-                Rather than display a wrong total, this section is paused until the correct
-                aggregation path is confirmed (per-day chunking under the cap, or a reporting
-                endpoint that returns true sums). No placeholder numbers.
-              </p>
-            </div>
+            <FinanceSection views={financeViews} rangeLabel={rangeLabel} />
           </section>
 
           {/* Honest note on what's not shown */}
