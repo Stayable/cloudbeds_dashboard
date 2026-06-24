@@ -9,6 +9,7 @@
 //              so we do NOT pass propertyID. Env var: CLOUDBEDS_API_KEY_<CODE>.
 
 import { PROPERTIES, type Property } from "@/config/properties";
+import { classifyRatePlan } from "@/lib/lease";
 
 const BASE_URL = "https://hotels.cloudbeds.com/api/v1.3";
 
@@ -234,6 +235,117 @@ export async function getPortfolioInsights(start: string, end: string): Promise<
         configured: true,
         result: await getInsightsOccupancy(key, property.apiPropertyId, start, end),
       };
+    }),
+  );
+}
+
+// --- Lease mix (in-house monthly / weekly / transient) ----------------------
+// Probe-verified against live Davenport (318197) on 2026-06-24 via
+// scripts/probe-lease-query.mjs. Verified column names (the plan's guesses were
+// wrong — corrected here):
+//   - in-house overlap bounds: `checkin_date` <= asOf AND `checkout_date` > asOf
+//     (NOT `check_in_date`/`check_out_date` — those 400 "Cdf not found").
+//   - room measure: `room_count` (rooms per reservation; summed per rate plan).
+//   - NO `modifier: "sum"` — DI dataset 3 rejects it ("Unknown field"); the
+//     measure is requested bare, exactly like dataset 7's columns.
+//
+// IMPORTANT response-shape note (differs from getInsightsOccupancy / dataset 7):
+// dataset 3 grouped-by-rate-plan does NOT return a `records` map keyed by group
+// value. With `details:false` the measure is dropped entirely (empty headers +
+// empty records). The working shape is `details:true`, which returns:
+//   index:   string[][] — one [ratePlanName] per reservation row (109 rows live)
+//   records: { room_count: number[] } — a PARALLEL array aligned to `index`.
+// So we zip index[i][0] (rate plan) with records.room_count[i] (rooms) and sum
+// per classification client-side. `classifyRatePlan` (Task 3, unit-tested) maps
+// the plan string to monthly/weekly/transient.
+//
+// Task 13 must validate: room_count is rooms-per-reservation, so `total` is a
+// rooms-on-the-books weighting, NOT necessarily equal to getDashboard's
+// roomsOccupied (which counts physical rooms in-house). If Task 13 needs the
+// latter, switch the measure or reconcile the two.
+
+export type LeaseMix = { monthly: number; weekly: number; transient: number; total: number };
+
+/** In-house lease mix for one property as of `asOf` (YYYY-MM-DD), from DI dataset 3. */
+async function getLeaseMix(
+  apiKey: string,
+  apiPropertyId: string,
+  asOf: string,
+): Promise<CloudbedsResult<LeaseMix>> {
+  const body = {
+    property_ids: [Number(apiPropertyId)],
+    dataset_id: 3,
+    columns: [{ cdf: { column: "room_count" } }],
+    group_rows: [{ cdf: { column: "public_rate_plan" } }],
+    filters: {
+      and: [
+        { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: asOf },
+        { cdf: { column: "checkout_date" }, operator: "greater_than", value: asOf },
+      ],
+    },
+    // details:true is REQUIRED — see shape note above; details:false drops the measure.
+    settings: { totals: false, details: true },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${DI_BASE}/reports/query/data?mode=Run`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-PROPERTY-ID": apiPropertyId,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: `Network error reaching Data Insights: ${String(e)}` };
+  }
+
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* keep raw */
+  }
+  if (!res.ok) return { ok: false, status: res.status, error: `Data Insights HTTP ${res.status}`, body: parsed };
+
+  // `index[i]` is [ratePlanName]; `records.room_count[i]` is the rooms for that
+  // same row. Zip them and sum rooms per lease classification.
+  const p = parsed as { index?: unknown[]; records?: { room_count?: unknown[] } };
+  const index = Array.isArray(p?.index) ? p.index : [];
+  const rooms = Array.isArray(p?.records?.room_count) ? p.records!.room_count! : [];
+  const mix: LeaseMix = { monthly: 0, weekly: 0, transient: 0, total: 0 };
+  for (let i = 0; i < index.length; i++) {
+    const row = index[i];
+    const plan = Array.isArray(row) ? String(row[0] ?? "") : String(row ?? "");
+    const r = rooms[i];
+    const n = typeof r === "number" ? r : 0;
+    const cls = classifyRatePlan(plan);
+    if (cls === "lease-monthly") mix.monthly += n;
+    else if (cls === "lease-weekly") mix.weekly += n;
+    else mix.transient += n;
+    mix.total += n;
+  }
+  return { ok: true, data: mix };
+}
+
+export type PropertyLeaseMix = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<LeaseMix> | null;
+};
+
+/** In-house lease mix for every configured property as of `asOf`, in parallel. */
+export async function getPortfolioLeaseMix(asOf: string): Promise<PropertyLeaseMix[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyLeaseMix> => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return { property, configured: false, result: null };
+      return { property, configured: true, result: await getLeaseMix(key, property.apiPropertyId, asOf) };
     }),
   );
 }
