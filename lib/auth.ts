@@ -8,7 +8,7 @@
 
 export const AUTH_COOKIE = "sd_auth";
 
-export type Level = "base" | "exec";
+export type Level = "base" | "exec" | "crystal";
 
 export async function tokenFor(level: Level, pin: string): Promise<string> {
   const data = new TextEncoder().encode(`stayable-dashboard:${level}:${pin}`);
@@ -18,9 +18,12 @@ export async function tokenFor(level: Level, pin: string): Promise<string> {
     .join("");
 }
 
-/** Which level a path needs. /exec(/...) => exec; everything else => base. */
+/** Which level a path needs. /exec(/...) => exec; /crystal(/...) => crystal;
+ *  everything else => base. */
 export function requiredLevel(pathname: string): Level {
-  return pathname === "/exec" || pathname.startsWith("/exec/") ? "exec" : "base";
+  if (pathname === "/exec" || pathname.startsWith("/exec/")) return "exec";
+  if (pathname === "/crystal" || pathname.startsWith("/crystal/")) return "crystal";
+  return "base";
 }
 
 /**
@@ -28,14 +31,22 @@ export function requiredLevel(pathname: string): Level {
  * - base: null when DASHBOARD_PIN is unset (gate disabled).
  * - exec: token of EXEC_PIN; falls back to the base token when EXEC_PIN is
  *   unset, so /exec never locks itself out (mirrors the old !pin guard).
+ * - crystal: token of CRYSTAL_PIN; falls back to the exec token when CRYSTAL_PIN
+ *   is unset, so until CRYSTAL_PIN is set only exec/CEO reaches /crystal.
  */
-export async function expectedTokens(): Promise<{ base: string | null; exec: string | null }> {
+export async function expectedTokens(): Promise<{
+  base: string | null;
+  exec: string | null;
+  crystal: string | null;
+}> {
   const basePin = process.env.DASHBOARD_PIN;
   const execPin = process.env.EXEC_PIN;
-  if (!basePin) return { base: null, exec: null };
+  const crystalPin = process.env.CRYSTAL_PIN;
+  if (!basePin) return { base: null, exec: null, crystal: null };
   const base = await tokenFor("base", basePin);
   const exec = execPin ? await tokenFor("exec", execPin) : base;
-  return { base, exec };
+  const crystal = crystalPin ? await tokenFor("crystal", crystalPin) : exec;
+  return { base, exec, crystal };
 }
 
 /** Sanitize a post-login redirect target to a same-site path. Rejects
@@ -51,14 +62,21 @@ export function safeNextPath(next: string | null | undefined): string {
 export function decideAccess(
   pathname: string,
   cookieToken: string | undefined,
-  expected: { base: string | null; exec: string | null },
+  expected: { base: string | null; exec: string | null; crystal: string | null },
 ): "allow" | "deny" {
   if (expected.base === null) return "allow"; // gate disabled
   const need = requiredLevel(pathname);
   if (need === "exec") {
     return cookieToken && cookieToken === expected.exec ? "allow" : "deny";
   }
-  // base route: base OR exec token unlocks it (CEO sees everything)
+  if (need === "crystal") {
+    // /crystal: the crystal PIN OR exec/CEO unlocks it; base does not.
+    return cookieToken && (cookieToken === expected.crystal || cookieToken === expected.exec)
+      ? "allow"
+      : "deny";
+  }
+  // base route: base OR exec token unlocks it (CEO sees everything). The crystal
+  // token is scoped to /crystal and does NOT reach base.
   return cookieToken && (cookieToken === expected.base || cookieToken === expected.exec)
     ? "allow"
     : "deny";

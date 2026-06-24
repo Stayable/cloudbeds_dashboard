@@ -38,3 +38,14 @@ export async function insertFeedback(notes: string): Promise<void> {
     values (${source}, ${name}, ${notes})
   `;
 }
+
+/** Insert a note from the /crystal dashboard (source='crystal-note', name='Crystal'). */
+export async function insertCrystalNote(notes: string): Promise<void> {
+  const sql = db();
+  const source = "crystal-note";
+  const name = "Crystal";
+  await sql`
+    insert into submissions (source, name, notes)
+    values (${source}, ${name}, ${notes})
+  `;
+}

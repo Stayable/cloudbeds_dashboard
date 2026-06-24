@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const basePin = process.env.DASHBOARD_PIN;
   const execPin = process.env.EXEC_PIN;
+  const crystalPin = process.env.CRYSTAL_PIN;
   if (!basePin) {
     return NextResponse.json({ ok: false, error: "PIN gate not configured" }, { status: 400 });
   }
@@ -13,9 +14,10 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { pin?: unknown } | null;
   const pin = typeof body?.pin === "string" ? body.pin : "";
 
-  // Determine the highest level this PIN unlocks. Exec PIN wins if it matches.
-  let level: "base" | "exec" | null = null;
+  // Determine the level this PIN unlocks. Exec wins, then crystal, then base.
+  let level: "base" | "exec" | "crystal" | null = null;
   if (execPin && pin === execPin) level = "exec";
+  else if (crystalPin && pin === crystalPin) level = "crystal";
   else if (pin === basePin) level = "base";
 
   if (!level) return NextResponse.json({ ok: false }, { status: 401 });
