@@ -166,16 +166,16 @@ export default async function ExecPage({
         <PeriodControls preset={preset} start={start} end={end} />
       </section>
 
-      {/* Operational view first — same content as the public / dashboard. */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Operational dashboard</h2>
-        <OccupancyView properties={occProperties} />
-      </section>
-
-      {/* Executive analytics below. */}
+      {/* Executive analytics first. */}
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Executive analytics</h2>
         <ExecView data={data} />
+      </section>
+
+      {/* Operational view below — same content as the public / dashboard. */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Operational dashboard</h2>
+        <OccupancyView properties={occProperties} />
       </section>
 
       {/* Legend — abbreviations used across both sections. */}
