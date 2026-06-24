@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { BotIdClient } from "botid/client";
 import type { CatalogMetric } from "@/config/catalog-sample";
 
-const TEAMS = ["Crystal", "Remote Property Managers", "Property Managers & Attendants", "Other"];
+const TEAMS = ["Crystal", "Remote Property Managers", "Property Managers & Attendants", "Rob", "Other"];
 
 export default function IntakeForm({
   groups,
@@ -37,17 +36,33 @@ export default function IntakeForm({
           ? `[Team: ${trimmedOther}] ${notes.trim()}`
           : `[Team: ${trimmedOther}]`
         : notes;
-    const res = await fetch("/api/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, role, team: team === "Other" ? "Other" : team, metrics, notes: composedNotes }),
-    });
-    if (res.ok) {
-      setStatus("done");
-    } else {
-      const b = await res.json().catch(() => ({}));
-      setErrorMsg(b?.error || "Something went wrong. Please try again.");
+    // Hard timeout so a hung network request can never leave the button stuck
+    // on "Submitting…" — it always resolves to done or an actionable error.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, role, team: team === "Other" ? "Other" : team, metrics, notes: composedNotes }),
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        setStatus("done");
+      } else {
+        const b = await res.json().catch(() => ({}));
+        setErrorMsg(b?.error || "Something went wrong. Please try again.");
+        setStatus("error");
+      }
+    } catch (err) {
+      setErrorMsg(
+        err instanceof DOMException && err.name === "AbortError"
+          ? "The request timed out. Please check your connection and try again."
+          : "Could not reach the server. Please try again.",
+      );
       setStatus("error");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -64,9 +79,6 @@ export default function IntakeForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      {/* Register the public write path for BotID protection. */}
-      <BotIdClient protect={[{ path: "/api/submit", method: "POST" }]} />
-
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="block">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Name *</span>

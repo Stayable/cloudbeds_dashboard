@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { checkBotId } from "botid/server";
 import { insertSubmission } from "@/lib/db";
 import { allow } from "@/lib/ratelimit";
 import { CATALOG } from "@/config/catalog-sample";
 
 export const dynamic = "force-dynamic";
 
-const TEAMS = ["Crystal", "Remote Property Managers", "Property Managers & Attendants", "Other"];
+const TEAMS = ["Crystal", "Remote Property Managers", "Property Managers & Attendants", "Rob", "Other"];
 
 // Input length caps (applied after trim).
 const MAX_NAME = 120;
@@ -19,17 +18,16 @@ const MAX_METRICS = 200;
 const VALID_METRIC_KEYS = new Set(CATALOG.map((m) => m.key));
 
 export async function POST(req: Request) {
-  // 1) Bot check (Vercel BotID). Off-Vercel/dev returns isBot:false.
-  const verdict = await checkBotId();
-  if (verdict.isBot) return NextResponse.json({ ok: false, error: "Bot detected" }, { status: 403 });
-
-  // 2) Light rate limit by client IP.
+  // Light rate limit by client IP. (BotID was removed — its client-side token
+  // gate silently blocked legitimate submissions when the challenge script was
+  // blocked by ad/privacy blockers. Rate limit + strict validation below are
+  // the abuse controls for this internal, no-PII intake form.)
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (!allow(`submit:${ip}`, 5, 60_000)) {
     return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   }
 
-  // 3) Parse + validate.
+  // Parse + validate.
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const role = typeof body?.role === "string" ? body.role.trim() : "";
@@ -66,7 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "select at least one metric" }, { status: 400 });
   }
 
-  // 4) Persist.
+  // Persist.
   try {
     await insertSubmission({ name, role, team, metrics, notes: notes || undefined });
   } catch (e) {
