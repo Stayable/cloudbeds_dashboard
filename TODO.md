@@ -2,16 +2,33 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** **Three-dashboard build COMPLETE & verified
-> (Task 13, 06/24/26).** Gate green: `npm test` 38/38, `tsc --noEmit` clean,
-> `npm run build` lists `/`, `/exec`, `/test`, `/login`, `/api/auth`,
-> `/api/submit`, `/api/feedback`; no secrets in `.next/static`.
+> **Pickup (next CLI session):** **Three-dashboard build COMPLETE, reviewed,
+> pushed.** Branch `claude/nifty-thompson-ts8zny` @ `5bcee0a` == origin. Gate
+> green: `npm test` **40/40**, `tsc --noEmit` clean, `npm run build` lists `/`,
+> `/exec`, `/test`, `/login`, `/api/auth`, `/api/submit`, `/api/feedback`; no
+> secrets in `.next/static`.
+>
+> **UI enhancements this session (06/24/26, post-build):**
+>   - Nav buttons: `/` → "Executive view"; `/exec` → "← Dashboard"; `/login`
+>     "← Back" (for no-PIN / wrong-PIN on the exec prompt).
+>   - `/exec` now embeds the full operational dashboard (OccupancyView: property
+>     selector + per-property detail + Today live cards) via shared
+>     `lib/occupancy.ts` `buildOccProperties`. Order: **Executive analytics on
+>     top**, Operational dashboard below, then an **abbreviations legend**.
+>   - `/test`: note added that metric availability depends on role/permissions.
+>
 > **Next real action — deploy (needs Kyle/permission, CLAUDE.md §8):**
 >   1. `vercel env add EXEC_PIN production` → value `STYBLCEO` (also Preview).
 >   2. Confirm `DATABASE_URL` already set on Vercel Prod+Preview (it is, per
 >      provisioning below).
 >   3. Redeploy, then smoke `/`, `/exec`, `/test` on the live URL.
->   4. Wire DNS `dashboard.rentstayable.com` (still open).
+>   4. ~~Wire DNS `dashboard.rentstayable.com`~~ — **DEPRIORITIZED by Kyle.**
+>      Stays on `cloudbeds-dashboard-jade.vercel.app` for now.
+>
+> **Follow-up flagged (NOT built — intent only):** per-metric / per-role
+> filtering of the live dashboards. The `/test` role note promises it, but the
+> gate today is binary (base vs exec); actual role-scoped metric hiding is a
+> separate piece of work to spec if wanted.
 >
 > **Open lease-mix caveats (carry-forward from Tasks 5 & 13):**
 >   - **Ratio-only:** lease-mix `total` is summed `room_count` over in-house
