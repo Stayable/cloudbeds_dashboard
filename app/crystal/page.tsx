@@ -116,16 +116,16 @@ export default async function CrystalPage({
             <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} />
           </section>
 
-          {/* Notes / comments */}
-          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
-            <CrystalNotes />
-          </section>
-
-          <p className="mt-8 text-xs text-slate-400">
+          <p className="mb-8 text-xs text-slate-400">
             Aggregated metrics only · no guest PII · read-only · cached up to 10 min. The
             &ldquo;Today (live snapshot)&rdquo; cards are always today&apos;s figures regardless
             of the selected range.
           </p>
+
+          {/* Notes / comments — below everything */}
+          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
+            <CrystalNotes />
+          </section>
         </div>
       </div>
     </main>

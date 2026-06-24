@@ -159,12 +159,20 @@ export default async function ExecPage({
           <p className="text-xs font-medium uppercase tracking-widest text-white/60">
             Stayable · Executive Dashboard
           </p>
-          <Link
-            href="/"
-            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Link
+              href="/rob"
+              className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Rob&apos;s view →
+            </Link>
+            <Link
+              href="/"
+              className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Portfolio Performance</h1>
       </header>

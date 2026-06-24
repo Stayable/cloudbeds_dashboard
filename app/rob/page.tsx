@@ -146,17 +146,17 @@ export default async function RobPage({
             <p className="mt-2 text-xs text-slate-400">No placeholder numbers — these are listed, not faked.</p>
           </div>
 
-          {/* Notes / feedback (posts as Rob's exec feedback) */}
-          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
-            <ExecFeedback />
-          </section>
-
-          <p className="mt-8 text-xs text-slate-400">
+          <p className="mb-8 text-xs text-slate-400">
             Aggregated metrics only · no guest PII · read-only · cached up to 10 min. Only
             properties with a configured Cloudbeds key report (Davenport today). The
             &ldquo;Today (live snapshot)&rdquo; cards are always today&apos;s figures regardless
             of the selected range.
           </p>
+
+          {/* Notes / feedback (posts as Rob's exec feedback) — below everything */}
+          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
+            <ExecFeedback />
+          </section>
         </div>
       </div>
     </main>
