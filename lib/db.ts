@@ -1,0 +1,40 @@
+// Server-only Neon Postgres client (CLAUDE.md §6 reversal — sanctioned for
+// persisting /test submissions and exec feedback). Never import from a client
+// component. One table `submissions` (see scripts/db-init.mjs).
+import { neon } from "@neondatabase/serverless";
+
+function db() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set");
+  return neon(url);
+}
+
+export type SubmissionInput = {
+  name: string;
+  role: string;
+  team: string;
+  metrics: string[];
+  notes?: string;
+};
+
+/** Insert a team requirements submission from /test (source='team-intake'). */
+export async function insertSubmission(input: SubmissionInput): Promise<void> {
+  const sql = db();
+  const source = "team-intake";
+  await sql`
+    insert into submissions (source, name, role, team, metrics, notes)
+    values (${source}, ${input.name}, ${input.role}, ${input.team},
+            ${JSON.stringify(input.metrics)}::jsonb, ${input.notes ?? null})
+  `;
+}
+
+/** Insert Rob's exec feedback (source='exec-feedback', name='Rob'). */
+export async function insertFeedback(notes: string): Promise<void> {
+  const sql = db();
+  const source = "exec-feedback";
+  const name = "Rob";
+  await sql`
+    insert into submissions (source, name, notes)
+    values (${source}, ${name}, ${notes})
+  `;
+}
