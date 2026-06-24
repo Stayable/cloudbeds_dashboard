@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { safeNextPath } from "@/lib/auth";
 
 export default function LoginPage() {
   const [pin, setPin] = useState("");
@@ -19,8 +20,7 @@ export default function LoginPage() {
     if (res.ok) {
       // Redirect back to the originally-requested path (?next=), default "/".
       const params = new URLSearchParams(window.location.search);
-      const next = params.get("next");
-      const dest = next && next.startsWith("/") ? next : "/"; // only same-site paths
+      const dest = safeNextPath(params.get("next"));
       window.location.assign(dest); // hard nav so the cookie applies before middleware
     } else {
       setLoading(false);

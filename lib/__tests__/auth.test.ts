@@ -1,5 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { tokenFor, requiredLevel, decideAccess } from "@/lib/auth";
+import { tokenFor, requiredLevel, decideAccess, safeNextPath } from "@/lib/auth";
+
+describe("safeNextPath", () => {
+  it('passes through valid same-site paths', () => {
+    expect(safeNextPath("/exec")).toBe("/exec");
+    expect(safeNextPath("/")).toBe("/");
+  });
+  it('rejects protocol-relative URLs (//host)', () => {
+    expect(safeNextPath("//evil.com")).toBe("/");
+  });
+  it('rejects absolute URLs', () => {
+    expect(safeNextPath("https://evil.com")).toBe("/");
+  });
+  it('returns "/" for null', () => {
+    expect(safeNextPath(null)).toBe("/");
+  });
+  it('returns "/" for undefined', () => {
+    expect(safeNextPath(undefined)).toBe("/");
+  });
+  it('returns "/" for empty string', () => {
+    expect(safeNextPath("")).toBe("/");
+  });
+});
 
 describe("tokenFor", () => {
   it("is deterministic and level-scoped", async () => {

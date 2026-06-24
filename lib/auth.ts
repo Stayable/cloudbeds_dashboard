@@ -38,6 +38,15 @@ export async function expectedTokens(): Promise<{ base: string | null; exec: str
   return { base, exec };
 }
 
+/** Sanitize a post-login redirect target to a same-site path. Rejects
+ *  absolute and protocol-relative (//host) URLs; defaults to "/". */
+export function safeNextPath(next: string | null | undefined): string {
+  if (!next) return "/";
+  // must be a path starting with a single "/", not "//" (protocol-relative)
+  if (!next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
 /** Pure access decision. Middleware computes `expected` then calls this. */
 export function decideAccess(
   pathname: string,
