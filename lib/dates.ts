@@ -66,3 +66,25 @@ export function dayCount(start: string, end: string): number {
   const b = Date.UTC(ye, me - 1, de);
   return Math.floor((b - a) / 86_400_000) + 1;
 }
+
+/** The equal-length window immediately before [start, end] (inclusive). */
+export function priorWindow(start: string, end: string): { start: string; end: string } {
+  const len = dayCount(start, end); // inclusive day count
+  return { start: shiftYmd(start, -len), end: shiftYmd(end, -len) };
+}
+
+/** Shift a YYYY-MM-DD back one calendar month, clamping the day to a valid date. */
+function shiftMonth(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const targetMonth = m === 1 ? 12 : m - 1;
+  const targetYear = m === 1 ? y - 1 : y;
+  // Last day of the target month (day 0 of the following month, UTC).
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+  const day = Math.min(d, lastDay);
+  return `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Same-shaped window one calendar month earlier (both ends clamped). */
+export function priorMonthWindow(start: string, end: string): { start: string; end: string } {
+  return { start: shiftMonth(start), end: shiftMonth(end) };
+}
