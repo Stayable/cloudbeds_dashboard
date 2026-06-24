@@ -65,6 +65,20 @@ export default function LoginPage() {
         >
           {loading ? "Checking…" : "Unlock"}
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            // Return to wherever they came from (e.g. the base dashboard when
+            // they hit the /exec PIN prompt without exec access). Falls back to
+            // the base dashboard if there's no history to go back to.
+            if (window.history.length > 1) window.history.back();
+            else window.location.assign("/");
+          }}
+          className="mt-3 w-full rounded-lg border border-slate-300 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          ← Back
+        </button>
       </form>
     </main>
   );

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import OccupancyView, { type OccProperty } from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import { dayCount, resolveRange } from "@/lib/dates";
@@ -70,9 +71,17 @@ export default async function DashboardPage({
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
-        <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-          Stayable · Portfolio Occupancy Dashboard
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-widest text-white/60">
+            Stayable · Portfolio Occupancy Dashboard
+          </p>
+          <Link
+            href="/exec"
+            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            Executive view →
+          </Link>
+        </div>
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h1 className="text-2xl font-semibold sm:text-3xl">All Properties</h1>
           <span className="text-sm text-white/70">

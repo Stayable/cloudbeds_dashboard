@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ExecView, { type ExecData, type ExecProperty } from "@/components/ExecView";
 import { resolveRange, priorWindow, priorMonthWindow } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioLeaseMix } from "@/lib/cloudbeds";
@@ -141,9 +142,17 @@ export default async function ExecPage({
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
-        <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-          Stayable · Executive Dashboard
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-widest text-white/60">
+            Stayable · Executive Dashboard
+          </p>
+          <Link
+            href="/"
+            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            ← Dashboard
+          </Link>
+        </div>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Portfolio Performance</h1>
       </header>
 
