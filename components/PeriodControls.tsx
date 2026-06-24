@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const PRESETS: { key: string; label: string }[] = [
@@ -20,11 +20,14 @@ export default function PeriodControls({
   end: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [from, setFrom] = useState(start);
   const [to, setTo] = useState(end);
 
   function go(params: Record<string, string>) {
-    router.push(`/?${new URLSearchParams(params).toString()}`);
+    // Stay on the current path (/, /exec, …) so the date filter doesn't bounce
+    // the user back to the base dashboard.
+    router.push(`${pathname}?${new URLSearchParams(params).toString()}`);
   }
 
   return (
