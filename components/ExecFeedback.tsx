@@ -9,16 +9,26 @@ export default function ExecFeedback() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("saving");
-    const res = await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes }),
-    });
-    if (res.ok) {
-      setStatus("done");
-      setNotes("");
-    } else {
+    // Robust submit (try/catch + abort timeout) — never hang on "Sending…".
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        setStatus("done");
+        setNotes("");
+      } else {
+        setStatus("error");
+      }
+    } catch {
       setStatus("error");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

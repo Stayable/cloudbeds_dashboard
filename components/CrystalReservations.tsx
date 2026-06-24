@@ -53,9 +53,11 @@ function MixBars({ title, mix }: { title: string; mix: Record<string, number> })
 export default function CrystalReservations({
   views,
   rangeLabel,
+  showFinancials = false,
 }: {
   views: ReservationView[];
   rangeLabel: string;
+  showFinancials?: boolean;
 }) {
   const [activeKey, setActiveKey] = useState(views[0]?.key ?? "ALL");
 
@@ -101,6 +103,13 @@ export default function CrystalReservations({
         <Tile label="Grand total" value={money(view.grandTotal)} sub="full reservation value" />
         <Tile label="Paid" value={money(view.paid)} />
         <Tile label="Balance due" value={money(view.balanceDue)} />
+        {showFinancials && (
+          <>
+            <Tile label="Fees" value={money(view.fees)} />
+            <Tile label="Taxes" value={money(view.taxes)} />
+            <Tile label="Channel commission" value={money(view.commission)} />
+          </>
+        )}
       </div>
 
       <MixBars title="Reservation status mix (rooms)" mix={view.statusMix} />

@@ -18,10 +18,11 @@ export async function tokenFor(level: Level, pin: string): Promise<string> {
     .join("");
 }
 
-/** Which level a path needs. /exec(/...) => exec; /crystal(/...) => crystal;
- *  everything else => base. */
+/** Which level a path needs. /exec and /rob (the CEO's own view) => exec;
+ *  /crystal(/...) => crystal; everything else => base. */
 export function requiredLevel(pathname: string): Level {
   if (pathname === "/exec" || pathname.startsWith("/exec/")) return "exec";
+  if (pathname === "/rob" || pathname.startsWith("/rob/")) return "exec";
   if (pathname === "/crystal" || pathname.startsWith("/crystal/")) return "crystal";
   return "base";
 }

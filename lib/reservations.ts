@@ -12,6 +12,9 @@ export type ReservationSummary = {
   grandTotal: number;
   paid: number;
   balanceDue: number;
+  fees: number;
+  taxes: number;
+  commission: number;
   statusMix: Record<string, number>;
   leaseMix: { monthly: number; weekly: number; transient: number; total: number };
   roomTypeCategoryMix: Record<string, number>;
@@ -32,6 +35,9 @@ export type ReservationView = {
   grandTotal: number;
   paid: number;
   balanceDue: number;
+  fees: number;
+  taxes: number;
+  commission: number;
   statusMix: Record<string, number>;
   leaseMix: { monthly: number; weekly: number; transient: number; total: number };
   roomTypeCategoryMix: Record<string, number>;
@@ -52,6 +58,9 @@ export function buildReservationViews(list: PropertyReservations[]): Reservation
     grandTotal: all.grandTotal,
     paid: all.paid,
     balanceDue: all.balanceDue,
+    fees: all.fees,
+    taxes: all.taxes,
+    commission: all.commission,
     statusMix: all.statusMix,
     leaseMix: all.leaseMix,
     roomTypeCategoryMix: all.roomTypeCategoryMix,
@@ -68,6 +77,9 @@ export function buildReservationViews(list: PropertyReservations[]): Reservation
       grandTotal: a?.grandTotal ?? 0,
       paid: a?.paid ?? 0,
       balanceDue: a?.balanceDue ?? 0,
+      fees: a?.fees ?? 0,
+      taxes: a?.taxes ?? 0,
+      commission: a?.commission ?? 0,
       statusMix: a?.statusMix ?? {},
       leaseMix: a?.leaseMix ?? { monthly: 0, weekly: 0, transient: 0, total: 0 },
       roomTypeCategoryMix: a?.roomTypeCategoryMix ?? {},
@@ -86,6 +98,9 @@ export function buildReservationSummary(list: PropertyReservations[]): Reservati
     grandTotal: 0,
     paid: 0,
     balanceDue: 0,
+    fees: 0,
+    taxes: 0,
+    commission: 0,
     statusMix: {},
     leaseMix: { monthly: 0, weekly: 0, transient: 0, total: 0 },
     roomTypeCategoryMix: {},
@@ -101,6 +116,9 @@ export function buildReservationSummary(list: PropertyReservations[]): Reservati
     out.grandTotal += a.grandTotal;
     out.paid += a.paid;
     out.balanceDue += a.balanceDue;
+    out.fees += a.fees;
+    out.taxes += a.taxes;
+    out.commission += a.commission;
     addInto(out.statusMix, a.statusMix);
     out.leaseMix.monthly += a.leaseMix.monthly;
     out.leaseMix.weekly += a.leaseMix.weekly;

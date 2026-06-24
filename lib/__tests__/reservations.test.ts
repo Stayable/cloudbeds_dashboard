@@ -19,6 +19,7 @@ function reporting(code: string, name: string, rooms: number): PropertyReservati
       ok: true,
       data: {
         rooms, roomNights: rooms * 5, guests: rooms, grandTotal: rooms * 100, paid: rooms * 90, balanceDue: rooms * 10,
+        fees: rooms * 4, taxes: rooms * 2, commission: 0,
         statusMix: { "In-House": rooms },
         leaseMix: { monthly: 0, weekly: 0, transient: rooms, total: rooms },
         roomTypeCategoryMix: { Private: rooms },
@@ -35,6 +36,7 @@ describe("buildReservationSummary", () => {
           ok: true,
           data: {
             rooms: 10, roomNights: 100, guests: 12, grandTotal: 5000, paid: 4000, balanceDue: 1000,
+            fees: 200, taxes: 100, commission: 0,
             statusMix: { "In-House": 6, "Confirmed": 4, "Cancelled": 2 },
             leaseMix: { monthly: 3, weekly: 2, transient: 5, total: 10 },
             roomTypeCategoryMix: { Private: 8, Shared: 2 },
@@ -46,6 +48,7 @@ describe("buildReservationSummary", () => {
           ok: true,
           data: {
             rooms: 5, roomNights: 40, guests: 5, grandTotal: 2500, paid: 2500, balanceDue: 0,
+            fees: 100, taxes: 50, commission: 0,
             statusMix: { "In-House": 5, "Confirmed": 1 },
             leaseMix: { monthly: 1, weekly: 0, transient: 4, total: 5 },
             roomTypeCategoryMix: { Private: 5 },

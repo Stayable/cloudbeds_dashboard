@@ -37,6 +37,7 @@ describe("requiredLevel", () => {
   it("requires exec for /exec routes, crystal for /crystal, base otherwise", () => {
     expect(requiredLevel("/exec")).toBe("exec");
     expect(requiredLevel("/exec/anything")).toBe("exec");
+    expect(requiredLevel("/rob")).toBe("exec"); // CEO's own view, exec-gated
     expect(requiredLevel("/crystal")).toBe("crystal");
     expect(requiredLevel("/crystal/anything")).toBe("crystal");
     expect(requiredLevel("/")).toBe("base");

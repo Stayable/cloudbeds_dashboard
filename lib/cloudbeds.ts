@@ -263,6 +263,9 @@ export type ReservationAggregates = {
   grandTotal: number;
   paid: number;
   balanceDue: number;
+  fees: number; // Σ fees_value_amount
+  taxes: number; // Σ taxes_value_amount
+  commission: number; // Σ channel_commission_amount
   // Breakdowns of rooms-on-books.
   statusMix: Record<string, number>; // ALL statuses, rooms by status
   leaseMix: LeaseMix; // monthly/weekly/transient (rooms), via classifyRatePlan
@@ -351,6 +354,9 @@ async function getReservationAggregates(
         "grand_total_amount",
         "reservation_paid_amount",
         "reservation_balance_due_amount",
+        "fees_value_amount",
+        "taxes_value_amount",
+        "channel_commission_amount",
       ],
       start,
       end,
@@ -368,6 +374,9 @@ async function getReservationAggregates(
     grandTotal: 0,
     paid: 0,
     balanceDue: 0,
+    fees: 0,
+    taxes: 0,
+    commission: 0,
     statusMix: {},
     leaseMix: { monthly: 0, weekly: 0, transient: 0, total: 0 },
     roomTypeCategoryMix: {},
@@ -385,6 +394,9 @@ async function getReservationAggregates(
     agg.grandTotal += s.records.grand_total_amount[i] ?? 0;
     agg.paid += s.records.reservation_paid_amount[i] ?? 0;
     agg.balanceDue += s.records.reservation_balance_due_amount[i] ?? 0;
+    agg.fees += s.records.fees_value_amount[i] ?? 0;
+    agg.taxes += s.records.taxes_value_amount[i] ?? 0;
+    agg.commission += s.records.channel_commission_amount[i] ?? 0;
   }
 
   if (byPlan.ok) {

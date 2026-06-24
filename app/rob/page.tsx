@@ -3,7 +3,7 @@ import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
-import CrystalNotes from "@/components/CrystalNotes";
+import ExecFeedback from "@/components/ExecFeedback";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioReservations } from "@/lib/cloudbeds";
@@ -11,8 +11,8 @@ import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
 import { buildReservationViews } from "@/lib/reservations";
 
-// Render per-request so runtime env vars are read live; upstream Cloudbeds calls
-// are still cached 10 min. Gated to the crystal/exec token by middleware.
+// Rob's CEO view — tailored to his /test selections. Exec-gated (middleware:
+// requiredLevel("/rob") => exec; Rob unlocks with the existing EXEC_PIN).
 export const dynamic = "force-dynamic";
 
 const NAV: NavItem[] = [
@@ -37,7 +37,7 @@ function SectionHeading({ n, title, sub }: { n: number; title: string; sub: stri
   );
 }
 
-export default async function CrystalPage({
+export default async function RobPage({
   searchParams,
 }: {
   searchParams: Promise<{ preset?: string; start?: string; end?: string }>;
@@ -62,18 +62,19 @@ export default async function CrystalPage({
       <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-            Stayable · Operations Dashboard
+            Stayable · CEO Dashboard
           </p>
           <Link
-            href="/"
+            href="/exec"
             className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
           >
-            ← Dashboard
+            Executive analytics →
           </Link>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Crystal&apos;s View</h1>
+        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Rob&apos;s View</h1>
         <p className="mt-1 text-sm text-white/70">
-          Tailored to the metrics you selected — live operations plus period trends.
+          Tailored to the metrics you selected — live ops, occupancy, revenue, and
+          reservation financials.
         </p>
       </header>
 
@@ -85,13 +86,13 @@ export default async function CrystalPage({
           <section id="live" className="mb-8 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={1} title="Live now" sub="Today's snapshot · Eastern · per property below" />
             <p className="text-xs text-slate-500">
-              Each property&apos;s live counts (rooms occupied, in-house, guests, arrivals,
-              departures, bookings, cancellations, blocked/OOO) are in the &ldquo;Today
-              (live snapshot)&rdquo; cards within Property detail below.
+              Each property&apos;s live counts (rooms occupied, in-house, arrivals,
+              departures, stayovers, bookings, cancellations, blocked/OOO) are in the
+              &ldquo;Today (live snapshot)&rdquo; cards within Property detail below.
             </p>
           </section>
 
-          {/* Section 2 — Occupancy over the selected range (also carries the live cards) */}
+          {/* Section 2 — Occupancy */}
           <section id="occupancy" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading
               n={2}
@@ -110,19 +111,45 @@ export default async function CrystalPage({
             <CrystalRevenue summary={revenue} />
           </section>
 
-          {/* Section 4 — Reservations & pace (aggregates only) */}
+          {/* Section 4 — Reservations & pace (with financials) */}
           <section id="reservations" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={4} title="Reservations & pace" sub={`${rangeLabel} · aggregates only · no guest detail`} />
-            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} />
+            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} showFinancials />
           </section>
 
-          {/* Notes / comments */}
+          {/* Honest note on what's not (yet) shown */}
+          <div className="mb-10 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+            <p className="font-medium text-slate-700">A few of your selections aren&apos;t shown here:</p>
+            <ul className="mt-2 space-y-1">
+              <li>
+                <span className="font-medium">Housekeeping</span> (room condition/status,
+                front-desk status, housekeeper, DND, count-by-status) — excluded by policy:
+                the dashboard never enables the Housekeeping API scope.
+              </li>
+              <li>
+                <span className="font-medium">Finance transactions</span> (debits/credits,
+                transaction/fee/tax types, payment method, GL, add-ons) — needs a separate
+                Financial-Transactions data source we haven&apos;t wired yet.
+              </li>
+              <li>
+                <span className="font-medium">A few reservation/segment fields</span>
+                (booking window, cancellation/no-show fees, commission %, reservation source,
+                market segment) — not exposed as aggregatable columns we&apos;ve verified.
+              </li>
+            </ul>
+            <p className="mt-2 text-xs text-slate-400">
+              No placeholder numbers — these are listed, not faked.
+            </p>
+          </div>
+
+          {/* Notes / feedback (posts as Rob's exec feedback) */}
           <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
-            <CrystalNotes />
+            <ExecFeedback />
           </section>
 
           <p className="mt-8 text-xs text-slate-400">
-            Aggregated metrics only · no guest PII · read-only · cached up to 10 min. The
+            Aggregated metrics only · no guest PII · read-only · cached up to 10 min. Only
+            properties with a configured Cloudbeds key report (Davenport today). The
             &ldquo;Today (live snapshot)&rdquo; cards are always today&apos;s figures regardless
             of the selected range.
           </p>
