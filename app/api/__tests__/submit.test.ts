@@ -10,10 +10,10 @@ vi.mock("botid/server", () => ({ checkBotId: () => checkBotId() }));
 
 import { POST } from "@/app/api/submit/route";
 
-function req(body: unknown) {
+function req(body: unknown, ip = "1.2.3.4") {
   return new Request("http://localhost/api/submit", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-forwarded-for": "1.2.3.4" },
+    headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
     body: JSON.stringify(body),
   });
 }
@@ -43,5 +43,28 @@ describe("POST /api/submit", () => {
     const res = await POST(req({ name: "A", role: "PM", team: "Crystal", metrics: ["occupancy"], notes: "x" }));
     expect(res.status).toBe(200);
     expect(inserted.length).toBe(1);
+  });
+
+  // Hardening: catalog validation
+  it("rejects all-unknown metric keys (filtered to zero valid)", async () => {
+    const res = await POST(
+      req({ name: "B", role: "PM", team: "Crystal", metrics: ["not-a-real-metric", "also-fake"] }, "2.3.4.5"),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(inserted.length).toBe(0);
+  });
+
+  // Hardening: length caps
+  it("rejects name exceeding 120 characters", async () => {
+    const longName = "A".repeat(121);
+    const res = await POST(
+      req({ name: longName, role: "PM", team: "Crystal", metrics: ["occupancy"] }, "3.4.5.6"),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(inserted.length).toBe(0);
   });
 });
