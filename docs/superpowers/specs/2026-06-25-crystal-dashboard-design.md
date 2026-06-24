@@ -42,15 +42,19 @@ a notes/comments field at the bottom. Aggregate-only, no guest PII (CLAUDE.md
    days and labeled "est."** (DI public API can't sum currency columns directly —
    consistent with the existing exec approach). Estimates are visibly marked.
 4. **Reservations & pace — selected range, aggregates only** — from DI dataset 3
-   (the proven `details:true` + `room_count` pattern, like `getLeaseMix`):
-   - **Reservation status mix** — rooms-on-books by `reservation_status`
-     (Confirmed / In-House / Checked-Out / Cancelled / No-Show). Verified columns.
-   - **Rate-plan mix** — rooms-on-books by `public_rate_plan`. Verified columns.
-   - **Deferred (honest):** reservation grand total / paid / balance due (currency),
-     room type / room-type-category, room guest count, room nights — these need a
-     live column-name probe against dataset 3 and currency columns may not be
-     API-aggregatable. Shown as a labeled "pending data verification" placeholder
-     rather than a fabricated number. Follow-up task.
+   (the proven `details:true` pattern, sum client-side). **BUILT & live-verified
+   2026-06-25** (scripts/probe-reservation-fields.mjs) — all columns aggregate;
+   no estimates, no placeholders. Verified column names:
+   - Totals (excl. Cancelled/No-Show): `room_count`, `room_nights_count`,
+     `guest_count`, `grand_total_amount`, `reservation_paid_amount`,
+     `reservation_balance_due_amount`.
+   - Status mix by `reservation_status` (all statuses shown).
+   - Lease vs transient by `public_rate_plan` (via `classifyRatePlan`).
+   - Room-type category mix by `room_type_categories`.
+   - Scope = stay overlaps range (`checkin_date<=end AND checkout_date>=start`);
+     amounts are full reservation values, not prorated (labeled).
+   - **PII guard:** dataset 3 carries heavy guest PII (`primary_guest_*`, doc
+     numbers, etc.) — NONE requested; only aggregate measures + dimension.
 
 ## Notes / comments field
 

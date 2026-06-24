@@ -2,11 +2,13 @@ import Link from "next/link";
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
+import CrystalReservations from "@/components/CrystalReservations";
 import CrystalNotes from "@/components/CrystalNotes";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
+import { getPortfolio, getPortfolioInsights, getPortfolioReservations } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
+import { buildReservationSummary } from "@/lib/reservations";
 
 // Render per-request so runtime env vars are read live; upstream Cloudbeds calls
 // are still cached 10 min. Gated to the crystal/exec token by middleware.
@@ -34,14 +36,16 @@ export default async function CrystalPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights] = await Promise.all([
+  const [portfolio, insights, reservations] = await Promise.all([
     getPortfolio(),
     getPortfolioInsights(start, end),
+    getPortfolioReservations(start, end),
   ]);
 
   const properties = buildOccProperties(portfolio, insights);
   const days = dayCount(start, end);
   const revenue = buildRevenueSummary(portfolio, insights, days);
+  const reservationSummary = buildReservationSummary(reservations);
   const rangeLabel = start === end ? start : `${start} → ${end}`;
 
   return (
@@ -95,35 +99,8 @@ export default async function CrystalPage({
 
       {/* Section 4 — Reservations & pace (aggregates only) */}
       <section className="mb-10">
-        <SectionHeading n={4} title="Reservations & pace" sub="Aggregates only · no guest detail" />
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-          <p className="font-medium text-slate-700">In progress — pending live data verification.</p>
-          <p className="mt-1">
-            These reservation metrics you selected are aggregate-only and need a one-time
-            probe against the Cloudbeds reservations dataset before they go live (column
-            names and which currency totals the API will actually sum):
-          </p>
-          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-            {[
-              "Reservation status mix",
-              "Rate-plan mix",
-              "Room type / room-type category",
-              "Room nights · rooms per reservation",
-              "Reservation grand total (Σ)",
-              "Paid amount (Σ) · balance due (Σ)",
-              "Room guest count",
-            ].map((m) => (
-              <li key={m} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                {m}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-slate-400">
-            We won&apos;t show a number here until it&apos;s verified against the live API —
-            no placeholder figures.
-          </p>
-        </div>
+        <SectionHeading n={4} title="Reservations & pace" sub={`${rangeLabel} · aggregates only · no guest detail`} />
+        <CrystalReservations summary={reservationSummary} rangeLabel={rangeLabel} />
       </section>
 
       {/* Notes / comments */}

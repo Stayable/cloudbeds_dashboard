@@ -239,6 +239,196 @@ export async function getPortfolioInsights(start: string, end: string): Promise<
   );
 }
 
+// --- Reservation aggregates (date-ranged, PII-free) -------------------------
+// For the /crystal §4 view. Dataset 3 (Reservations) is FULL of guest PII
+// (primary_guest_email/full_name/document_number/birth_date/…). We request ONLY
+// aggregate-safe numeric measures + a category dimension, with details:true (the
+// proven shape: index[i]=[dimensionValue], records[col][i]=value per reservation
+// row), and sum CLIENT-SIDE into totals/breakdowns. No per-reservation rows are
+// ever exposed. Column names verified live against Davenport (318197) 2026-06-25
+// via scripts/probe-reservation-fields.mjs.
+//
+// Scope: reservations whose stay OVERLAPS [start,end]
+//   checkin_date <= end AND checkout_date >= start.
+// Currency/night/guest TOTALS exclude Cancelled and No-Show (not on the books);
+// the status mix still reports every status so they're visible.
+
+const RES_CANCELLED_STATUSES = new Set(["Cancelled", "Canceled", "No-Show", "No Show"]);
+
+export type ReservationAggregates = {
+  // Totals over on-the-books (non-cancelled/no-show) reservations active in range.
+  rooms: number;
+  roomNights: number;
+  guests: number;
+  grandTotal: number;
+  paid: number;
+  balanceDue: number;
+  // Breakdowns of rooms-on-books.
+  statusMix: Record<string, number>; // ALL statuses, rooms by status
+  leaseMix: LeaseMix; // monthly/weekly/transient (rooms), via classifyRatePlan
+  roomTypeCategoryMix: Record<string, number>; // rooms by category (private/shared)
+};
+
+type Dataset3Grouped = { index: string[]; records: Record<string, number[]> };
+
+async function diDataset3Grouped(
+  apiKey: string,
+  apiPropertyId: string,
+  groupColumn: string,
+  measureColumns: string[],
+  start: string,
+  end: string,
+): Promise<CloudbedsResult<Dataset3Grouped>> {
+  const body = {
+    property_ids: [Number(apiPropertyId)],
+    dataset_id: 3,
+    columns: measureColumns.map((column) => ({ cdf: { column } })),
+    group_rows: [{ cdf: { column: groupColumn } }],
+    filters: {
+      and: [
+        { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: end },
+        { cdf: { column: "checkout_date" }, operator: "greater_than_or_equal", value: start },
+      ],
+    },
+    settings: { totals: false, details: true },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${DI_BASE}/reports/query/data?mode=Run`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-PROPERTY-ID": apiPropertyId,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: `Network error reaching Data Insights: ${String(e)}` };
+  }
+
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* keep raw */
+  }
+  if (!res.ok) return { ok: false, status: res.status, error: `Data Insights HTTP ${res.status}`, body: parsed };
+
+  const p = parsed as { index?: unknown[]; records?: Record<string, unknown[]> };
+  const index = (Array.isArray(p?.index) ? p.index : []).map((row) =>
+    Array.isArray(row) ? String(row[0] ?? "") : String(row ?? ""),
+  );
+  const records: Record<string, number[]> = {};
+  for (const col of measureColumns) {
+    const arr = Array.isArray(p?.records?.[col]) ? p.records![col] : [];
+    records[col] = arr.map((x) => (typeof x === "number" ? x : 0));
+  }
+  return { ok: true, data: { index, records } };
+}
+
+/** PII-free reservation aggregates for one property over [start, end]. */
+async function getReservationAggregates(
+  apiKey: string,
+  apiPropertyId: string,
+  start: string,
+  end: string,
+): Promise<CloudbedsResult<ReservationAggregates>> {
+  // One query carries totals + status mix; two more carry the breakdowns.
+  const [byStatus, byPlan, byCategory] = await Promise.all([
+    diDataset3Grouped(
+      apiKey,
+      apiPropertyId,
+      "reservation_status",
+      [
+        "room_count",
+        "room_nights_count",
+        "guest_count",
+        "grand_total_amount",
+        "reservation_paid_amount",
+        "reservation_balance_due_amount",
+      ],
+      start,
+      end,
+    ),
+    diDataset3Grouped(apiKey, apiPropertyId, "public_rate_plan", ["room_count"], start, end),
+    diDataset3Grouped(apiKey, apiPropertyId, "room_type_categories", ["room_count"], start, end),
+  ]);
+
+  if (!byStatus.ok) return byStatus;
+
+  const agg: ReservationAggregates = {
+    rooms: 0,
+    roomNights: 0,
+    guests: 0,
+    grandTotal: 0,
+    paid: 0,
+    balanceDue: 0,
+    statusMix: {},
+    leaseMix: { monthly: 0, weekly: 0, transient: 0, total: 0 },
+    roomTypeCategoryMix: {},
+  };
+
+  const s = byStatus.data;
+  for (let i = 0; i < s.index.length; i++) {
+    const status = s.index[i] || "Unknown";
+    const rooms = s.records.room_count[i] ?? 0;
+    agg.statusMix[status] = (agg.statusMix[status] ?? 0) + rooms;
+    if (RES_CANCELLED_STATUSES.has(status)) continue; // exclude from on-the-books totals
+    agg.rooms += rooms;
+    agg.roomNights += s.records.room_nights_count[i] ?? 0;
+    agg.guests += s.records.guest_count[i] ?? 0;
+    agg.grandTotal += s.records.grand_total_amount[i] ?? 0;
+    agg.paid += s.records.reservation_paid_amount[i] ?? 0;
+    agg.balanceDue += s.records.reservation_balance_due_amount[i] ?? 0;
+  }
+
+  if (byPlan.ok) {
+    for (let i = 0; i < byPlan.data.index.length; i++) {
+      const rooms = byPlan.data.records.room_count[i] ?? 0;
+      const cls = classifyRatePlan(byPlan.data.index[i]);
+      if (cls === "lease-monthly") agg.leaseMix.monthly += rooms;
+      else if (cls === "lease-weekly") agg.leaseMix.weekly += rooms;
+      else agg.leaseMix.transient += rooms;
+      agg.leaseMix.total += rooms;
+    }
+  }
+
+  if (byCategory.ok) {
+    for (let i = 0; i < byCategory.data.index.length; i++) {
+      const cat = byCategory.data.index[i] || "Uncategorized";
+      agg.roomTypeCategoryMix[cat] = (agg.roomTypeCategoryMix[cat] ?? 0) + (byCategory.data.records.room_count[i] ?? 0);
+    }
+  }
+
+  return { ok: true, data: agg };
+}
+
+export type PropertyReservations = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<ReservationAggregates> | null;
+};
+
+/** Reservation aggregates for every configured property over [start, end]. */
+export async function getPortfolioReservations(start: string, end: string): Promise<PropertyReservations[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyReservations> => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return { property, configured: false, result: null };
+      return {
+        property,
+        configured: true,
+        result: await getReservationAggregates(key, property.apiPropertyId, start, end),
+      };
+    }),
+  );
+}
+
 // --- Lease mix (in-house monthly / weekly / transient) ----------------------
 // Probe-verified against live Davenport (318197) on 2026-06-24 via
 // scripts/probe-lease-query.mjs. Verified column names (the plan's guesses were
