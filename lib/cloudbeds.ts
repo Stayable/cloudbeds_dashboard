@@ -140,6 +140,86 @@ export async function getPortfolio(): Promise<PropertyDashboard[]> {
   );
 }
 
+// --- Out-of-service rooms (which rooms, not just the count) ------------------
+// getRoomBlocks lists out_of_service blocks (room + reason + dates); getRooms
+// maps roomID → room name/type. Room identifiers are inventory, not guest PII.
+
+type RoomInfo = { roomName: string; roomTypeName: string };
+type RawRooms = { propertyID: string; rooms: { roomID: string; roomName: string; roomTypeName: string }[] }[];
+type RawBlocks = {
+  roomBlocks: {
+    roomBlockType: string;
+    roomBlockReason: string;
+    startDate: string;
+    endDate: string;
+    rooms: { roomID: string }[];
+  }[];
+};
+
+export type OooRoom = { room: string; roomType: string; reason: string; startDate: string; endDate: string };
+
+/** All rooms for a property → roomID → name/type. getRooms is paginated
+ *  (~20–100/page), so page through until a short/empty page. */
+async function getRoomNameMap(apiKey: string): Promise<Map<string, RoomInfo>> {
+  const nameById = new Map<string, RoomInfo>();
+  const PAGE = 100;
+  for (let page = 1; page <= 20; page++) {
+    const res = await cbGet<RawRooms>(apiKey, `/getRooms`, {
+      pageNumber: String(page),
+      pageSize: String(PAGE),
+    });
+    if (!res.ok) break;
+    const batch = (res.data ?? []).flatMap((p) => p.rooms ?? []);
+    for (const r of batch) nameById.set(r.roomID, { roomName: r.roomName, roomTypeName: r.roomTypeName });
+    if (batch.length < PAGE) break;
+  }
+  return nameById;
+}
+
+/** Out-of-service rooms active on `asOf` (YYYY-MM-DD) for one property, with names. */
+async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResult<OooRoom[]>> {
+  const [nameById, blocksRes] = await Promise.all([
+    getRoomNameMap(apiKey),
+    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
+  ]);
+  if (!blocksRes.ok) return blocksRes;
+
+  const out: OooRoom[] = [];
+  for (const b of blocksRes.data?.roomBlocks ?? []) {
+    if (b.roomBlockType !== "out_of_service") continue;
+    for (const r of b.rooms ?? []) {
+      const info = nameById.get(r.roomID);
+      out.push({
+        room: info?.roomName || r.roomID,
+        roomType: info?.roomTypeName || "",
+        reason: b.roomBlockReason || "—",
+        startDate: b.startDate,
+        endDate: b.endDate,
+      });
+    }
+  }
+  // Stable sort by room name (numeric-aware).
+  out.sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
+  return { ok: true, data: out };
+}
+
+export type PropertyOoo = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<OooRoom[]> | null;
+};
+
+/** Out-of-service rooms per configured property, as of `asOf`. */
+export async function getPortfolioOoo(asOf: string): Promise<PropertyOoo[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyOoo> => {
+      const key = readKey(property.code);
+      if (!key) return { property, configured: false, result: null };
+      return { property, configured: true, result: await getOooRooms(key, asOf) };
+    }),
+  );
+}
+
 // --- Data Insights (date-ranged occupancy / ADR / RevPAR) -------------------
 // Confirmed query shape (see memory data-insights-occupancy). occupancy/adr/
 // revpar auto-aggregate; counts/currency are not requested (no aggregation key
