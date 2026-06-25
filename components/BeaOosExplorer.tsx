@@ -1,8 +1,9 @@
 "use client";
 
 // Bea §1 explorer: property cards (like the base dashboard) → select a property
-// (or "All") → reason-summary cards on top (rooms grouped by same/near-same
-// reason) → the OOO room list at the bottom. Room numbers are inventory, no PII.
+// to see reason-summary cards + that property's OOO room list. Selecting "All
+// properties" instead shows a per-property accordion (less crowded than a single
+// merged list). Room numbers are inventory, no PII.
 import { useState } from "react";
 import type { OooRoom } from "@/lib/cloudbeds";
 
@@ -31,33 +32,39 @@ function groupReasons(rooms: OooRoom[]): ReasonGroup[] {
     g.labels.set(r.reason, (g.labels.get(r.reason) ?? 0) + 1);
     groups.set(key, g);
   }
-  // Label each group with its most common original spelling.
   return [...groups.values()]
-    .map((g) => ({
-      label: [...g.labels.entries()].sort((a, b) => b[1] - a[1])[0][0],
-      count: g.count,
-    }))
+    .map((g) => ({ label: [...g.labels.entries()].sort((a, b) => b[1] - a[1])[0][0], count: g.count }))
     .sort((a, b) => b.count - a.count);
 }
 
+function RoomTable({ rooms }: { rooms: OooRoom[] }) {
+  return (
+    <table className="w-full min-w-[520px] text-sm">
+      <thead>
+        <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+          <th className="px-4 py-2 font-medium">Room</th>
+          <th className="px-4 py-2 font-medium">Type</th>
+          <th className="px-4 py-2 font-medium">Reason</th>
+          <th className="px-4 py-2 font-medium">Until</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rooms.map((r, i) => (
+          <tr key={`${r.room}-${i}`} className="border-t border-slate-100">
+            <td className="px-4 py-2 font-medium text-slate-900">{r.room}</td>
+            <td className="px-4 py-2 text-slate-600">{r.roomType || "—"}</td>
+            <td className="px-4 py-2 text-slate-600">{r.reason}</td>
+            <td className="px-4 py-2 text-slate-500">{r.endDate}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export default function BeaOosExplorer({ properties }: { properties: BeaProperty[] }) {
-  const reporting = properties.filter((p) => p.rooms !== null);
-  const allRooms = reporting.flatMap((p) => p.rooms ?? []);
-
-  // Views: "All properties" first, then each property (configured + not).
+  const allRooms = properties.flatMap((p) => p.rooms ?? []);
   const [activeKey, setActiveKey] = useState("ALL");
-
-  const selected =
-    activeKey === "ALL"
-      ? { name: "All properties", rooms: allRooms, configured: true, error: null as string | null }
-      : (() => {
-          const p = properties.find((x) => x.code === activeKey);
-          return p
-            ? { name: p.name, rooms: p.rooms ?? [], configured: p.configured, error: p.error ?? null }
-            : { name: "", rooms: [], configured: false, error: null };
-        })();
-
-  const reasons = groupReasons(selected.rooms);
 
   const card = (key: string, label: string, sub: string, count: number | null, disabled: boolean) => {
     const active = key === activeKey;
@@ -73,14 +80,18 @@ export default function BeaOosExplorer({ properties }: { properties: BeaProperty
       >
         <p className="truncate text-xs text-slate-500">{label}</p>
         {count !== null ? (
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{count}</p>
+          <>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">{count}</p>
+            <p className="text-[11px] text-slate-400">{sub}</p>
+          </>
         ) : (
           <p className="mt-1 text-sm font-medium text-slate-400">{sub}</p>
         )}
-        {count !== null && <p className="text-[11px] text-slate-400">{sub}</p>}
       </button>
     );
   };
+
+  const selectedProp = activeKey === "ALL" ? null : properties.find((p) => p.code === activeKey) ?? null;
 
   return (
     <div className="space-y-5">
@@ -98,53 +109,89 @@ export default function BeaOosExplorer({ properties }: { properties: BeaProperty
         )}
       </div>
 
-      {/* Reason summary cards (top) */}
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          {selected.name} · by reason
-        </p>
-        {selected.error ? (
-          <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">{selected.error}</p>
-        ) : !selected.configured ? (
-          <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-400">Awaiting Cloudbeds key.</p>
-        ) : reasons.length === 0 ? (
-          <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">No rooms out of service.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {reasons.map((g) => (
-              <div key={g.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <p className="text-2xl font-semibold text-slate-900">{g.count}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{g.label}</p>
-              </div>
-            ))}
+      {activeKey === "ALL" ? (
+        /* All properties → total + per-property accordion (avoids one crowded list). */
+        <div className="space-y-2">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <span className="text-2xl font-semibold text-slate-900">{allRooms.length}</span>
+            <span className="ml-2 text-sm text-slate-500">
+              room{allRooms.length === 1 ? "" : "s"} out of service across all properties
+            </span>
           </div>
-        )}
-      </div>
-
-      {/* Room list (bottom) */}
-      {selected.configured && !selected.error && selected.rooms.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr className="bg-ink text-left text-xs uppercase tracking-wide text-white/70">
-                <th className="px-4 py-3 font-medium">Room</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Reason</th>
-                <th className="px-4 py-3 font-medium">Until</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selected.rooms.map((r, i) => (
-                <tr key={`${r.room}-${i}`} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-900">{r.room}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.roomType || "—"}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.reason}</td>
-                  <td className="px-4 py-3 text-slate-500">{r.endDate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {properties.map((p) => {
+            const count = p.rooms?.length ?? 0;
+            return (
+              <details key={p.code} className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+                  <span className="font-medium text-slate-900">
+                    {p.name} <span className="text-xs font-normal text-slate-400">· {p.county}</span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {!p.configured ? (
+                      <span className="text-xs text-slate-400">awaiting key</span>
+                    ) : p.error ? (
+                      <span className="text-xs text-amber-700">error</span>
+                    ) : (
+                      <span
+                        className={
+                          "rounded-full px-2 py-0.5 text-xs font-semibold " +
+                          (count > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500")
+                        }
+                      >
+                        {count} OOO
+                      </span>
+                    )}
+                    <span className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
+                  </span>
+                </summary>
+                <div className="overflow-x-auto border-t border-slate-100">
+                  {!p.configured ? (
+                    <p className="px-4 py-3 text-sm text-slate-400">
+                      Awaiting Cloudbeds key — <code className="text-xs">CLOUDBEDS_API_KEY_{p.code}</code>
+                    </p>
+                  ) : p.error ? (
+                    <p className="px-4 py-3 text-sm text-amber-900">{p.error}</p>
+                  ) : count === 0 ? (
+                    <p className="px-4 py-3 text-sm text-emerald-700">No rooms out of service.</p>
+                  ) : (
+                    <RoomTable rooms={p.rooms ?? []} />
+                  )}
+                </div>
+              </details>
+            );
+          })}
         </div>
+      ) : (
+        /* Single property → reason-summary cards, then the room list. */
+        <>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              {selectedProp?.name} · by reason
+            </p>
+            {!selectedProp?.configured ? (
+              <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-400">Awaiting Cloudbeds key.</p>
+            ) : selectedProp?.error ? (
+              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">{selectedProp.error}</p>
+            ) : (selectedProp?.rooms?.length ?? 0) === 0 ? (
+              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">No rooms out of service.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {groupReasons(selectedProp?.rooms ?? []).map((g) => (
+                  <div key={g.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <p className="text-2xl font-semibold text-slate-900">{g.count}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{g.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedProp?.configured && !selectedProp.error && (selectedProp.rooms?.length ?? 0) > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+              <RoomTable rooms={selectedProp.rooms ?? []} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
