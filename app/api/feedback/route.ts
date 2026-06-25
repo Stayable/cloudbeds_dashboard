@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { AUTH_COOKIE, expectedTokens } from "@/lib/auth";
+import { AUTH_COOKIE, verifyCookie } from "@/lib/auth";
 import { insertFeedback } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  // Require the EXEC token specifically (a base-only session must not post).
-  const expected = await expectedTokens();
-  const token = (await cookies()).get(AUTH_COOKIE)?.value;
-  if (!expected.exec || token !== expected.exec) {
+  // Require an exec session (a base/other session must not post).
+  const level = await verifyCookie((await cookies()).get(AUTH_COOKIE)?.value);
+  if (level !== "exec") {
     return NextResponse.json({ ok: false, error: "exec access required" }, { status: 401 });
   }
 

@@ -5,14 +5,17 @@ vi.mock("@/lib/db", () => ({
   insertFeedback: vi.fn(async (notes: string) => { inserted.push(notes); }),
 }));
 
-// Control the cookie + expected tokens.
+// Control the cookie; verifyCookie maps it to a level.
 let cookieToken: string | undefined;
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (_: string) => (cookieToken ? { value: cookieToken } : undefined) }),
 }));
 vi.mock("@/lib/auth", async (orig) => {
   const actual = await (orig as () => Promise<typeof import("@/lib/auth")>)();
-  return { ...actual, expectedTokens: async () => ({ base: "BASE", exec: "EXEC" }) };
+  return {
+    ...actual,
+    verifyCookie: async (c?: string) => (c === "EXEC" ? "exec" : c === "BASE" ? "base" : null),
+  };
 });
 
 import { POST } from "@/app/api/feedback/route";

@@ -1,31 +1,35 @@
-// PIN-gate helpers. Shared by middleware (Edge) and the auth route (Node) — both
-// have Web Crypto (crypto.subtle), so the same token function runs in either.
+// Auth-gate helpers. Shared by middleware (Edge) and server routes (Node) — both
+// have Web Crypto (crypto.subtle), so the same code runs in either.
 //
-// Role-based: two levels, base (DASHBOARD_PIN) and exec (EXEC_PIN). The cookie
-// stores a SHA-256 token of "stayable-dashboard:<level>:<pin>", so the two
-// levels yield distinct tokens and rotating a PIN invalidates its sessions.
-// No database (CLAUDE.md §6). Edge-safe: Web Crypto only, no Node APIs.
+// Scheme: PINs live in Neon (lib/pins.ts), checked ONLY at login. The cookie is a
+// signed level token `"<level>.<hmac>"` (HMAC-SHA256 over the level with a server
+// secret), so middleware verifies access from the cookie alone — no DB read per
+// request, and changing a PIN never invalidates live sessions. Cloudbeds data is
+// still read-and-cache only; the pins table is the sole auth state (CLAUDE.md §6).
+// Edge-safe: Web Crypto only, no Node APIs.
 
 export const AUTH_COOKIE = "sd_auth";
 
 export type Level = "base" | "exec" | "crystal" | "monica" | "bea";
 
-// Per-user dashboard levels → the env var holding their PIN. Each unlocks only
-// their own /<level> route (plus exec/CEO, who sees everything). Add a user here
-// + an env var in Vercel to grant a new tailored dashboard.
+// Per-user dashboard levels (each unlocks only its own /<level> route; exec/CEO
+// sees everything). `envVar` is the migration fallback PIN if the DB has no row.
 export const USER_PINS: { level: Exclude<Level, "base" | "exec">; envVar: string }[] = [
   { level: "crystal", envVar: "CRYSTAL_PIN" },
   { level: "monica", envVar: "MONICA_PIN" },
   { level: "bea", envVar: "BEA_PIN" },
 ];
 
-export async function tokenFor(level: Level, pin: string): Promise<string> {
-  const data = new TextEncoder().encode(`stayable-dashboard:${level}:${pin}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+// Env-var fallback PIN per level (used by lib/pins.ts when the DB row is absent).
+export const ENV_PIN_FOR: Record<Level, string> = {
+  base: "DASHBOARD_PIN",
+  exec: "EXEC_PIN",
+  crystal: "CRYSTAL_PIN",
+  monica: "MONICA_PIN",
+  bea: "BEA_PIN",
+};
+
+export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea"];
 
 /** Which level a path needs. /rob (the CEO's own view) => exec; each per-user
  *  route => its own level; everything else => base. */
@@ -37,33 +41,6 @@ export function requiredLevel(pathname: string): Level {
   return "base";
 }
 
-export type ExpectedTokens = {
-  base: string | null;
-  exec: string | null;
-  users: Partial<Record<Level, string>>; // per-user tokens, keyed by level
-};
-
-/**
- * Expected cookie tokens for each level, derived from env PINs.
- * - base: null when DASHBOARD_PIN is unset (gate disabled).
- * - exec: token of EXEC_PIN; falls back to the base token when EXEC_PIN is unset.
- * - users[level]: token of that user's PIN env var; falls back to the exec token
- *   when unset, so until the PIN is configured only exec/CEO reaches the route.
- */
-export async function expectedTokens(): Promise<ExpectedTokens> {
-  const basePin = process.env.DASHBOARD_PIN;
-  const execPin = process.env.EXEC_PIN;
-  if (!basePin) return { base: null, exec: null, users: {} };
-  const base = await tokenFor("base", basePin);
-  const exec = execPin ? await tokenFor("exec", execPin) : base;
-  const users: Partial<Record<Level, string>> = {};
-  for (const { level, envVar } of USER_PINS) {
-    const pin = process.env[envVar];
-    users[level] = pin ? await tokenFor(level, pin) : exec;
-  }
-  return { base, exec, users };
-}
-
 /** The dashboard a level lands on after login. Exec/CEO (Rob) → /rob; each
  *  per-user level → its own route; base → /. */
 export function homeForLevel(level: Level): string {
@@ -72,8 +49,8 @@ export function homeForLevel(level: Level): string {
   return `/${level}`; // crystal, monica, bea, …
 }
 
-/** Can a freshly-authenticated `level` view `pathname`? (Pure mirror of
- *  decideAccess, token-free — used to decide whether to honor ?next.) */
+/** Can `level` view `pathname`? exec sees all; a user level reaches only its own
+ *  route; base reaches only base routes. */
 export function canAccess(level: Level, pathname: string): boolean {
   if (level === "exec") return true; // CEO sees everything
   const need = requiredLevel(pathname);
@@ -81,36 +58,58 @@ export function canAccess(level: Level, pathname: string): boolean {
   return need === level;
 }
 
-/** Sanitize a post-login redirect target to a same-site path. Rejects
- *  absolute and protocol-relative (//host) URLs; defaults to "/". */
+/** Sanitize a post-login redirect target to a same-site path. */
 export function safeNextPath(next: string | null | undefined): string {
   if (!next) return "/";
-  // must be a path starting with a single "/", not "//" (protocol-relative)
   if (!next.startsWith("/") || next.startsWith("//")) return "/";
   return next;
 }
 
-/** Pure access decision. Middleware computes `expected` then calls this. */
-export function decideAccess(
-  pathname: string,
-  cookieToken: string | undefined,
-  expected: ExpectedTokens,
-): "allow" | "deny" {
-  if (expected.base === null) return "allow"; // gate disabled
-  const need = requiredLevel(pathname);
-  if (need === "exec") {
-    return cookieToken && cookieToken === expected.exec ? "allow" : "deny";
-  }
-  if (need !== "base") {
-    // A per-user route: that user's PIN OR exec/CEO unlocks it; base does not.
-    const userToken = expected.users[need];
-    return cookieToken && (cookieToken === userToken || cookieToken === expected.exec)
-      ? "allow"
-      : "deny";
-  }
-  // base route: base OR exec token unlocks it (CEO sees everything). Per-user
-  // tokens are scoped to their own route and do NOT reach base.
-  return cookieToken && (cookieToken === expected.base || cookieToken === expected.exec)
-    ? "allow"
-    : "deny";
+// --- Signed cookie -----------------------------------------------------------
+
+// Signing secret: AUTH_SECRET if set, else fall back to DATABASE_URL (always
+// present in prod) so the gate is NEVER accidentally open. Set AUTH_SECRET in
+// Vercel to decouple the gate from the DB connection string.
+function secret(): string {
+  return process.env.AUTH_SECRET || process.env.DATABASE_URL || "";
+}
+
+/** Gate is enabled whenever a signing secret exists (always true in prod). */
+export function gateEnabled(): boolean {
+  return secret().length > 0;
+}
+
+async function hmacHex(message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Cookie value for an authenticated level: "<level>.<hmac(level)>". */
+export async function signLevel(level: Level): Promise<string> {
+  return `${level}.${await hmacHex(level)}`;
+}
+
+/** Verify a cookie and return its level, or null if missing/forged/unknown. */
+export async function verifyCookie(cookie: string | undefined): Promise<Level | null> {
+  if (!cookie) return null;
+  const dot = cookie.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const level = cookie.slice(0, dot);
+  const sig = cookie.slice(dot + 1);
+  if (!ALL_LEVELS.includes(level as Level)) return null;
+  const expected = await hmacHex(level);
+  // length-safe constant-ish comparison
+  if (sig.length !== expected.length) return null;
+  let diff = 0;
+  for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0 ? (level as Level) : null;
 }

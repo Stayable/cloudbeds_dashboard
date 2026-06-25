@@ -4,6 +4,7 @@ import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import CrystalNotes from "@/components/CrystalNotes";
+import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioReservations } from "@/lib/cloudbeds";
@@ -123,9 +124,11 @@ export default async function CrystalPage({
           </p>
 
           {/* Notes / comments — below everything */}
-          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
+          <section id="notes" className="mb-6 scroll-mt-20 lg:scroll-mt-6">
             <CrystalNotes />
           </section>
+
+          <ChangePin />
         </div>
       </div>
     </main>

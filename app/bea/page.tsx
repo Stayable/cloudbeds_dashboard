@@ -1,4 +1,5 @@
 import SectionNav, { type NavItem } from "@/components/SectionNav";
+import ChangePin from "@/components/ChangePin";
 import { getPortfolio } from "@/lib/cloudbeds";
 
 // Bea (Ops Support) — tailored to her two selections: out-of-service rooms and
@@ -115,10 +116,12 @@ export default async function BeaPage() {
             </div>
           </section>
 
-          <p className="text-xs text-slate-400">
+          <p className="mb-6 text-xs text-slate-400">
             Live, read-only · cached up to 10 min. Only properties with a configured Cloudbeds
             key report (Davenport today).
           </p>
+
+          <ChangePin />
         </div>
       </div>
     </main>

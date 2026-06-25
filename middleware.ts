@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, decideAccess, expectedTokens } from "@/lib/auth";
+import { AUTH_COOKIE, canAccess, gateEnabled, verifyCookie } from "@/lib/auth";
 
-// Role-based PIN gate. Disabled (open) when DASHBOARD_PIN is unset, so a
-// misconfigured deploy never locks itself out. /test and /api/submit are the
-// public surfaces (excluded in the matcher). /exec needs the exec token.
+// Role-based gate. The cookie is a signed level token, so we verify it here
+// without any DB read. Open only if no signing secret exists (never in prod).
+// /test + /api/submit are public (excluded in the matcher).
 export async function middleware(req: NextRequest) {
-  const expected = await expectedTokens();
-  const token = req.cookies.get(AUTH_COOKIE)?.value;
-  if (decideAccess(req.nextUrl.pathname, token, expected) === "allow") {
+  if (!gateEnabled()) return NextResponse.next();
+  const level = await verifyCookie(req.cookies.get(AUTH_COOKIE)?.value);
+  if (level && canAccess(level, req.nextUrl.pathname)) {
     return NextResponse.next();
   }
   const url = req.nextUrl.clone();
@@ -22,6 +22,6 @@ export const config = {
   // its write endpoint, the feedback + crystal-note APIs (which self-check their
   // own token inline), Next internals, and static files.
   matcher: [
-    "/((?!login|api/auth|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };

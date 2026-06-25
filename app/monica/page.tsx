@@ -3,6 +3,7 @@ import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import FinanceSection from "@/components/FinanceSection";
+import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
@@ -110,10 +111,12 @@ export default async function MonicaPage({
             <FinanceSection views={financeViews} rangeLabel={rangeLabel} />
           </section>
 
-          <p className="text-xs text-slate-400">
+          <p className="mb-6 text-xs text-slate-400">
             Aggregated metrics only · no guest PII · read-only · cached up to 10 min. Only
             properties with a configured Cloudbeds key report (Davenport today).
           </p>
+
+          <ChangePin />
         </div>
       </div>
     </main>

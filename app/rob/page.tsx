@@ -4,6 +4,7 @@ import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import FinanceSection from "@/components/FinanceSection";
 import ExecFeedback from "@/components/ExecFeedback";
+import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
@@ -147,9 +148,11 @@ export default async function RobPage({
           </p>
 
           {/* Notes / feedback (posts as Rob's exec feedback) — below everything */}
-          <section id="notes" className="scroll-mt-20 lg:scroll-mt-6">
+          <section id="notes" className="mb-6 scroll-mt-20 lg:scroll-mt-6">
             <ExecFeedback />
           </section>
+
+          <ChangePin />
         </div>
       </div>
     </main>

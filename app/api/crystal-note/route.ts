@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { AUTH_COOKIE, expectedTokens } from "@/lib/auth";
+import { AUTH_COOKIE, gateEnabled, verifyCookie } from "@/lib/auth";
 import { insertCrystalNote } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// Notes box on /crystal. Gated to the crystal token OR the exec token (same as
-// who can reach /crystal). No PII — submitter-entered text only.
+// Notes box on /crystal. Gated to a crystal OR exec session (same as who can
+// reach /crystal). No PII — submitter-entered text only.
 export async function POST(req: Request) {
-  const expected = await expectedTokens();
-  const token = (await cookies()).get(AUTH_COOKIE)?.value;
-  const allowed =
-    expected.base === null || // gate disabled (dev / unconfigured)
-    (token && (token === expected.users.crystal || token === expected.exec));
+  const level = await verifyCookie((await cookies()).get(AUTH_COOKIE)?.value);
+  const allowed = !gateEnabled() || level === "crystal" || level === "exec";
   if (!allowed) {
     return NextResponse.json({ ok: false, error: "crystal access required" }, { status: 401 });
   }
