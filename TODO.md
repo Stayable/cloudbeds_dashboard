@@ -2,33 +2,60 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** **Three-dashboard build COMPLETE, reviewed,
-> pushed.** Branch `claude/nifty-thompson-ts8zny` @ `5bcee0a` == origin. Gate
-> green: `npm test` **40/40**, `tsc --noEmit` clean, `npm run build` lists `/`,
-> `/exec`, `/test`, `/login`, `/api/auth`, `/api/submit`, `/api/feedback`; no
-> secrets in `.next/static`.
+> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` @ `e28f5a5`
+> == origin, working tree clean. **LIVE at `dashboard.rentstayable.com`** (custom
+> domain wired this session). Build green; ~46 vitest tests pass.
 >
-> **UI enhancements this session (06/24/26, post-build):**
->   - Nav buttons: `/` → "Executive view"; `/exec` → "← Dashboard"; `/login`
->     "← Back" (for no-PIN / wrong-PIN on the exec prompt).
->   - `/exec` now embeds the full operational dashboard (OccupancyView: property
->     selector + per-property detail + Today live cards) via shared
->     `lib/occupancy.ts` `buildOccProperties`. Order: **Executive analytics on
->     top**, Operational dashboard below, then an **abbreviations legend**.
->   - `/test`: note added that metric availability depends on role/permissions.
+> **Per-user dashboards SHIPPED (session 06/25–26/26).** Routes:
+>   - **`/` home — PUBLIC, no PIN** (occupancy-first view + a "Personal view →"
+>     PIN box in the header to jump to your own dashboard).
+>   - **`/crystal`** (VP Ops, 36 metrics) · **`/monica`** (Revenue Mgmt, 16) ·
+>     **`/bea`** (Ops Support, 2) · **`/rob`** (CEO/exec, 66). Each tailored to
+>     that person's `/test` submission, deduped to data-backed metrics.
+>   - **`/exec` REMOVED** (Rob's view is `/rob`, exec-gated).
+>   - Shared convention: sticky `SectionNav` sidebar + per-property/All toggle per
+>     section + "← Dashboard" back link. See memory `per-user-dashboard-conventions`.
 >
-> **Next real action — deploy (needs Kyle/permission, CLAUDE.md §8):**
->   1. `vercel env add EXEC_PIN production` → value `STYBLCEO` (also Preview).
->   2. Confirm `DATABASE_URL` already set on Vercel Prod+Preview (it is, per
->      provisioning below).
->   3. Redeploy, then smoke `/`, `/exec`, `/test` on the live URL.
->   4. ~~Wire DNS `dashboard.rentstayable.com`~~ — **DEPRIORITIZED by Kyle.**
->      Stays on `cloudbeds-dashboard-jade.vercel.app` for now.
+> **Auth reworked → DB-backed PINs + signed cookie:**
+>   - PINs live in Neon table **`dashboard_pins(level,pin,updated_at)`** (env-var
+>     fallback per `ENV_PIN_FOR`). Read only at login + change. `lib/pins.ts`.
+>   - Cookie = signed level token `"<level>.<hmac(level)>"` (secret =
+>     `AUTH_SECRET || DATABASE_URL`). `signLevel`/`verifyCookie` in `lib/auth.ts`.
+>     Middleware verifies with ZERO DB reads; only user/exec routes gated (base
+>     public). Login auto-routes by level (`homeForLevel`).
+>   - **Self-service Change PIN** on each dashboard (`/api/change-pin`, derives
+>     level from cookie → changes only your own).
+>   - **Current PINs (in Neon):** exec=`STYBLCEO`, crystal=`CRYSTL`,
+>     monica=`MONICA`, bea=`BEAOPS`. Home is public.
 >
-> **Follow-up flagged (NOT built — intent only):** per-metric / per-role
-> filtering of the live dashboards. The `/test` role note promises it, but the
-> gate today is binary (base vs exec); actual role-scoped metric hiding is a
-> separate piece of work to spec if wanted.
+> **Data wins this session:**
+>   - **§4 Reservations** (Crystal/Monica/Rob): live DI dataset-3 aggregates,
+>     PII-free (`getReservationAggregates`); Rob adds fees/taxes/commission.
+>   - **§5 Finance** (Rob/Monica): DI dataset-1, **per-day chunking** beats the
+>     1500-row detail cap (`getFinanceAggregates`, `capped` flag warns if a day
+>     still hits it).
+>   - **Bea OOS explorer:** property cards → single property shows reason cards +
+>     room list; **All Properties = total + summary table** (count + top reason,
+>     click a row to drill in). Rooms from `getRoomBlocks`+paginated `getRooms`
+>     (`getOooRooms`). Room numbers = inventory, not PII.
+>
+> **Lakeland key re-created + working** (session end): config already had
+> `apiPropertyId 210972`; key in Vercel as `CLOUDBEDS_API_KEY_LL`; live home shows
+> `LL configured:true, capacity 157`. **Verify Bea→Lakeland tab** (Room/Roomblock
+> scopes) — if it shows "error", those two scopes weren't re-enabled on the new key.
+>
+> **Next steps / open:**
+>   1. **Other 6 property keys** (KE, KW, JW, JN, SA, OR) — only DP + LL confirmed
+>      reporting; rest show "awaiting key". Re-issue WITHOUT Guest scope (below).
+>   2. (Optional) set `AUTH_SECRET` in Vercel to decouple cookie signing from
+>      `DATABASE_URL` (one-time re-login when it changes).
+>   3. (Optional) notes box for Monica/Bea (Crystal/Rob have one).
+>   4. Finance is per-property × 2 calls/day — watch volume if many keys + long
+>      ranges; throttle if it drags.
+>
+> **⚠️ Security carry-forward:** re-issue ALL keys read-only, NO Guest / Data
+> Insights Guests scope (Davenport key was over-scoped — verified could read PII;
+> dashboard never calls it, so no leak, but block by design). CLAUDE.md §6.
 >
 > **Open lease-mix caveats (carry-forward from Tasks 5 & 13):**
 >   - **Ratio-only:** lease-mix `total` is summed `room_count` over in-house
@@ -121,8 +148,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## Phase 0 — Decisions & access (do before building)
 
-- [?] **URL**: confirm `dashboard.rentstayable.com` (recommended) vs.
-      `rentstayable.com/dashboard`. Affects DNS + Vercel config.
+- [x] **URL**: `dashboard.rentstayable.com` — custom domain wired in Vercel
+      (session 06/26/26). Live.
 - [x] **Public access posture**: PIN gate via Vercel env var + httpOnly cookie
       (no full login, no DB). See CLAUDE.md §5.
 - [x] **Auth method**: API key (scoped key set) — chosen over OAuth. No redirect
@@ -185,8 +212,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 - [x] Deploy to Vercel (cloudbeds-dashboard-jade.vercel.app).
 - [x] Access posture: PIN gate (middleware + httpOnly cookie); also gates
       /api/diagnostics. Active when DASHBOARD_PIN is set.
-- [ ] Wire DNS for dashboard.rentstayable.com.
-- [ ] Smoke test: data loads, no PII exposed, no secrets in client bundle.
+- [x] Wire DNS for dashboard.rentstayable.com (custom domain live, 06/26/26).
+- [~] Smoke test: home + per-user dashboards verified live (DP + LL reporting);
+      remaining 6 properties await keys.
 
 ## Phase 6 — Hardening
 
