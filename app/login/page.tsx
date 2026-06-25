@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { safeNextPath } from "@/lib/auth";
 
 export default function LoginPage() {
   const [pin, setPin] = useState("");
@@ -12,16 +11,17 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(false);
+    const next = new URLSearchParams(window.location.search).get("next") ?? "";
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin }),
+      body: JSON.stringify({ pin, next }),
     });
     if (res.ok) {
-      // Redirect back to the originally-requested path (?next=), default "/".
-      const params = new URLSearchParams(window.location.search);
-      const dest = safeNextPath(params.get("next"));
-      window.location.assign(dest); // hard nav so the cookie applies before middleware
+      // The server decides the destination: the user's own dashboard, or the
+      // originally-requested page if they're allowed to see it.
+      const { redirect } = (await res.json().catch(() => ({}))) as { redirect?: string };
+      window.location.assign(redirect || "/"); // hard nav so the cookie applies before middleware
     } else {
       setLoading(false);
       setError(true);

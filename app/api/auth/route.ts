@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE, tokenFor, USER_PINS, type Level } from "@/lib/auth";
+import { AUTH_COOKIE, tokenFor, USER_PINS, homeForLevel, canAccess, safeNextPath, type Level } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +10,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "PIN gate not configured" }, { status: 400 });
   }
 
-  const body = (await req.json().catch(() => null)) as { pin?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { pin?: unknown; next?: unknown } | null;
   const pin = typeof body?.pin === "string" ? body.pin : "";
+  const next = typeof body?.next === "string" ? body.next : "";
 
   // Determine the level this PIN unlocks. Exec wins, then any per-user PIN, then base.
   let level: Level | null = null;
@@ -24,7 +25,12 @@ export async function POST(req: Request) {
 
   if (!level) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const res = NextResponse.json({ ok: true, level });
+  // Route the user to their own dashboard, unless they were bounced from a
+  // specific page they're allowed to see (honor ?next then).
+  const safeNext = safeNextPath(next);
+  const redirect = safeNext !== "/" && canAccess(level, safeNext) ? safeNext : homeForLevel(level);
+
+  const res = NextResponse.json({ ok: true, level, redirect });
   res.cookies.set(AUTH_COOKIE, await tokenFor(level, pin), {
     httpOnly: true,
     secure: true,

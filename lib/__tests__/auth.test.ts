@@ -1,5 +1,32 @@
 import { describe, it, expect } from "vitest";
-import { tokenFor, requiredLevel, decideAccess, safeNextPath } from "@/lib/auth";
+import { tokenFor, requiredLevel, decideAccess, safeNextPath, homeForLevel, canAccess } from "@/lib/auth";
+
+describe("homeForLevel", () => {
+  it("routes each level to its own dashboard", () => {
+    expect(homeForLevel("base")).toBe("/");
+    expect(homeForLevel("exec")).toBe("/rob");
+    expect(homeForLevel("crystal")).toBe("/crystal");
+    expect(homeForLevel("monica")).toBe("/monica");
+    expect(homeForLevel("bea")).toBe("/bea");
+  });
+});
+
+describe("canAccess", () => {
+  it("exec sees everything", () => {
+    expect(canAccess("exec", "/")).toBe(true);
+    expect(canAccess("exec", "/crystal")).toBe(true);
+    expect(canAccess("exec", "/rob")).toBe(true);
+  });
+  it("a user level reaches only its own route", () => {
+    expect(canAccess("crystal", "/crystal")).toBe(true);
+    expect(canAccess("crystal", "/monica")).toBe(false);
+    expect(canAccess("crystal", "/")).toBe(false); // user levels don't reach base
+  });
+  it("base reaches base only", () => {
+    expect(canAccess("base", "/")).toBe(true);
+    expect(canAccess("base", "/rob")).toBe(false);
+  });
+});
 
 describe("safeNextPath", () => {
   it('passes through valid same-site paths', () => {

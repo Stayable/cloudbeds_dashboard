@@ -64,6 +64,23 @@ export async function expectedTokens(): Promise<ExpectedTokens> {
   return { base, exec, users };
 }
 
+/** The dashboard a level lands on after login. Exec/CEO (Rob) → /rob; each
+ *  per-user level → its own route; base → /. */
+export function homeForLevel(level: Level): string {
+  if (level === "base") return "/";
+  if (level === "exec") return "/rob";
+  return `/${level}`; // crystal, monica, bea, …
+}
+
+/** Can a freshly-authenticated `level` view `pathname`? (Pure mirror of
+ *  decideAccess, token-free — used to decide whether to honor ?next.) */
+export function canAccess(level: Level, pathname: string): boolean {
+  if (level === "exec") return true; // CEO sees everything
+  const need = requiredLevel(pathname);
+  if (need === "base") return level === "base";
+  return need === level;
+}
+
 /** Sanitize a post-login redirect target to a same-site path. Rejects
  *  absolute and protocol-relative (//host) URLs; defaults to "/". */
 export function safeNextPath(next: string | null | undefined): string {
