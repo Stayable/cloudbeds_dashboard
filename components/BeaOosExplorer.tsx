@@ -110,56 +110,76 @@ export default function BeaOosExplorer({ properties }: { properties: BeaProperty
       </div>
 
       {activeKey === "ALL" ? (
-        /* All properties → total + per-property accordion (avoids one crowded list). */
-        <div className="space-y-2">
+        /* All properties → total + a compact summary table; click a row to drill in. */
+        <div className="space-y-3">
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <span className="text-2xl font-semibold text-slate-900">{allRooms.length}</span>
             <span className="ml-2 text-sm text-slate-500">
               room{allRooms.length === 1 ? "" : "s"} out of service across all properties
             </span>
           </div>
-          {properties.map((p) => {
-            const count = p.rooms?.length ?? 0;
-            return (
-              <details key={p.code} className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
-                  <span className="font-medium text-slate-900">
-                    {p.name} <span className="text-xs font-normal text-slate-400">· {p.county}</span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {!p.configured ? (
-                      <span className="text-xs text-slate-400">awaiting key</span>
-                    ) : p.error ? (
-                      <span className="text-xs text-amber-700">error</span>
-                    ) : (
-                      <span
-                        className={
-                          "rounded-full px-2 py-0.5 text-xs font-semibold " +
-                          (count > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500")
-                        }
-                      >
-                        {count} OOO
-                      </span>
-                    )}
-                    <span className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
-                  </span>
-                </summary>
-                <div className="overflow-x-auto border-t border-slate-100">
-                  {!p.configured ? (
-                    <p className="px-4 py-3 text-sm text-slate-400">
-                      Awaiting Cloudbeds key — <code className="text-xs">CLOUDBEDS_API_KEY_{p.code}</code>
-                    </p>
-                  ) : p.error ? (
-                    <p className="px-4 py-3 text-sm text-amber-900">{p.error}</p>
-                  ) : count === 0 ? (
-                    <p className="px-4 py-3 text-sm text-emerald-700">No rooms out of service.</p>
-                  ) : (
-                    <RoomTable rooms={p.rooms ?? []} />
-                  )}
-                </div>
-              </details>
-            );
-          })}
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="bg-ink text-left text-xs uppercase tracking-wide text-white/70">
+                  <th className="px-4 py-3 font-medium">Property</th>
+                  <th className="px-4 py-3 font-medium">OOO</th>
+                  <th className="px-4 py-3 font-medium">Top reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {properties.map((p) => {
+                  const count = p.rooms?.length ?? 0;
+                  const drillable = p.configured && !p.error && count > 0;
+                  const top = drillable ? groupReasons(p.rooms ?? [])[0] : null;
+                  return (
+                    <tr
+                      key={p.code}
+                      onClick={drillable ? () => setActiveKey(p.code) : undefined}
+                      className={
+                        "border-t border-slate-100 " +
+                        (drillable ? "cursor-pointer hover:bg-slate-50" : "")
+                      }
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {p.name} <span className="text-xs font-normal text-slate-400">· {p.county}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {!p.configured || p.error ? (
+                          <span className="text-slate-300">—</span>
+                        ) : (
+                          <span
+                            className={
+                              "rounded-full px-2 py-0.5 text-xs font-semibold " +
+                              (count > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500")
+                            }
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {!p.configured ? (
+                          <span className="text-slate-400">awaiting key</span>
+                        ) : p.error ? (
+                          <span className="text-amber-700">error</span>
+                        ) : count === 0 ? (
+                          <span className="text-emerald-700">none</span>
+                        ) : (
+                          <span className="flex items-center justify-between gap-2">
+                            <span>
+                              {top?.label} <span className="text-slate-400">({top?.count})</span>
+                            </span>
+                            <span className="text-slate-300">›</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         /* Single property → reason-summary cards, then the room list. */
