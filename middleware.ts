@@ -1,11 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, canAccess, gateEnabled, verifyCookie } from "@/lib/auth";
+import { AUTH_COOKIE, canAccess, gateEnabled, requiredLevel, verifyCookie } from "@/lib/auth";
 
-// Role-based gate. The cookie is a signed level token, so we verify it here
-// without any DB read. Open only if no signing secret exists (never in prod).
-// /test + /api/submit are public (excluded in the matcher).
+// Only the per-user dashboards (/crystal, /monica, /bea) and /rob (exec) are
+// gated. The home / and everything else are PUBLIC (view-only aggregate data).
+// The cookie is a signed level token, verified here with no DB read.
 export async function middleware(req: NextRequest) {
+  // Public: home + any base-level route.
+  if (requiredLevel(req.nextUrl.pathname) === "base") return NextResponse.next();
   if (!gateEnabled()) return NextResponse.next();
+
   const level = await verifyCookie(req.cookies.get(AUTH_COOKIE)?.value);
   if (level && canAccess(level, req.nextUrl.pathname)) {
     return NextResponse.next();
