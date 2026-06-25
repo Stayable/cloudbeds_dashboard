@@ -8,7 +8,16 @@
 
 export const AUTH_COOKIE = "sd_auth";
 
-export type Level = "base" | "exec" | "crystal";
+export type Level = "base" | "exec" | "crystal" | "monica" | "bea";
+
+// Per-user dashboard levels → the env var holding their PIN. Each unlocks only
+// their own /<level> route (plus exec/CEO, who sees everything). Add a user here
+// + an env var in Vercel to grant a new tailored dashboard.
+export const USER_PINS: { level: Exclude<Level, "base" | "exec">; envVar: string }[] = [
+  { level: "crystal", envVar: "CRYSTAL_PIN" },
+  { level: "monica", envVar: "MONICA_PIN" },
+  { level: "bea", envVar: "BEA_PIN" },
+];
 
 export async function tokenFor(level: Level, pin: string): Promise<string> {
   const data = new TextEncoder().encode(`stayable-dashboard:${level}:${pin}`);
@@ -18,36 +27,41 @@ export async function tokenFor(level: Level, pin: string): Promise<string> {
     .join("");
 }
 
-/** Which level a path needs. /exec and /rob (the CEO's own view) => exec;
- *  /crystal(/...) => crystal; everything else => base. */
+/** Which level a path needs. /rob (the CEO's own view) => exec; each per-user
+ *  route => its own level; everything else => base. */
 export function requiredLevel(pathname: string): Level {
-  if (pathname === "/exec" || pathname.startsWith("/exec/")) return "exec";
-  if (pathname === "/rob" || pathname.startsWith("/rob/")) return "exec";
-  if (pathname === "/crystal" || pathname.startsWith("/crystal/")) return "crystal";
+  const seg = pathname.split("/")[1] ?? "";
+  if (seg === "rob") return "exec";
+  const user = USER_PINS.find((u) => u.level === seg);
+  if (user) return user.level;
   return "base";
 }
+
+export type ExpectedTokens = {
+  base: string | null;
+  exec: string | null;
+  users: Partial<Record<Level, string>>; // per-user tokens, keyed by level
+};
 
 /**
  * Expected cookie tokens for each level, derived from env PINs.
  * - base: null when DASHBOARD_PIN is unset (gate disabled).
- * - exec: token of EXEC_PIN; falls back to the base token when EXEC_PIN is
- *   unset, so /exec never locks itself out (mirrors the old !pin guard).
- * - crystal: token of CRYSTAL_PIN; falls back to the exec token when CRYSTAL_PIN
- *   is unset, so until CRYSTAL_PIN is set only exec/CEO reaches /crystal.
+ * - exec: token of EXEC_PIN; falls back to the base token when EXEC_PIN is unset.
+ * - users[level]: token of that user's PIN env var; falls back to the exec token
+ *   when unset, so until the PIN is configured only exec/CEO reaches the route.
  */
-export async function expectedTokens(): Promise<{
-  base: string | null;
-  exec: string | null;
-  crystal: string | null;
-}> {
+export async function expectedTokens(): Promise<ExpectedTokens> {
   const basePin = process.env.DASHBOARD_PIN;
   const execPin = process.env.EXEC_PIN;
-  const crystalPin = process.env.CRYSTAL_PIN;
-  if (!basePin) return { base: null, exec: null, crystal: null };
+  if (!basePin) return { base: null, exec: null, users: {} };
   const base = await tokenFor("base", basePin);
   const exec = execPin ? await tokenFor("exec", execPin) : base;
-  const crystal = crystalPin ? await tokenFor("crystal", crystalPin) : exec;
-  return { base, exec, crystal };
+  const users: Partial<Record<Level, string>> = {};
+  for (const { level, envVar } of USER_PINS) {
+    const pin = process.env[envVar];
+    users[level] = pin ? await tokenFor(level, pin) : exec;
+  }
+  return { base, exec, users };
 }
 
 /** Sanitize a post-login redirect target to a same-site path. Rejects
@@ -63,21 +77,22 @@ export function safeNextPath(next: string | null | undefined): string {
 export function decideAccess(
   pathname: string,
   cookieToken: string | undefined,
-  expected: { base: string | null; exec: string | null; crystal: string | null },
+  expected: ExpectedTokens,
 ): "allow" | "deny" {
   if (expected.base === null) return "allow"; // gate disabled
   const need = requiredLevel(pathname);
   if (need === "exec") {
     return cookieToken && cookieToken === expected.exec ? "allow" : "deny";
   }
-  if (need === "crystal") {
-    // /crystal: the crystal PIN OR exec/CEO unlocks it; base does not.
-    return cookieToken && (cookieToken === expected.crystal || cookieToken === expected.exec)
+  if (need !== "base") {
+    // A per-user route: that user's PIN OR exec/CEO unlocks it; base does not.
+    const userToken = expected.users[need];
+    return cookieToken && (cookieToken === userToken || cookieToken === expected.exec)
       ? "allow"
       : "deny";
   }
-  // base route: base OR exec token unlocks it (CEO sees everything). The crystal
-  // token is scoped to /crystal and does NOT reach base.
+  // base route: base OR exec token unlocks it (CEO sees everything). Per-user
+  // tokens are scoped to their own route and do NOT reach base.
   return cookieToken && (cookieToken === expected.base || cookieToken === expected.exec)
     ? "allow"
     : "deny";

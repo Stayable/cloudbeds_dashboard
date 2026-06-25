@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const token = (await cookies()).get(AUTH_COOKIE)?.value;
   const allowed =
     expected.base === null || // gate disabled (dev / unconfigured)
-    (token && (token === expected.crystal || token === expected.exec));
+    (token && (token === expected.users.crystal || token === expected.exec));
   if (!allowed) {
     return NextResponse.json({ ok: false, error: "crystal access required" }, { status: 401 });
   }

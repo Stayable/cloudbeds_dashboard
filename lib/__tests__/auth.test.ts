@@ -34,12 +34,12 @@ describe("tokenFor", () => {
 });
 
 describe("requiredLevel", () => {
-  it("requires exec for /exec routes, crystal for /crystal, base otherwise", () => {
-    expect(requiredLevel("/exec")).toBe("exec");
-    expect(requiredLevel("/exec/anything")).toBe("exec");
+  it("requires exec for /rob, each user's level for their route, base otherwise", () => {
     expect(requiredLevel("/rob")).toBe("exec"); // CEO's own view, exec-gated
     expect(requiredLevel("/crystal")).toBe("crystal");
     expect(requiredLevel("/crystal/anything")).toBe("crystal");
+    expect(requiredLevel("/monica")).toBe("monica");
+    expect(requiredLevel("/bea")).toBe("bea");
     expect(requiredLevel("/")).toBe("base");
     expect(requiredLevel("/api/feedback")).toBe("base");
   });
@@ -49,35 +49,36 @@ describe("decideAccess", () => {
   const base = "BASE_TOKEN";
   const exec = "EXEC_TOKEN";
   const crystal = "CRYSTAL_TOKEN";
+  const monica = "MONICA_TOKEN";
+  const tok = (over = {}) => ({ base, exec, users: { crystal, monica, ...over } });
 
   it("allows everything when the gate is disabled (no base pin)", () => {
-    expect(decideAccess("/exec", undefined, { base: null, exec: null, crystal: null })).toBe("allow");
+    expect(decideAccess("/rob", undefined, { base: null, exec: null, users: {} })).toBe("allow");
   });
-  it("base token reaches base routes but not exec or crystal", () => {
-    expect(decideAccess("/", base, { base, exec, crystal })).toBe("allow");
-    expect(decideAccess("/exec", base, { base, exec, crystal })).toBe("deny");
-    expect(decideAccess("/crystal", base, { base, exec, crystal })).toBe("deny");
+  it("base token reaches base routes but not rob or a user route", () => {
+    expect(decideAccess("/", base, tok())).toBe("allow");
+    expect(decideAccess("/rob", base, tok())).toBe("deny");
+    expect(decideAccess("/crystal", base, tok())).toBe("deny");
   });
-  it("exec token reaches base, exec, and crystal (CEO sees everything)", () => {
-    expect(decideAccess("/", exec, { base, exec, crystal })).toBe("allow");
-    expect(decideAccess("/exec", exec, { base, exec, crystal })).toBe("allow");
-    expect(decideAccess("/crystal", exec, { base, exec, crystal })).toBe("allow");
+  it("exec token reaches base, rob, and every user route (CEO sees everything)", () => {
+    expect(decideAccess("/", exec, tok())).toBe("allow");
+    expect(decideAccess("/rob", exec, tok())).toBe("allow");
+    expect(decideAccess("/crystal", exec, tok())).toBe("allow");
+    expect(decideAccess("/monica", exec, tok())).toBe("allow");
   });
-  it("crystal token reaches /crystal only (not base or exec)", () => {
-    expect(decideAccess("/crystal", crystal, { base, exec, crystal })).toBe("allow");
-    expect(decideAccess("/", crystal, { base, exec, crystal })).toBe("deny");
-    expect(decideAccess("/exec", crystal, { base, exec, crystal })).toBe("deny");
+  it("a user token reaches only that user's route", () => {
+    expect(decideAccess("/crystal", crystal, tok())).toBe("allow");
+    expect(decideAccess("/monica", crystal, tok())).toBe("deny");
+    expect(decideAccess("/", crystal, tok())).toBe("deny");
+    expect(decideAccess("/rob", crystal, tok())).toBe("deny");
   });
   it("denies unknown/empty token on gated routes", () => {
-    expect(decideAccess("/", undefined, { base, exec, crystal })).toBe("deny");
-    expect(decideAccess("/exec", "garbage", { base, exec, crystal })).toBe("deny");
-    expect(decideAccess("/crystal", "garbage", { base, exec, crystal })).toBe("deny");
+    expect(decideAccess("/", undefined, tok())).toBe("deny");
+    expect(decideAccess("/rob", "garbage", tok())).toBe("deny");
+    expect(decideAccess("/crystal", "garbage", tok())).toBe("deny");
   });
-  it("when EXEC_PIN is unset, exec falls back to the base token (never locks out)", () => {
-    expect(decideAccess("/exec", base, { base, exec: base, crystal })).toBe("allow");
-  });
-  it("when CRYSTAL_PIN is unset, crystal falls back to exec (only exec/CEO reaches /crystal)", () => {
-    expect(decideAccess("/crystal", exec, { base, exec, crystal: exec })).toBe("allow");
-    expect(decideAccess("/crystal", base, { base, exec, crystal: exec })).toBe("deny");
+  it("when a user PIN is unset, that route falls back to exec only", () => {
+    expect(decideAccess("/bea", exec, tok({ bea: exec }))).toBe("allow");
+    expect(decideAccess("/bea", base, tok({ bea: exec }))).toBe("deny");
   });
 });
