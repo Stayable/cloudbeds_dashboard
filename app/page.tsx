@@ -1,5 +1,6 @@
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
+import PersonalViewEntry from "@/components/PersonalViewEntry";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
@@ -42,6 +43,7 @@ export default async function DashboardPage({
           <p className="text-xs font-medium uppercase tracking-widest text-white/60">
             Stayable · Portfolio Occupancy Dashboard
           </p>
+          <PersonalViewEntry />
         </div>
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h1 className="text-2xl font-semibold sm:text-3xl">All Properties</h1>
