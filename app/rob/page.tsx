@@ -1,3 +1,4 @@
+import Link from "next/link";
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
@@ -69,6 +70,12 @@ export default async function RobPage({
           <p className="text-xs font-medium uppercase tracking-widest text-white/60">
             Stayable · CEO Dashboard
           </p>
+          <Link
+            href="/"
+            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            ← Dashboard
+          </Link>
         </div>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Rob&apos;s View</h1>
         <p className="mt-1 text-sm text-white/70">
