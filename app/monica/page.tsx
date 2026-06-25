@@ -4,10 +4,12 @@ import PeriodControls from "@/components/PeriodControls";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import FinanceSection from "@/components/FinanceSection";
+import EvictionsSection from "@/components/EvictionsSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
+import { getEvictions } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
 import { buildReservationViews } from "@/lib/reservations";
@@ -23,6 +25,7 @@ const NAV: NavItem[] = [
   { id: "revenue", label: "Revenue & rate", n: 3 },
   { id: "reservations", label: "Reservations", n: 4 },
   { id: "finance", label: "Finance", n: 5 },
+  { id: "evictions", label: "Evictions", n: 6 },
 ];
 
 function SectionHeading({ n, title, sub }: { n: number; title: string; sub: string }) {
@@ -47,11 +50,12 @@ export default async function MonicaPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights, reservations, finance] = await Promise.all([
+  const [portfolio, insights, reservations, finance, evictions] = await Promise.all([
     getPortfolio(),
     getPortfolioInsights(start, end),
     getPortfolioReservations(start, end),
     getPortfolioFinance(start, end),
+    getEvictions(),
   ]);
 
   const properties = buildOccProperties(portfolio, insights);
@@ -118,6 +122,15 @@ export default async function MonicaPage({
           <section id="finance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · net & transaction mix · aggregates only`} />
             <FinanceSection views={financeViews} rangeLabel={rangeLabel} />
+          </section>
+
+          <section id="evictions" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+            <SectionHeading n={6} title="Evictions" sub="Live from Smartsheet · counts only · no case detail" />
+            <EvictionsSection
+              configured={evictions.configured}
+              error={evictions.error}
+              views={evictions.views}
+            />
           </section>
 
           <p className="mb-6 text-xs text-slate-400">
