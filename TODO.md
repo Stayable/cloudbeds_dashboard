@@ -2,9 +2,34 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` @ `e28f5a5`
+> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` @ `9997565`
 > == origin, working tree clean. **LIVE at `dashboard.rentstayable.com`** (custom
-> domain wired this session). Build green; ~46 vitest tests pass.
+> domain wired earlier). Build green; **49 vitest tests pass**.
+>
+> **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
+> First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/
+> All toggle + table. Metrics: Open / Closed / Total + **Avg days to file** (notice
+> → complaint, all-time) + **Avg days to resolve** (filing → completion, MTD).
+>   - Source: Smartsheet **"Evictions Metrics"** sheet `4398121124581252` (live
+>     cross-sheet formulas, counts only — no PII) via new server-only read client
+>     `lib/smartsheet.ts` (Bearer, 10-min cache). Builder + tests `lib/evictions.ts`.
+>   - **Days-to-file is APP-COMPUTED** from the Closed sheet `1160578736646020`,
+>     column-restricted to Property + 2 dates (no tenant names hit the server).
+>     Reason: an auto-updating sheet row would need a cross-sheet named reference,
+>     which is Smartsheet-UI-only (not creatable via API/MCP).
+>   - **New env vars:** `SMARTSHEET_API_TOKEN` (set by Kyle this session) ·
+>     optional `SMARTSHEET_EVICTIONS_SHEET_ID` (dflt 4398121124581252) ·
+>     `SMARTSHEET_CLOSED_SHEET_ID` (dflt 1160578736646020). Section degrades to a
+>     friendly "not connected" state when token unset. See memory
+>     `evictions-smartsheet`.
+>   - **Smartsheet MCP = browser OAuth only** (`/mcp` each session); the deployed
+>     app uses the API token, not the connector.
+>   - **EliseAI (Leases, Prospects) — PARKED** by Kyle. No connector / no key; needs
+>     read-only API access + docs from EliseAI vendor before any build.
+>   - **Open evictions follow-ups:** (a) days-to-file is all-time — switch to MTD if
+>     cadence should match resolve; (b) computed from Closed sheet only — union
+>     Master DB `6908157491472260` if it also holds closed cases; (c) mirror the
+>     section onto other dashboards if wanted; (d) verify live render now token set.
 >
 > **Per-user dashboards SHIPPED (session 06/25–26/26).** Routes:
 >   - **`/` home — PUBLIC, no PIN** (occupancy-first view + a "Personal view →"
@@ -233,5 +258,6 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 4. Which 6 properties are active in Cloudbeds right now?
 
 > Note: org standing rule routes surfaced tasks to the Smartsheet Action Items
-> Staging Sheet. No Smartsheet tool is connected in this session, so tasks are
-> tracked here in `TODO.md` for now.
+> Staging Sheet. Smartsheet MCP is now connectable via `/mcp` (browser OAuth, per
+> session) — used 06/26/26 to wire the Evictions source. Tasks still tracked here
+> in `TODO.md` unless explicitly pushed to the staging sheet.
