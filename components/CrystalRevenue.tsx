@@ -1,6 +1,16 @@
 // Presentational revenue & rate section for /crystal. Server component (no
 // client state). ADR/RevPAR are real; revenue is a labeled estimate.
-import type { RevenueSummary } from "@/lib/revenue";
+import type { RevenueSummary, RevenueRow } from "@/lib/revenue";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
+
+const REVENUE_COLS: ExportColumn<RevenueRow>[] = [
+  { header: "Property", value: (r) => r.name },
+  { header: "County", value: (r) => r.county },
+  { header: "ADR", value: (r) => (r.adr == null ? "" : r.adr.toFixed(2)) },
+  { header: "RevPAR", value: (r) => (r.revpar == null ? "" : r.revpar.toFixed(2)) },
+  { header: "Room revenue (est.)", value: (r) => (r.roomRevenueEst == null ? "" : Math.round(r.roomRevenueEst)) },
+];
 
 function money(n: number | null) {
   return n === null
@@ -13,10 +23,23 @@ function money2(n: number | null) {
     : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function CrystalRevenue({ summary }: { summary: RevenueSummary }) {
+export default function CrystalRevenue({
+  summary,
+  exportDate,
+}: {
+  summary: RevenueSummary;
+  exportDate: string; // YYYY-MM-DD, for export filenames
+}) {
   const ranked = [...summary.rows].sort((a, b) => (b.revpar ?? -1) - (a.revpar ?? -1));
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        <ExportMenu
+          filename={exportFilename("RevenueRate", null, exportDate)}
+          title="Revenue & rate — All properties"
+          matrix={buildMatrix(REVENUE_COLS, ranked)}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ADR (portfolio)</p>

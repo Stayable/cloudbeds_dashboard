@@ -67,7 +67,7 @@ export default async function DashboardPage({
       <div className="lg:flex lg:gap-8">
         <SectionNav items={NAV} />
         <div className="min-w-0 flex-1">
-          <OccupancyView properties={properties} />
+          <OccupancyView properties={properties} exportDate={end} />
         </div>
       </div>
 

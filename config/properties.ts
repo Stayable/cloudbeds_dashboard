@@ -62,3 +62,9 @@ export const PILOT_PROPERTY = PROPERTIES.find((p) => p.pilot)!;
 export function getProperty(id: string): Property | undefined {
   return PROPERTIES.find((p) => p.id === id);
 }
+
+/** Business property ID for a short code (e.g. "DP" -> "44199"); null if none.
+ *  Used to stamp export filenames (§7) from views keyed by code. */
+export function propertyIdByCode(code: string): string | null {
+  return PROPERTIES.find((p) => p.code === code)?.id ?? null;
+}

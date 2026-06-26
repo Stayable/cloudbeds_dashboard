@@ -6,8 +6,11 @@
 // merged list). Room numbers are inventory, no PII.
 import { useState } from "react";
 import type { OooRoom } from "@/lib/cloudbeds";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
 
 export type BeaProperty = {
+  id: string; // business property ID, for export filenames (§7)
   code: string;
   name: string;
   county: string;
@@ -15,6 +18,21 @@ export type BeaProperty = {
   rooms: OooRoom[] | null; // null = not reporting (no key) or error
   error?: string | null;
 };
+
+// Columns for a single property's OOO rooms.
+const ROOM_COLS: ExportColumn<OooRoom>[] = [
+  { header: "Room", value: (r) => r.room || "Unknown" },
+  { header: "Type", value: (r) => r.roomType },
+  { header: "Type code", value: (r) => r.roomTypeCode },
+  { header: "Reason", value: (r) => r.reason },
+  { header: "Until", value: (r) => r.endDate },
+];
+// All-properties view prepends the property name.
+type OooRowAll = OooRoom & { property: string };
+const ROOM_COLS_ALL: ExportColumn<OooRowAll>[] = [
+  { header: "Property", value: (r) => r.property },
+  ...ROOM_COLS.map((c) => ({ header: c.header, value: (r: OooRowAll) => c.value(r) })),
+];
 
 // Normalize a reason so "NEEDS RENO", "Needs Reno", "needs  reno." all collapse.
 function normReason(s: string): string {
@@ -51,8 +69,13 @@ function RoomTable({ rooms }: { rooms: OooRoom[] }) {
       <tbody>
         {rooms.map((r, i) => (
           <tr key={`${r.room}-${i}`} className="border-t border-slate-100">
-            <td className="px-4 py-2 font-medium text-slate-900">{r.room}</td>
-            <td className="px-4 py-2 text-slate-600">{r.roomType || "—"}</td>
+            <td className="px-4 py-2 font-medium text-slate-900">
+              {r.room || <span className="italic text-slate-400">Unknown</span>}
+            </td>
+            <td className="px-4 py-2 text-slate-600">
+              {r.roomType || "—"}
+              {r.roomTypeCode && <span className="ml-1 text-xs text-slate-400">({r.roomTypeCode})</span>}
+            </td>
             <td className="px-4 py-2 text-slate-600">{r.reason}</td>
             <td className="px-4 py-2 text-slate-500">{r.endDate}</td>
           </tr>
@@ -62,8 +85,11 @@ function RoomTable({ rooms }: { rooms: OooRoom[] }) {
   );
 }
 
-export default function BeaOosExplorer({ properties }: { properties: BeaProperty[] }) {
+export default function BeaOosExplorer({ properties, asOf }: { properties: BeaProperty[]; asOf: string }) {
   const allRooms = properties.flatMap((p) => p.rooms ?? []);
+  const allRowsForExport: OooRowAll[] = properties.flatMap((p) =>
+    (p.rooms ?? []).map((r) => ({ ...r, property: p.name })),
+  );
   const [activeKey, setActiveKey] = useState("ALL");
 
   const card = (key: string, label: string, sub: string, count: number | null, disabled: boolean) => {
@@ -112,11 +138,18 @@ export default function BeaOosExplorer({ properties }: { properties: BeaProperty
       {activeKey === "ALL" ? (
         /* All properties → total + a compact summary table; click a row to drill in. */
         <div className="space-y-3">
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <span className="text-2xl font-semibold text-slate-900">{allRooms.length}</span>
-            <span className="ml-2 text-sm text-slate-500">
-              room{allRooms.length === 1 ? "" : "s"} out of service across all properties
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <span>
+              <span className="text-2xl font-semibold text-slate-900">{allRooms.length}</span>
+              <span className="ml-2 text-sm text-slate-500">
+                room{allRooms.length === 1 ? "" : "s"} out of service across all properties
+              </span>
             </span>
+            <ExportMenu
+              filename={exportFilename("OutOfService", null, asOf)}
+              title="Out of service — All properties"
+              matrix={buildMatrix(ROOM_COLS_ALL, allRowsForExport)}
+            />
           </div>
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full min-w-[480px] text-sm">
@@ -207,9 +240,27 @@ export default function BeaOosExplorer({ properties }: { properties: BeaProperty
           </div>
 
           {selectedProp?.configured && !selectedProp.error && (selectedProp.rooms?.length ?? 0) > 0 && (
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <RoomTable rooms={selectedProp.rooms ?? []} />
-            </div>
+            <>
+              {(selectedProp.rooms ?? []).some((r) => !r.room) && (
+                <p className="mb-2 rounded-lg bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                  Some room numbers couldn&apos;t be resolved (shown as “Unknown”). This property&apos;s
+                  Cloudbeds key needs the <span className="font-semibold">Room</span> scope.
+                </p>
+              )}
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {selectedProp?.name} · rooms
+                </p>
+                <ExportMenu
+                  filename={exportFilename("OutOfService", selectedProp?.id ?? null, asOf)}
+                  title={`Out of service — ${selectedProp?.name}`}
+                  matrix={buildMatrix(ROOM_COLS, selectedProp?.rooms ?? [])}
+                />
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                <RoomTable rooms={selectedProp.rooms ?? []} />
+              </div>
+            </>
           )}
         </>
       )}

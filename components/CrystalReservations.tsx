@@ -5,6 +5,34 @@
 // (totals/counts/breakdowns) — no per-reservation rows.
 import { useState } from "react";
 import type { ReservationView } from "@/lib/reservations";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
+import { propertyIdByCode } from "@/config/properties";
+
+function resCols(showFinancials: boolean): ExportColumn<ReservationView>[] {
+  const base: ExportColumn<ReservationView>[] = [
+    { header: "Property", value: (v) => v.label },
+    { header: "Rooms on books", value: (v) => v.rooms },
+    { header: "Room nights", value: (v) => v.roomNights },
+    { header: "Guests", value: (v) => v.guests },
+    { header: "Grand total", value: (v) => v.grandTotal },
+    { header: "Paid", value: (v) => v.paid },
+    { header: "Balance due", value: (v) => v.balanceDue },
+  ];
+  const fin: ExportColumn<ReservationView>[] = showFinancials
+    ? [
+        { header: "Fees", value: (v) => v.fees },
+        { header: "Taxes", value: (v) => v.taxes },
+        { header: "Channel commission", value: (v) => v.commission },
+      ]
+    : [];
+  const lease: ExportColumn<ReservationView>[] = [
+    { header: "Monthly lease (rooms)", value: (v) => v.leaseMix.monthly },
+    { header: "Weekly lease (rooms)", value: (v) => v.leaseMix.weekly },
+    { header: "Transient (rooms)", value: (v) => v.leaseMix.transient },
+  ];
+  return [...base, ...fin, ...lease];
+}
 
 function money(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -54,10 +82,12 @@ export default function CrystalReservations({
   views,
   rangeLabel,
   showFinancials = false,
+  exportDate,
 }: {
   views: ReservationView[];
   rangeLabel: string;
   showFinancials?: boolean;
+  exportDate: string; // YYYY-MM-DD, for export filenames
 }) {
   const [activeKey, setActiveKey] = useState(views[0]?.key ?? "ALL");
 
@@ -72,28 +102,36 @@ export default function CrystalReservations({
   const view = views.find((v) => v.key === activeKey) ?? views[0];
   const lease = view.leaseMix;
   const isAll = view.key === "ALL";
+  const exportRows = isAll ? views.filter((v) => v.key !== "ALL") : [view];
 
   return (
     <div className="space-y-5">
       {/* Property selector */}
-      <div className="flex flex-wrap gap-2">
-        {views.map((v) => {
-          const active = v.key === view.key;
-          return (
-            <button
-              key={v.key}
-              onClick={() => setActiveKey(v.key)}
-              className={
-                "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
-                (active
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
-              }
-            >
-              {v.key === "ALL" ? "All properties" : v.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {views.map((v) => {
+            const active = v.key === view.key;
+            return (
+              <button
+                key={v.key}
+                onClick={() => setActiveKey(v.key)}
+                className={
+                  "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
+                  (active
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                }
+              >
+                {v.key === "ALL" ? "All properties" : v.label}
+              </button>
+            );
+          })}
+        </div>
+        <ExportMenu
+          filename={exportFilename("Reservations", isAll ? null : propertyIdByCode(view.key), exportDate)}
+          title={`Reservations — ${isAll ? "All properties" : view.label}`}
+          matrix={buildMatrix(resCols(showFinancials), exportRows)}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">

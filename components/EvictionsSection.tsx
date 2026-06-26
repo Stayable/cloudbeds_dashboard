@@ -5,10 +5,21 @@
 // ("All properties" + one per property), per the dashboard convention.
 import { useState } from "react";
 import type { EvictionsView } from "@/lib/evictions";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
 
 function intFmt(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
+
+const EVICTION_COLS: ExportColumn<EvictionsView>[] = [
+  { header: "Property", value: (v) => v.label },
+  { header: "Open", value: (v) => v.open },
+  { header: "Closed", value: (v) => v.closed },
+  { header: "Total", value: (v) => v.total },
+  { header: "Avg days to file", value: (v) => (v.avgDaysToFile == null ? "" : v.avgDaysToFile.toFixed(1)) },
+  { header: "Avg days to resolve", value: (v) => (v.avgDays == null ? "" : v.avgDays.toFixed(1)) },
+];
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -24,10 +35,12 @@ export default function EvictionsSection({
   configured,
   error,
   views,
+  asOf,
 }: {
   configured: boolean;
   error: string | null;
   views: EvictionsView[];
+  asOf: string; // YYYY-MM-DD, for export filenames
 }) {
   const [activeKey, setActiveKey] = useState("ALL");
 
@@ -60,27 +73,36 @@ export default function EvictionsSection({
 
   const view = views.find((v) => v.key === activeKey) ?? views[0];
   const perProperty = views.filter((v) => v.key !== "ALL");
+  const isAll = view.key === "ALL";
+  const exportRows = isAll ? perProperty : [view];
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
-        {views.map((v) => {
-          const active = v.key === view.key;
-          return (
-            <button
-              key={v.key}
-              onClick={() => setActiveKey(v.key)}
-              className={
-                "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
-                (active
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
-              }
-            >
-              {v.key === "ALL" ? "All properties" : v.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {views.map((v) => {
+            const active = v.key === view.key;
+            return (
+              <button
+                key={v.key}
+                onClick={() => setActiveKey(v.key)}
+                className={
+                  "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
+                  (active
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                }
+              >
+                {v.key === "ALL" ? "All properties" : v.label}
+              </button>
+            );
+          })}
+        </div>
+        <ExportMenu
+          filename={exportFilename("Evictions", isAll ? null : view.key, asOf)}
+          title={`Evictions — ${isAll ? "All properties" : view.label}`}
+          matrix={buildMatrix(EVICTION_COLS, exportRows)}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">

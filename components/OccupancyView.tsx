@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
 
 export type Daily = { date: string; occupancy: number };
 export type Live = {
@@ -154,7 +156,19 @@ function Detail({ p }: { p: OccProperty }) {
   );
 }
 
-export default function OccupancyView({ properties }: { properties: OccProperty[] }) {
+// Daily occupancy series for the selected property (single-property table).
+const DAILY_COLS: ExportColumn<Daily>[] = [
+  { header: "Date", value: (d) => d.date },
+  { header: "Occupancy %", value: (d) => d.occupancy.toFixed(1) },
+];
+
+export default function OccupancyView({
+  properties,
+  exportDate,
+}: {
+  properties: OccProperty[];
+  exportDate: string; // YYYY-MM-DD, for export filenames
+}) {
   const [included, setIncluded] = useState<Record<string, boolean>>(() => {
     const o: Record<string, boolean> = {};
     for (const p of properties) o[p.code] = p.rawOcc !== null && !p.excludeDefault;
@@ -185,6 +199,19 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
   const ranked = [...properties].sort((a, b) => (effOcc(b) ?? -1) - (effOcc(a) ?? -1));
   const current = properties.find((p) => p.code === activeCode);
 
+  // All-property occupancy summary (reflects current include-in-average toggles).
+  const occSummaryMatrix = buildMatrix<OccProperty>(
+    [
+      { header: "Property", value: (p) => p.name },
+      { header: "County", value: (p) => p.county },
+      { header: "ID", value: (p) => p.id },
+      { header: "Occupancy %", value: (p) => { const o = effOcc(p); return o === null ? "" : o.toFixed(1); } },
+      { header: "In average", value: (p) => (included[p.code] ? "Yes" : "No") },
+    ],
+    ranked,
+  );
+  const dailyMatrix = buildMatrix(DAILY_COLS, current?.daily ?? []);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Headline: portfolio occupancy for the selected range */}
@@ -214,9 +241,16 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
 
       {/* Occupancy by property with include-in-average toggles */}
       <section id="by-property" className="scroll-mt-20 lg:scroll-mt-6">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Occupancy by property — tap to view detail, toggle to include in the average
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Occupancy by property — tap to view detail, toggle to include in the average
+          </p>
+          <ExportMenu
+            filename={exportFilename("Occupancy", null, exportDate)}
+            title="Occupancy by property"
+            matrix={occSummaryMatrix}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {ranked.map((p) => {
             const occ = effOcc(p);
@@ -262,9 +296,18 @@ export default function OccupancyView({ properties }: { properties: OccProperty[
 
       {/* Per-property detail */}
       <section id="detail" className="scroll-mt-20 lg:scroll-mt-6">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Property detail
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Property detail
+          </p>
+          {current && current.daily.length > 0 && (
+            <ExportMenu
+              filename={exportFilename("OccupancyDaily", current.id, exportDate)}
+              title={`Daily occupancy — ${current.name}`}
+              matrix={dailyMatrix}
+            />
+          )}
+        </div>
         <div
           role="tablist"
           className="flex gap-1 overflow-x-auto border-b border-slate-200 pb-px"

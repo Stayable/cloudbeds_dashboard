@@ -106,22 +106,22 @@ export default async function MonicaPage({
             <div className="mb-4">
               <PeriodControls preset={preset} start={start} end={end} />
             </div>
-            <OccupancyView properties={properties} />
+            <OccupancyView properties={properties} exportDate={end} />
           </section>
 
           <section id="revenue" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={3} title="Revenue & rate" sub={`${rangeLabel} · ADR / RevPAR live, revenue est.`} />
-            <CrystalRevenue summary={revenue} />
+            <CrystalRevenue summary={revenue} exportDate={end} />
           </section>
 
           <section id="reservations" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={4} title="Reservations & pace" sub={`${rangeLabel} · aggregates only · no guest detail`} />
-            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} />
+            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} exportDate={end} />
           </section>
 
           <section id="finance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · net & transaction mix · aggregates only`} />
-            <FinanceSection views={financeViews} rangeLabel={rangeLabel} />
+            <FinanceSection views={financeViews} rangeLabel={rangeLabel} exportDate={end} />
           </section>
 
           <section id="evictions" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
@@ -130,6 +130,7 @@ export default async function MonicaPage({
               configured={evictions.configured}
               error={evictions.error}
               views={evictions.views}
+              asOf={end}
             />
           </section>
 

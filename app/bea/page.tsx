@@ -2,7 +2,9 @@ import Link from "next/link";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import ChangePin from "@/components/ChangePin";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
+import ExportMenu from "@/components/ExportMenu";
 import { getPortfolio, getPortfolioOoo } from "@/lib/cloudbeds";
+import { buildMatrix, exportFilename } from "@/lib/export";
 import { easternToday } from "@/lib/dates";
 
 // Bea (Ops Support) — tailored to her two selections: out-of-service rooms and
@@ -38,6 +40,7 @@ export default async function BeaPage() {
     const o = oooByCode.get(pd.property.code);
     const oooRooms = o?.result?.ok ? o.result.data : null;
     return {
+      id: pd.property.id,
       code: pd.property.code,
       name: pd.property.name,
       county: pd.property.county,
@@ -49,6 +52,7 @@ export default async function BeaPage() {
     };
   });
   const oosProps: BeaProperty[] = rows.map((r) => ({
+    id: r.id,
     code: r.code,
     name: r.name,
     county: r.county,
@@ -56,6 +60,15 @@ export default async function BeaPage() {
     rooms: r.oooRooms,
     error: r.oooError,
   }));
+
+  const localTimeMatrix = buildMatrix<(typeof rows)[number]>(
+    [
+      { header: "Property", value: (r) => r.name },
+      { header: "Local time", value: (r) => r.localTime ?? "" },
+      { header: "Time zone", value: (r) => r.tz ?? "" },
+    ],
+    rows,
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
@@ -83,11 +96,18 @@ export default async function BeaPage() {
         <div className="min-w-0 flex-1">
           <section id="oos" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={1} title="Out-of-service rooms" sub="Live · pick a property → reasons, then rooms" />
-            <BeaOosExplorer properties={oosProps} />
+            <BeaOosExplorer properties={oosProps} asOf={asOf} />
           </section>
 
           <section id="localtime" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
-            <SectionHeading n={2} title="Property local time" sub="Live · current time at each property" />
+            <div className="flex items-start justify-between gap-3">
+              <SectionHeading n={2} title="Property local time" sub="Live · current time at each property" />
+              <ExportMenu
+                filename={exportFilename("LocalTime", null, asOf)}
+                title="Property local time"
+                matrix={localTimeMatrix}
+              />
+            </div>
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>

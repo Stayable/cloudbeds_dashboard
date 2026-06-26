@@ -108,25 +108,25 @@ export default async function RobPage({
             <div className="mb-4">
               <PeriodControls preset={preset} start={start} end={end} />
             </div>
-            <OccupancyView properties={properties} />
+            <OccupancyView properties={properties} exportDate={end} />
           </section>
 
           {/* Section 3 — Revenue & rate */}
           <section id="revenue" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={3} title="Revenue & rate" sub={`${rangeLabel} · ADR / RevPAR live, revenue est.`} />
-            <CrystalRevenue summary={revenue} />
+            <CrystalRevenue summary={revenue} exportDate={end} />
           </section>
 
           {/* Section 4 — Reservations & pace (with financials) */}
           <section id="reservations" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={4} title="Reservations & pace" sub={`${rangeLabel} · aggregates only · no guest detail`} />
-            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} showFinancials />
+            <CrystalReservations views={reservationViews} rangeLabel={rangeLabel} showFinancials exportDate={end} />
           </section>
 
           {/* Section 5 — Finance */}
           <section id="finance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
             <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · charges, payments, net · aggregates only`} />
-            <FinanceSection views={financeViews} rangeLabel={rangeLabel} />
+            <FinanceSection views={financeViews} rangeLabel={rangeLabel} exportDate={end} />
           </section>
 
           {/* Honest note on what's not shown */}

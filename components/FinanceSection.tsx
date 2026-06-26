@@ -4,11 +4,21 @@
 // ("All properties" + one per reporting property), per the dashboard convention.
 import { useState } from "react";
 import type { FinanceView } from "@/lib/finance";
+import ExportMenu from "@/components/ExportMenu";
+import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
+import { propertyIdByCode } from "@/config/properties";
 
 function money(n: number) {
   const sign = n < 0 ? "-" : "";
   return `${sign}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
+
+const FINANCE_COLS: ExportColumn<FinanceView>[] = [
+  { header: "Property", value: (v) => v.label },
+  { header: "Charges (debits)", value: (v) => v.charges },
+  { header: "Payments & credits", value: (v) => v.paymentsCredits },
+  { header: "Net transaction amount", value: (v) => v.net },
+];
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -48,9 +58,11 @@ function MixBars({ title, mix }: { title: string; mix: Record<string, number> })
 export default function FinanceSection({
   views,
   rangeLabel,
+  exportDate,
 }: {
   views: FinanceView[];
   rangeLabel: string;
+  exportDate: string; // YYYY-MM-DD, for export filenames
 }) {
   const [activeKey, setActiveKey] = useState(views[0]?.key ?? "ALL");
 
@@ -63,27 +75,36 @@ export default function FinanceSection({
   }
 
   const view = views.find((v) => v.key === activeKey) ?? views[0];
+  const isAll = view.key === "ALL";
+  const exportRows = isAll ? views.filter((v) => v.key !== "ALL") : [view];
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
-        {views.map((v) => {
-          const active = v.key === view.key;
-          return (
-            <button
-              key={v.key}
-              onClick={() => setActiveKey(v.key)}
-              className={
-                "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
-                (active
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
-              }
-            >
-              {v.key === "ALL" ? "All properties" : v.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {views.map((v) => {
+            const active = v.key === view.key;
+            return (
+              <button
+                key={v.key}
+                onClick={() => setActiveKey(v.key)}
+                className={
+                  "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
+                  (active
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                }
+              >
+                {v.key === "ALL" ? "All properties" : v.label}
+              </button>
+            );
+          })}
+        </div>
+        <ExportMenu
+          filename={exportFilename("Finance", isAll ? null : propertyIdByCode(view.key), exportDate)}
+          title={`Finance — ${isAll ? "All properties" : view.label}`}
+          matrix={buildMatrix(FINANCE_COLS, exportRows)}
+        />
       </div>
 
       {view.capped && (
