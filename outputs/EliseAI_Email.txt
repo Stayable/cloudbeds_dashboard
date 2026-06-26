@@ -2,27 +2,26 @@ Subject: API access request - read-only leasing data per property (Stayable)
 
 Hi [Name],
 
-RISE8 / Stayable operates 8 Florida extended-stay properties. We're building an
-internal, read-only operations dashboard and would like to pull the leasing data
-EliseAI manages for us via API instead of manual exports.
+I hope you're doing well! We're building an internal, read-only operations
+dashboard and would like to pull the leasing data EliseAI manages for us via
+API instead of relying on manual exports.
 
 Could you let us know:
 
 1. Is read-only API access available on our account, and how do we enable it?
-2. API docs - endpoints/fields for Leases, Prospects (stage/source/status),
-   active leases, renewals/move-outs, and any leasing-activity metrics.
-3. Authentication method, and whether access can be scoped per property.
-4. Rate limits and any sandbox/test environment.
-5. Any data-sharing/DPA paperwork needed first.
-6. Can data also be exported as Excel, PDF, or CSV?
+2. Can you share the API documentation, including endpoints and fields for:
+   - Leases
+   - Prospects (stage, source, status)
+   - Active leases
+   - Renewals and move-outs
+   - Any leasing activity metrics
+3. What authentication method is used, and can API access be scoped per property?
+4. What are the API rate limits, and is there a sandbox or test environment available?
 
-Use is strictly read-only, server-side, and per property where possible.
+Our use case is strictly read-only, server-side, and, where possible, scoped
+per property.
 
-Properties (our internal IDs - please share a mapping if EliseAI uses different ones):
-Lakeland 4645 | Kissimmee East 2295 | Kissimmee West 5399 | Jacksonville West 6802
-| Jacksonville North 812 | St. Augustine 2535 | Davenport 44199 | Orlando OBT 8700
-
-Happy to hop on a quick call if that's easier. Thanks!
+Thanks!
 
 Kyle Estocapio
 RISE8 Companies - Stayable

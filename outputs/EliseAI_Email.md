@@ -1,75 +1,36 @@
 **To:** [EliseAI Account Manager / Partnerships]
 **From:** Kyle Estocapio — RISE8 Companies (Stayable)
-**Subject:** API access request — read-only leasing data, per property (Stayable portfolio)
+**Subject:** API access request — read-only leasing data per property (Stayable)
 
 ---
 
 Hi [Name],
 
-RISE8 Companies operates the **Stayable** extended-stay brand across 8 Florida
-properties. We're building an internal, view-only operations dashboard that
-consolidates per-property data for our leadership and operations teams, and we'd
-like to pull the leasing data EliseAI manages for us directly via API rather than
-exporting manually.
+I hope you're doing well! We're building an internal, read-only operations
+dashboard and would like to pull the leasing data EliseAI manages for us via
+API instead of relying on manual exports.
 
-**What we're asking for**
+Could you let us know:
 
-Read-only, programmatic (API) access to the following, **scoped per property**:
+1. Is read-only API access available on our account, and how do we enable it?
+2. Can you share the API documentation, including endpoints and fields for:
+   - Leases
+   - Prospects (stage, source, status)
+   - Active leases
+   - Renewals and move-outs
+   - Any leasing activity metrics
+3. What authentication method is used, and can API access be scoped per property?
+4. What are the API rate limits, and is there a sandbox or test environment available?
 
-- **Leases** — active leases, lease terms/dates, lease status
-- **Prospects** — current prospect pipeline / leads
-- **Prospect data** — stage, source, and status of each prospect (funnel)
-- **Active vs. inactive / renewals / move-outs** — current occupancy-side counts
-- Any related leasing-activity or conversion metrics EliseAI exposes (tours,
-  applications, conversions, response times, etc.)
+Our use case is strictly read-only, server-side, and, where possible, scoped
+per property.
 
-**How we intend to use it**
+Thanks!
 
-- **Read-only.** The dashboard never writes back to EliseAI.
-- **Server-side only.** Credentials live in server environment variables and are
-  never exposed to the browser.
-- **Per-property scoping** preferred — either one credential per property or a
-  single credential that returns property-segmented data, whichever you support.
-- We aggregate for display; where individual records carry tenant/prospect PII,
-  we handle them under our existing data-security controls and surface only what's
-  needed.
-
-**What we need from you to scope the build**
-
-1. Is read-only API access available on our account, and how is it enabled?
-2. **API documentation** — base URL, endpoints, and the objects/fields available
-   for Leases, Prospects, and leasing activity.
-3. **Authentication method** — API key, OAuth, etc. — and how credentials are
-   scoped (per property vs. org-wide).
-4. Rate limits and any sandbox/test environment.
-5. Any data-sharing or DPA paperwork required before we're granted access.
-
-**Properties (Stayable portfolio)**
-
-| Property            | Property ID | County     |
-|---------------------|-------------|------------|
-| Lakeland            | 4645        | Polk       |
-| Kissimmee East      | 2295        | Osceola    |
-| Kissimmee West      | 5399        | Osceola    |
-| Jacksonville West   | 6802        | Duval      |
-| Jacksonville North  | 812         | Duval      |
-| St. Augustine       | 2535        | St. Johns  |
-| Davenport           | 44199       | Polk       |
-| Orlando OBT         | 8700        | Orange     |
-
-> Note: these are our internal Stayable property IDs. If EliseAI uses different
-> property identifiers on its side, please include a mapping so we can align them.
-
-Happy to get our technical lead on a short call if that's easier than email.
-Thanks for the help.
-
-Best,
 **Kyle Estocapio**
 RISE8 Companies — Stayable
 bke@rise8companies.com
 
 ---
 
-*Draft — review before sending. Placeholders to fill: recipient name, and
-confirm the property-ID mapping note above. Per TODO, the EliseAI integration is
-parked until read-only API access + docs are received.*
+*Draft — fill in the recipient name before sending.*
