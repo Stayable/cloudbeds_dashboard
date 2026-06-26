@@ -144,24 +144,41 @@ export async function getPortfolio(): Promise<PropertyDashboard[]> {
 // getRoomBlocks lists out_of_service blocks (room + reason + dates); getRooms
 // maps roomID → room name/type. Room identifiers are inventory, not guest PII.
 
-type RoomInfo = { roomName: string; roomTypeName: string };
-type RawRooms = { propertyID: string; rooms: { roomID: string; roomName: string; roomTypeName: string }[] }[];
-type RawBlocks = {
-  roomBlocks: {
-    roomBlockType: string;
-    roomBlockReason: string;
-    startDate: string;
-    endDate: string;
-    rooms: { roomID: string }[];
-  }[];
+/** Human room identity from getRooms: the room CODE (roomName, e.g. "133"),
+ *  the type ("Single Studio") and the type short-code ("1DS") — the same
+ *  code+type pairing the lock-app keys on. The Cloudbeds-internal roomID
+ *  (`<roomTypeID>-<seq>`, e.g. "673007-30") is deliberately NOT a fallback
+ *  identity: it is meaningless to ops and looks like a room number. */
+export type OooRoomInfo = { roomName: string; roomTypeName: string; roomTypeCode: string };
+type RawRooms = {
+  propertyID: string;
+  rooms: { roomID: string; roomName: string; roomTypeName: string; roomTypeNameShort?: string }[];
+}[];
+type RawBlock = {
+  roomBlockType: string;
+  roomBlockReason: string;
+  startDate: string;
+  endDate: string;
+  rooms: { roomID: string }[];
+};
+type RawBlocks = { roomBlocks: RawBlock[] };
+
+export type OooRoom = {
+  room: string; // room code (roomName); "" when the name map could not resolve it
+  roomType: string;
+  roomTypeCode: string;
+  reason: string;
+  startDate: string;
+  endDate: string;
 };
 
-export type OooRoom = { room: string; roomType: string; reason: string; startDate: string; endDate: string };
-
-/** All rooms for a property → roomID → name/type. getRooms is paginated
- *  (~20–100/page), so page through until a short/empty page. */
-async function getRoomNameMap(apiKey: string): Promise<Map<string, RoomInfo>> {
-  const nameById = new Map<string, RoomInfo>();
+/** All rooms for a property → roomID → code/type. getRooms is paginated
+ *  (~20–100/page), so page through until a short/empty page. `loaded` is true
+ *  iff getRooms answered at least once — distinguishes "no rooms" from "the key
+ *  lacks the Room scope" (Roomblock-only keys would otherwise render raw IDs). */
+async function getRoomNameMap(apiKey: string): Promise<{ map: Map<string, OooRoomInfo>; loaded: boolean }> {
+  const map = new Map<string, OooRoomInfo>();
+  let loaded = false;
   const PAGE = 100;
   for (let page = 1; page <= 20; page++) {
     const res = await cbGet<RawRooms>(apiKey, `/getRooms`, {
@@ -169,38 +186,69 @@ async function getRoomNameMap(apiKey: string): Promise<Map<string, RoomInfo>> {
       pageSize: String(PAGE),
     });
     if (!res.ok) break;
+    loaded = true;
     const batch = (res.data ?? []).flatMap((p) => p.rooms ?? []);
-    for (const r of batch) nameById.set(r.roomID, { roomName: r.roomName, roomTypeName: r.roomTypeName });
+    for (const r of batch)
+      map.set(r.roomID, {
+        roomName: r.roomName,
+        roomTypeName: r.roomTypeName,
+        roomTypeCode: r.roomTypeNameShort ?? "",
+      });
     if (batch.length < PAGE) break;
   }
-  return nameById;
+  return { map, loaded };
 }
 
-/** Out-of-service rooms active on `asOf` (YYYY-MM-DD) for one property, with names. */
-async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResult<OooRoom[]>> {
-  const [nameById, blocksRes] = await Promise.all([
-    getRoomNameMap(apiKey),
-    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
-  ]);
-  if (!blocksRes.ok) return blocksRes;
-
+/** Map out-of-service blocks → rooms using the name map. Pure (no I/O) so the
+ *  no-raw-id guarantee is unit-tested. Unresolved roomIDs get a blank `room`
+ *  (the UI shows a placeholder + a "Room scope" notice) — never the raw id. */
+export function buildOooRooms(nameById: Map<string, OooRoomInfo>, roomBlocks: RawBlock[]): OooRoom[] {
   const out: OooRoom[] = [];
-  for (const b of blocksRes.data?.roomBlocks ?? []) {
+  for (const b of roomBlocks ?? []) {
     if (b.roomBlockType !== "out_of_service") continue;
     for (const r of b.rooms ?? []) {
       const info = nameById.get(r.roomID);
       out.push({
-        room: info?.roomName || r.roomID,
-        roomType: info?.roomTypeName || "",
+        room: info?.roomName ?? "",
+        roomType: info?.roomTypeName ?? "",
+        roomTypeCode: info?.roomTypeCode ?? "",
         reason: b.roomBlockReason || "—",
         startDate: b.startDate,
         endDate: b.endDate,
       });
     }
   }
-  // Stable sort by room name (numeric-aware).
-  out.sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
-  return { ok: true, data: out };
+  // Stable sort by room code (numeric-aware); unresolved ("") sort last.
+  out.sort((a, b) => {
+    if (!a.room) return 1;
+    if (!b.room) return -1;
+    return a.room.localeCompare(b.room, undefined, { numeric: true });
+  });
+  return out;
+}
+
+/** Out-of-service rooms active on `asOf` (YYYY-MM-DD) for one property, with
+ *  room codes + types. Errors if the room-name source is unavailable while
+ *  blocks exist (key missing the Room scope) so the UI surfaces that rather
+ *  than rendering internal roomIDs as fake room numbers. */
+async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResult<OooRoom[]>> {
+  const [nameRes, blocksRes] = await Promise.all([
+    getRoomNameMap(apiKey),
+    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
+  ]);
+  if (!blocksRes.ok) return blocksRes;
+
+  const blocks = blocksRes.data?.roomBlocks ?? [];
+  const hasOos = blocks.some((b) => b.roomBlockType === "out_of_service");
+  // Roomblock scope works but Room scope does not: we have blocks but no names.
+  if (!nameRes.loaded && hasOos) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Room scope missing on this property's key — re-issue it with the Room scope to show room numbers.",
+    };
+  }
+  return { ok: true, data: buildOooRooms(nameRes.map, blocks) };
 }
 
 export type PropertyOoo = {
