@@ -4,7 +4,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 > **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — working
 > tree clean after Ops Dashboard commit. **LIVE at `dashboard.rentstayable.com`**.
-> Build green; **49 vitest tests pass**.
+> Build green; **59 vitest tests pass** (13 files). Pushed to origin (`e08f591`).
 >
 > **OPS DASHBOARD SHIPPED (session 06/27/26).** New role-based route `/ops` gated
 > to `ops` level (OPS_PIN) or exec/CEO. Sections: Occupancy (live, Cloudbeds DI)
@@ -19,6 +19,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >     change.
 >   - **Next Ops sections (add next week):** Live now (today's room snapshot),
 >     Out of service / OOS explorer, and any additional ops metrics.
+>   - `[?]` **PIN length decision:** `OPS` is 3 chars; login works, but
+>     `/api/change-pin` enforces a 4-char min (`route.ts:20`) — an ops user
+>     can't self-reset to a <4-char PIN. Keep `OPS`, or bump to ≥4 (e.g. `OPS1`).
 >
 > **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
 > First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/
