@@ -10,7 +10,7 @@
 
 export const AUTH_COOKIE = "sd_auth";
 
-export type Level = "base" | "exec" | "crystal" | "monica" | "bea";
+export type Level = "base" | "exec" | "crystal" | "monica" | "bea" | "ops";
 
 // Per-user dashboard levels (each unlocks only its own /<level> route; exec/CEO
 // sees everything). `envVar` is the migration fallback PIN if the DB has no row.
@@ -18,6 +18,7 @@ export const USER_PINS: { level: Exclude<Level, "base" | "exec">; envVar: string
   { level: "crystal", envVar: "CRYSTAL_PIN" },
   { level: "monica", envVar: "MONICA_PIN" },
   { level: "bea", envVar: "BEA_PIN" },
+  { level: "ops", envVar: "OPS_PIN" },
 ];
 
 // Env-var fallback PIN per level (used by lib/pins.ts when the DB row is absent).
@@ -27,9 +28,10 @@ export const ENV_PIN_FOR: Record<Level, string> = {
   crystal: "CRYSTAL_PIN",
   monica: "MONICA_PIN",
   bea: "BEA_PIN",
+  ops: "OPS_PIN",
 };
 
-export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea"];
+export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea", "ops"];
 
 /** Which level a path needs. /rob (the CEO's own view) => exec; each per-user
  *  route => its own level; everything else => base. */

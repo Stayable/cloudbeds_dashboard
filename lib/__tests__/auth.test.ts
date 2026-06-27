@@ -23,6 +23,7 @@ describe("requiredLevel", () => {
     expect(requiredLevel("/bea")).toBe("bea");
     expect(requiredLevel("/")).toBe("base");
     expect(requiredLevel("/api/feedback")).toBe("base");
+    expect(requiredLevel("/ops")).toBe("ops");
   });
 });
 
@@ -33,6 +34,7 @@ describe("homeForLevel", () => {
     expect(homeForLevel("crystal")).toBe("/crystal");
     expect(homeForLevel("monica")).toBe("/monica");
     expect(homeForLevel("bea")).toBe("/bea");
+    expect(homeForLevel("ops")).toBe("/ops");
   });
 });
 
@@ -50,6 +52,12 @@ describe("canAccess", () => {
   it("base reaches base only", () => {
     expect(canAccess("base", "/")).toBe(true);
     expect(canAccess("base", "/rob")).toBe(false);
+  });
+  it("ops reaches only /ops; exec still sees it", () => {
+    expect(canAccess("ops", "/ops")).toBe(true);
+    expect(canAccess("ops", "/monica")).toBe(false);
+    expect(canAccess("ops", "/")).toBe(false);
+    expect(canAccess("exec", "/ops")).toBe(true);
   });
 });
 
