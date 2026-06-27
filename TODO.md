@@ -2,9 +2,23 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` @ `9997565`
-> == origin, working tree clean. **LIVE at `dashboard.rentstayable.com`** (custom
-> domain wired earlier). Build green; **49 vitest tests pass**.
+> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — working
+> tree clean after Ops Dashboard commit. **LIVE at `dashboard.rentstayable.com`**.
+> Build green; **49 vitest tests pass**.
+>
+> **OPS DASHBOARD SHIPPED (session 06/27/26).** New role-based route `/ops` gated
+> to `ops` level (OPS_PIN) or exec/CEO. Sections: Occupancy (live, Cloudbeds DI)
+> + Evictions (live, Smartsheet) + Lease (static placeholder — pending DI
+> Reservations API access). Shares components/lib with `/monica` (OccupancyView,
+> EvictionsSection, SectionNav, PeriodControls, ChangePin).
+>   - **Manual action required:** set `OPS_PIN=OPS` in Vercel env (Production +
+>     Preview). Group this with the open `EXEC_PIN` env task. Until set, the gate
+>     stays closed for the ops level.
+>   - **Lease placeholder:** flip to live lease-vs-transient data (DI Reservations
+>     dataset 3, `lib/lease.ts`) when the API scope request is granted — separate
+>     change.
+>   - **Next Ops sections (add next week):** Live now (today's room snapshot),
+>     Out of service / OOS explorer, and any additional ops metrics.
 >
 > **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
 > First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/
