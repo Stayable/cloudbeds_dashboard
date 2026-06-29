@@ -38,29 +38,19 @@ export default async function DashboardPage({
 
   // Today's arrivals across the portfolio — live snapshot (getDashboard), always
   // today's figures regardless of the selected occupancy range. `arrivals` comes
-  // back as a STRING per property. COUNTS ONLY — no guest-level data is fetched
-  // or shown (CLAUDE.md §5 rule 2: no guest PII on the public page, ever).
-  const arrivalRows = portfolio
-    .filter((pd) => pd.result?.ok)
-    .map((pd) => {
-      const d = pd.result!.ok ? pd.result!.data : null;
-      const n = parseInt(d!.arrivals, 10);
+  // back as a STRING per property; sum only the properties that answered.
+  const arrivalsToday = portfolio.reduce(
+    (acc, pd) => {
+      if (!pd.result?.ok) return acc;
+      const n = parseInt(pd.result.data.arrivals, 10);
       return {
-        code: pd.property.code,
-        name: pd.property.name,
-        county: pd.property.county,
-        id: pd.property.id,
-        arrivals: Number.isFinite(n) ? n : 0,
-        confirmed: d!.arrivalsConfirmed || 0,
+        total: acc.total + (Number.isFinite(n) ? n : 0),
+        confirmed: acc.confirmed + (pd.result.data.arrivalsConfirmed || 0),
+        props: acc.props + 1,
       };
-    })
-    .sort((a, b) => b.arrivals - a.arrivals || a.name.localeCompare(b.name));
-
-  const arrivalsToday = {
-    total: arrivalRows.reduce((s, r) => s + r.arrivals, 0),
-    confirmed: arrivalRows.reduce((s, r) => s + r.confirmed, 0),
-    props: arrivalRows.length,
-  };
+    },
+    { total: 0, confirmed: 0, props: 0 },
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
@@ -79,67 +69,22 @@ export default async function DashboardPage({
         </div>
       </header>
 
-      {/* Arrivals today — portfolio-wide live snapshot, pinned on top. Collapsed
-          accordion (native <details>); expands to per-property counts. Counts
-          only — no guest PII (CLAUDE.md §5 rule 2). */}
+      {/* Arrivals today — portfolio-wide live snapshot, pinned on top */}
       <section className="mb-6">
-        <details className="group rounded-xl border border-slate-200 bg-white shadow-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 [&::-webkit-details-marker]:hidden">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">
-                Arrivals today
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {arrivalsToday.confirmed} confirmed · {arrivalsToday.props} of{" "}
-                {configuredCount} properties reporting · Eastern
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-4xl font-semibold text-slate-900 sm:text-5xl">
-                {arrivalsToday.total}
-              </span>
-              <svg
-                className="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-          </summary>
-          <div className="border-t border-slate-100 px-5 py-2 sm:px-6">
-            {arrivalRows.length === 0 ? (
-              <p className="py-3 text-sm text-slate-400">No properties reporting.</p>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {arrivalRows.map((r) => (
-                  <li key={r.code} className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="min-w-0 truncate text-sm font-medium text-slate-800">
-                      {r.name}
-                      <span className="ml-2 text-xs font-normal text-slate-400">
-                        {r.county} · {r.id}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-sm tabular-nums text-slate-700">
-                      <span className="font-semibold text-slate-900">{r.arrivals}</span>
-                      <span className="ml-1 text-xs text-slate-400">
-                        arriving · {r.confirmed} confirmed
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="py-2 text-[11px] text-slate-400">
-              Counts only — arriving reservations per property. No guest details.
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6 sm:py-5">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-500">
+              Arrivals today
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              {arrivalsToday.confirmed} confirmed · {arrivalsToday.props} of{" "}
+              {configuredCount} properties reporting · Eastern
             </p>
           </div>
-        </details>
+          <span className="text-4xl font-semibold text-slate-900 sm:text-5xl">
+            {arrivalsToday.total}
+          </span>
+        </div>
       </section>
 
       {/* Date range — drives the occupancy snapshot below */}
