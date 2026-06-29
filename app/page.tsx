@@ -36,6 +36,22 @@ export default async function DashboardPage({
   const days = dayCount(start, end);
   const rangeLabel = start === end ? start : `${start} → ${end}`;
 
+  // Today's arrivals across the portfolio — live snapshot (getDashboard), always
+  // today's figures regardless of the selected occupancy range. `arrivals` comes
+  // back as a STRING per property; sum only the properties that answered.
+  const arrivalsToday = portfolio.reduce(
+    (acc, pd) => {
+      if (!pd.result?.ok) return acc;
+      const n = parseInt(pd.result.data.arrivals, 10);
+      return {
+        total: acc.total + (Number.isFinite(n) ? n : 0),
+        confirmed: acc.confirmed + (pd.result.data.arrivalsConfirmed || 0),
+        props: acc.props + 1,
+      };
+    },
+    { total: 0, confirmed: 0, props: 0 },
+  );
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
@@ -52,6 +68,24 @@ export default async function DashboardPage({
           </span>
         </div>
       </header>
+
+      {/* Arrivals today — portfolio-wide live snapshot, pinned on top */}
+      <section className="mb-6">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6 sm:py-5">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-500">
+              Arrivals today
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              {arrivalsToday.confirmed} confirmed · {arrivalsToday.props} of{" "}
+              {configuredCount} properties reporting · Eastern
+            </p>
+          </div>
+          <span className="text-4xl font-semibold text-slate-900 sm:text-5xl">
+            {arrivalsToday.total}
+          </span>
+        </div>
+      </section>
 
       {/* Date range — drives the occupancy snapshot below */}
       <section className="mb-6">
