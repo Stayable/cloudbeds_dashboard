@@ -11,17 +11,16 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > + Evictions (live, Smartsheet) + Lease (static placeholder — pending DI
 > Reservations API access). Shares components/lib with `/monica` (OccupancyView,
 > EvictionsSection, SectionNav, PeriodControls, ChangePin).
->   - **Manual action required:** set `OPS_PIN=OPS` in Vercel env (Production +
->     Preview). Group this with the open `EXEC_PIN` env task. Until set, the gate
->     stays closed for the ops level.
+>   - **DONE — PIN seeded in Neon.** ops PIN = `OPERATION` (row in
+>     `dashboard_pins`, seeded 06/30/26). No Vercel env var needed — see the
+>     PIN-source change below. Gate is live for the ops level.
 >   - **Lease placeholder:** flip to live lease-vs-transient data (DI Reservations
 >     dataset 3, `lib/lease.ts`) when the API scope request is granted — separate
 >     change.
 >   - **Next Ops sections (add next week):** Live now (today's room snapshot),
 >     Out of service / OOS explorer, and any additional ops metrics.
->   - `[?]` **PIN length decision:** `OPS` is 3 chars; login works, but
->     `/api/change-pin` enforces a 4-char min (`route.ts:20`) — an ops user
->     can't self-reset to a <4-char PIN. Keep `OPS`, or bump to ≥4 (e.g. `OPS1`).
+>   - `[x]` **PIN length decision RESOLVED:** PIN is now `OPERATION` (9 chars),
+>     clears the `/api/change-pin` 4-char min — ops user can self-reset.
 >
 > **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
 > First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/
@@ -58,9 +57,16 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   - Shared convention: sticky `SectionNav` sidebar + per-property/All toggle per
 >     section + "← Dashboard" back link. See memory `per-user-dashboard-conventions`.
 >
-> **Auth reworked → DB-backed PINs + signed cookie:**
->   - PINs live in Neon table **`dashboard_pins(level,pin,updated_at)`** (env-var
->     fallback per `ENV_PIN_FOR`). Read only at login + change. `lib/pins.ts`.
+> **PINs are Neon-only (06/30/26): env-var fallback REMOVED.** `dashboard_pins`
+> is now the single source of truth — no `*_PIN` env var is read anymore (users
+> change their own PIN, so the DB must win). `lib/pins.ts` reads DB only; if the
+> DB is unreachable, NO level can log in (fail-safe closed, not open). Removed
+> `ENV_PIN_FOR` + `USER_PINS[].envVar` from `lib/auth.ts`; dropped `*_PIN` from
+> `.env.example`/`.env.local`. Manage rows with `scripts/seed-pins.mjs`.
+>
+> **Auth → DB-backed PINs + signed cookie:**
+>   - PINs live in Neon table **`dashboard_pins(level,pin,updated_at)`**. Read
+>     only at login + change. `lib/pins.ts`.
 >   - Cookie = signed level token `"<level>.<hmac(level)>"` (secret =
 >     `AUTH_SECRET || DATABASE_URL`). `signLevel`/`verifyCookie` in `lib/auth.ts`.
 >     Middleware verifies with ZERO DB reads; only user/exec routes gated (base
@@ -68,7 +74,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   - **Self-service Change PIN** on each dashboard (`/api/change-pin`, derives
 >     level from cookie → changes only your own).
 >   - **Current PINs (in Neon):** exec=`STYBLCEO`, crystal=`CRYSTL`,
->     monica=`MONICA`, bea=`BEAOPS`. Home is public.
+>     monica=`MONICA`, bea=`BEAOPS`, ops=`OPERATION`. Home is public.
 >
 > **Data wins this session:**
 >   - **§4 Reservations** (Crystal/Monica/Rob): live DI dataset-3 aggregates,
@@ -85,6 +91,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > `apiPropertyId 210972`; key in Vercel as `CLOUDBEDS_API_KEY_LL`; live home shows
 > `LL configured:true, capacity 157`. **Verify Bea→Lakeland tab** (Room/Roomblock
 > scopes) — if it shows "error", those two scopes weren't re-enabled on the new key.
+>
+> **Key audit (06/30/26):** `scripts/audit-keys.mjs` pings getHotels per
+> `CLOUDBEDS_API_KEY_<CODE>` and reports OK / error / no-key + flags propertyID
+> mismatch. Local run audited **DP only — ✓ Stayable Davenport (318197), healthy**;
+> the other 7 keys live in Vercel, not `.env.local`, so they showed "no key".
+> **To audit all 8:** pull the keys locally first (`vercel env pull .env.local`,
+> needs `npm i -g vercel`) or paste them, then re-run the script. LL was reporting
+> live earlier this session, so its key is likely fine — re-confirm via the script.
 >
 > **Next steps / open:**
 >   1. **Other 6 property keys** (KE, KW, JW, JN, SA, OR) — only DP + LL confirmed
@@ -204,8 +218,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
       key) is **Davenport-only**. Cloudbeds keys grant access to either one
       property *or* the whole org; this one is single-property. **Portfolio view
       (Phase 4) will need one key per active property.**
-- [ ] **Active properties**: confirm which **6 of 8** are live in Cloudbeds and
-      get exact property IDs verified.
+- [x] **Active properties**: **all 8 are active** in Cloudbeds (confirmed by Kyle
+      06/30/26). Property IDs verified in `config/properties.ts`.
 - [ ] **Pilot scope**: confirm Davenport (44199) as the first property to wire.
 - [ ] Confirm Vercel account/team to deploy under (Vercel MCP is connected).
 

@@ -1,6 +1,7 @@
 // Canonical property list. Keep in sync with CLAUDE.md §3.
-// 8 properties total; 6 active in Cloudbeds (which 6 is UNCONFIRMED — verify
-// against Cloudbeds before relying on `active`). Davenport (44199) is the pilot.
+// All 8 properties are active in Cloudbeds (confirmed by Kyle 2026-06-30).
+// Davenport (44199) was the pilot. `active` = active in Cloudbeds; having a
+// working API key is separate (audit with scripts/audit-keys.mjs).
 
 export type Property = {
   /**

@@ -38,17 +38,18 @@ mark it unverified.
 
 | Property            | Cloudbeds Property ID | County     | Active in Cloudbeds |
 |---------------------|-----------------------|------------|---------------------|
-| Lakeland            | 4645                  | Polk       | confirm             |
-| Kissimmee East      | 2295                  | Osceola    | confirm             |
-| Kissimmee West      | 5399                  | Osceola    | confirm             |
-| Jacksonville West   | 6802                  | Duval      | confirm             |
-| Jacksonville North  | 812                   | Duval      | confirm             |
-| St. Augustine       | 2535                  | St. Johns  | confirm             |
+| Lakeland            | 4645                  | Polk       | yes                 |
+| Kissimmee East      | 2295                  | Osceola    | yes                 |
+| Kissimmee West      | 5399                  | Osceola    | yes                 |
+| Jacksonville West   | 6802                  | Duval      | yes                 |
+| Jacksonville North  | 812                   | Duval      | yes                 |
+| St. Augustine       | 2535                  | St. Johns  | yes                 |
 | Davenport           | 44199                 | Polk       | **pilot**           |
-| Orlando OBT         | 8700                  | Orange     | confirm             |
+| Orlando OBT         | 8700                  | Orange     | yes                 |
 
-> 8 properties total, 6 active. **Which 6 are active is unconfirmed** — verify
-> against Cloudbeds before wiring the property list. Start with Davenport (44199).
+> **All 8 properties are active in Cloudbeds** (confirmed by Kyle 06/30/26).
+> Davenport (44199) was the pilot. Per-property keys still outstanding for KE, KW,
+> JW, JN, SA, OR (only DP + LL reporting) — see TODO.
 
 The canonical list lives in code at `config/properties.ts` once built. Keep this
 table and that file in sync.

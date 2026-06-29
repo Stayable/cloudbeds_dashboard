@@ -37,8 +37,9 @@ const cols = await sql`
 console.log("submissions table ready:");
 for (const c of cols) console.log(`  ${c.column_name}  ${c.data_type}`);
 
-// dashboard_pins: per-level login PINs (lib/pins.ts). Levels with no row fall
-// back to their env var (ENV_PIN_FOR). Edited self-service via /api/change-pin.
+// dashboard_pins: per-level login PINs (lib/pins.ts) — the SOLE source of PINs
+// (no env fallback). A level with no row cannot log in. Seed with
+// scripts/seed-pins.mjs; edited self-service via /api/change-pin.
 await sql`
   create table if not exists dashboard_pins (
     level       text primary key,

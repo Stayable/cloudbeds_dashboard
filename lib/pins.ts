@@ -1,9 +1,12 @@
-// PIN store (server-only, Neon). PINs live in the `dashboard_pins` table so they
-// can be changed without a redeploy; each level falls back to its env var
-// (ENV_PIN_FOR) when no DB row exists, for migration. Read ONLY at login and in
-// the change-PIN route — never in middleware (the cookie is self-verifying).
+// PIN store (server-only, Neon). PINs live ONLY in the `dashboard_pins` table —
+// Neon is the single source of truth, so users can change their own PIN
+// (/api/change-pin) without a redeploy and no env var can shadow the DB value.
+// There is NO env-var fallback: if the DB is unreachable or a level has no row,
+// that level simply cannot log in (gate stays closed — fail safe, not open).
+// Read ONLY at login and in the change-PIN route — never in middleware (the
+// cookie is self-verifying).
 import { neon } from "@neondatabase/serverless";
-import { ALL_LEVELS, ENV_PIN_FOR, type Level } from "@/lib/auth";
+import { ALL_LEVELS, type Level } from "@/lib/auth";
 
 function db() {
   const url = process.env.DATABASE_URL;
@@ -11,20 +14,15 @@ function db() {
   return neon(url);
 }
 
-/** Effective PIN per level: DB row if present, else the env-var fallback. */
+/** Effective PIN per level, sourced entirely from the Neon `dashboard_pins`
+ *  table. DB unreachable / table missing → empty map (no level can log in). */
 async function effectivePins(): Promise<Map<Level, string>> {
   const out = new Map<Level, string>();
-  // env fallbacks first
-  for (const level of ALL_LEVELS) {
-    const envPin = process.env[ENV_PIN_FOR[level]];
-    if (envPin) out.set(level, envPin);
-  }
-  // DB overrides
   try {
     const rows = (await db()`select level, pin from dashboard_pins`) as { level: string; pin: string }[];
     for (const r of rows) if (ALL_LEVELS.includes(r.level as Level) && r.pin) out.set(r.level as Level, r.pin);
   } catch {
-    // table missing / DB down → env fallbacks only
+    // table missing / DB down → no PINs resolvable; gate stays closed.
   }
   return out;
 }
