@@ -6,21 +6,21 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > tree clean after Ops Dashboard commit. **LIVE at `dashboard.rentstayable.com`**.
 > Build green; **59 vitest tests pass** (13 files). Pushed to origin (`e08f591`).
 >
-> **OPS DASHBOARD SHIPPED (session 06/27/26).** New role-based route `/ops` gated
-> to `ops` level (OPS_PIN) or exec/CEO. Sections: Occupancy (live, Cloudbeds DI)
-> + Evictions (live, Smartsheet) + Lease (static placeholder — pending DI
-> Reservations API access). Shares components/lib with `/monica` (OccupancyView,
-> EvictionsSection, SectionNav, PeriodControls, ChangePin).
->   - **DONE — PIN seeded in Neon.** ops PIN = `OPERATION` (row in
->     `dashboard_pins`, seeded 06/30/26). No Vercel env var needed — see the
->     PIN-source change below. Gate is live for the ops level.
->   - **Lease placeholder:** flip to live lease-vs-transient data (DI Reservations
->     dataset 3, `lib/lease.ts`) when the API scope request is granted — separate
->     change.
->   - **Next Ops sections (add next week):** Live now (today's room snapshot),
->     Out of service / OOS explorer, and any additional ops metrics.
->   - `[x]` **PIN length decision RESOLVED:** PIN is now `OPERATION` (9 chars),
->     clears the `/api/change-pin` 4-char min — ops user can self-reset.
+> **OPERATIONS DASHBOARD rebuilt (session 06/30/26).** Route `/ops` gated to `ops`
+> level OR exec/CEO. **PIN = `OPERATIONS`** (Neon `dashboard_pins`, changed from
+> `OPERATION` per Kyle). Title now "Operations Dashboard". **5 sections** (sidebar
+> SectionNav + per-property/All toggles per [[per-user-dashboard-conventions]]):
+>   1. **OOO rooms** — LIVE, reuses `BeaOosExplorer` + `getPortfolioOoo` (copied
+>      from Bea's view).
+>   2. **Leasing** — BLANK placeholder. Note: "Requesting leasing (read) API from
+>      Elise for prospects and lease activity." (EliseAI parked — see memory
+>      `evictions-smartsheet`.) Replaced the old Cloudbeds-DI lease placeholder.
+>   3. **Occupancy** — LIVE, `OccupancyView` + `PeriodControls` (from main dash).
+>   4. **Evictions** — LIVE, `EvictionsSection` + `getEvictions` (copied from Monica).
+>   5. **1-Star Reviews** — BLANK placeholder, note "Ongoing build". Source TBD
+>      (Local Falcon MCP is connected — candidate source).
+>   - Build green, typecheck clean; smoke-tested authed (`OPERATIONS` → `/ops`,
+>     all 5 sections render).
 >
 > **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
 > First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/
@@ -74,7 +74,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   - **Self-service Change PIN** on each dashboard (`/api/change-pin`, derives
 >     level from cookie → changes only your own).
 >   - **Current PINs (in Neon):** exec=`STYBLCEO`, crystal=`CRYSTL`,
->     monica=`MONICA`, bea=`BEAOPS`, ops=`OPERATION`. Home is public.
+>     monica=`MONICA`, bea=`BEAOPS`, ops=`OPERATIONS`. Home is public.
 >
 > **Data wins this session:**
 >   - **§4 Reservations** (Crystal/Monica/Rob): live DI dataset-3 aggregates,
