@@ -92,17 +92,23 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > `LL configured:true, capacity 157`. **Verify Bea→Lakeland tab** (Room/Roomblock
 > scopes) — if it shows "error", those two scopes weren't re-enabled on the new key.
 >
-> **Key audit (06/30/26):** `scripts/audit-keys.mjs` pings getHotels per
-> `CLOUDBEDS_API_KEY_<CODE>` and reports OK / error / no-key + flags propertyID
-> mismatch. Local run audited **DP only — ✓ Stayable Davenport (318197), healthy**;
-> the other 7 keys live in Vercel, not `.env.local`, so they showed "no key".
-> **To audit all 8:** pull the keys locally first (`vercel env pull .env.local`,
-> needs `npm i -g vercel`) or paste them, then re-run the script. LL was reporting
-> live earlier this session, so its key is likely fine — re-confirm via the script.
+> **Key audit DONE (06/30/26) — ALL 8 KEYS HEALTHY, 0 errors.** Audited via the
+> live dashboard (`dashboard.rentstayable.com`): header reads **"8 of 8 reporting"**;
+> every property returns occupancy data (Jun 23–29: OR 91.0 · KW 90.4 · JW 89.6 ·
+> KE 88.0 · SA 86.1 · LL 84.1 · DP 72.9 · JN 12.0 (excluded)). Supersedes the old
+> "only DP + LL reporting" note.
+>   - **Why live-dashboard, not the script:** every app env var (incl. all
+>     `CLOUDBEDS_API_KEY_*`, `DATABASE_URL`) is **Sensitive** in Vercel →
+>     `vercel env pull` returns names with EMPTY values, so a local
+>     `scripts/audit-keys.mjs` run can only test keys pasted into `.env.local`
+>     (DP). The script still works if you paste the real values; otherwise the
+>     live dashboard is the audit.
+>   - Security carry-forward UNCHANGED: keys working ≠ keys correctly scoped —
+>     still re-issue all 8 read-only WITHOUT Guest scope (see below).
 >
 > **Next steps / open:**
->   1. **Other 6 property keys** (KE, KW, JW, JN, SA, OR) — only DP + LL confirmed
->      reporting; rest show "awaiting key". Re-issue WITHOUT Guest scope (below).
+>   1. ~~Other property keys~~ **DONE** — all 8 reporting (audit above). Remaining
+>      key work is the security re-issue (no Guest scope), not connectivity.
 >   2. (Optional) set `AUTH_SECRET` in Vercel to decouple cookie signing from
 >      `DATABASE_URL` (one-time re-login when it changes).
 >   3. (Optional) notes box for Monica/Bea (Crystal/Rob have one).

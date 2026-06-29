@@ -2,12 +2,18 @@
 // in the environment, ping getHotels (read-only) and report OK / error / no key.
 // Mirrors lib/cloudbeds.ts auth + envelope handling. Read-only — never writes.
 //
-// Local run sees only keys present in .env.local. To audit ALL 8, populate the
-// keys first (e.g. `vercel env pull .env.local`) then re-run.
-//   node scripts/audit-keys.mjs
+// Local run sees only keys present in the env file. NOTE: `vercel env pull` does
+// NOT help here — every app var (incl. all CLOUDBEDS_API_KEY_*) is marked
+// Sensitive in Vercel, so pull returns the NAMES with EMPTY values. To audit all
+// 8 locally you must paste the real key values into the env file. Otherwise audit
+// via the live dashboard (home shows "N of 8 reporting"; tabs show key errors).
+//   node scripts/audit-keys.mjs                 # reads ../.env.local
+//   node scripts/audit-keys.mjs path/to/envfile # reads a specific file
 import { readFileSync } from "node:fs";
 
-for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split(/\r?\n/)) {
+const envFileArg = process.argv[2];
+const envFile = envFileArg ?? new URL("../.env.local", import.meta.url);
+for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
   if (m) process.env[m[1]] ??= m[2].replace(/^["']|["']$/g, "");
 }
