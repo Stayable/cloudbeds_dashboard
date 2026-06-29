@@ -3,8 +3,19 @@
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
 > **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — working
-> tree clean after Ops Dashboard commit. **LIVE at `dashboard.rentstayable.com`**.
-> Build green; **59 vitest tests pass** (13 files). Pushed to origin (`e08f591`).
+> tree clean, all pushed (`fd31af1`). **LIVE at `dashboard.rentstayable.com`**.
+> Build green; **66 vitest tests pass** (14 files).
+>
+> **Next action:** verify the deployed `/ops` (PIN `OPERATIONS`) §5 **1-Star
+> Reviews** renders live — count + Manager Responded + per-property collapsibles;
+> set & save a date window (persists to Neon, shared). Reviews/evictions can't
+> render locally (no `SMARTSHEET_API_TOKEN` in `.env.local`).
+>
+> **Open / next:** (a) Leasing §2 still BLANK — pending EliseAI read API
+> (prospects + lease activity); (b) §3 Lease-vs-transient still pending DI
+> Reservations scope; (c) security re-issue all 8 Cloudbeds keys WITHOUT Guest
+> scope (works ≠ correctly scoped); (d) reviews fetch scans ~7k rows/req (cached
+> 10 min) — leaner later if needed.
 >
 > **OPERATIONS DASHBOARD rebuilt (session 06/30/26).** Route `/ops` gated to `ops`
 > level OR exec/CEO. **PIN = `OPERATIONS`** (Neon `dashboard_pins`, changed from
