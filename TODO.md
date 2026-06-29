@@ -17,10 +17,18 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >      `evictions-smartsheet`.) Replaced the old Cloudbeds-DI lease placeholder.
 >   3. **Occupancy** — LIVE, `OccupancyView` + `PeriodControls` (from main dash).
 >   4. **Evictions** — LIVE, `EvictionsSection` + `getEvictions` (copied from Monica).
->   5. **1-Star Reviews** — BLANK placeholder, note "Ongoing build". Source TBD
->      (Local Falcon MCP is connected — candidate source).
->   - Build green, typecheck clean; smoke-tested authed (`OPERATIONS` → `/ops`,
->     all 5 sections render).
+>   5. **1-Star Reviews** — LIVE (session 06/30/26). Source: Smartsheet **"Review &
+>      Feedback Tracking"** sheet `4932316188436356` via `getOneStarReviews`
+>      (`lib/smartsheet.ts`), filtered to Rating==1 (stored "1.0"). Shows **count**
+>      + **Manager Responded count** + **collapsible per-property** tables
+>      (Review/Feedback · Source · Manager Response). **Lockable date window**
+>      persisted in Neon `app_settings` key `ops_reviews_window` (shared, applies
+>      to all viewers; set+save via `/api/reviews-window`, ops/exec only; defaults
+>      to last 30 days until saved). Column-restricted read — **no Reviewer Name /
+>      PII**. Builder `lib/reviews.ts` (7 unit tests). See memory `one-star-reviews`.
+>   - Build green, 66 tests pass; smoke-tested authed (`OPERATIONS` → `/ops`, all 5
+>     sections; save API 200 authed / 401 unauthed). Reviews+evictions degrade
+>     locally (no token in .env.local) but render live on Vercel.
 >
 > **EVICTIONS shipped to `/monica` (session 06/26/26, commit `9997565`, pushed).**
 > First non-Cloudbeds data source. Section #6 on Monica's dashboard, per-property/

@@ -25,6 +25,6 @@ export const config = {
   // its write endpoint, the feedback + crystal-note APIs (which self-check their
   // own token inline), Next internals, and static files.
   matcher: [
-    "/((?!login|api/auth|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };

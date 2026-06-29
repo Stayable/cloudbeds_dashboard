@@ -49,3 +49,28 @@ export async function insertCrystalNote(notes: string): Promise<void> {
     values (${source}, ${name}, ${notes})
   `;
 }
+
+// --- App settings (small server-only key/value store) -----------------------
+// Backs the Operations Dashboard's lockable 1-star reviews date window
+// (key 'ops_reviews_window' = JSON {from,to}). See scripts/db-init.mjs.
+
+/** Read a setting's raw string value, or null if unset / on any error. */
+export async function getSetting(key: string): Promise<string | null> {
+  try {
+    const sql = db();
+    const rows = (await sql`select value from app_settings where key = ${key}`) as { value: string }[];
+    return rows[0]?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert a setting's value. */
+export async function setSetting(key: string, value: string): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into app_settings (key, value, updated_at)
+    values (${key}, ${value}, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+}

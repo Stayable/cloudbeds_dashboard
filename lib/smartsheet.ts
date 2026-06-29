@@ -21,6 +21,8 @@ import {
   type ClosedCaseDates,
   type EvictionsView,
 } from "@/lib/evictions";
+import { isOneStar, type ReviewRow } from "@/lib/reviews";
+import { easternDateOf } from "@/lib/dates";
 
 const BASE_URL = "https://api.smartsheet.com/2.0";
 
@@ -152,6 +154,68 @@ export async function getEvictions(): Promise<EvictionsPayload> {
   const columnTitles = sheet.columns.map((c) => c.title);
   const views = buildEvictionsViews(rowsByTitle(sheet), columnTitles, daysToFile);
   return { configured: true, error: null, sheetName: sheet.name, views };
+}
+
+// --- 1-Star Reviews ("Review & Feedback Tracking" sheet) --------------------
+// Operations Dashboard §5. We read ONLY: Review/Feedback, Source, Property,
+// Rating, Manager Response, and the system Created date — column-restricted so
+// the Reviewer Name column (PII) never reaches the server. Rating is stored as
+// text "1.0"; we keep only the 1-star rows. Date windowing/grouping is done by
+// the pure builder in lib/reviews.ts.
+
+export const REVIEWS_SHEET_ID =
+  process.env.SMARTSHEET_REVIEWS_SHEET_ID?.trim() || "4932316188436356";
+
+// Column IDs verified 2026-06-30 via get_columns on the reviews sheet.
+const REVIEWS_COL = {
+  review: 911501009676164, // "Review/Feedback" (col 1)
+  source: 7602923490305924, // "Source" (col 3)
+  property: 2037400916518788, // "Property" (col 4)
+  rating: 3163300823361412, // "Rating" (col 5)
+  managerResponse: 6541000543889284, // "Manager Response" (col 9)
+  created: 3188875541669764, // system "Created" date
+} as const;
+
+export type ReviewsPayload = {
+  configured: boolean; // a Smartsheet token is set
+  error: string | null; // fetch/parse error, if any
+  reviews: ReviewRow[]; // ALL 1-star rows (date filtering happens in the view)
+};
+
+/** Fetch every 1-star review (rating == 1), column-restricted to the safe set,
+ *  with Created normalized to its Eastern date. Degrades gracefully (empty list)
+ *  when no token is set or the fetch fails. */
+export async function getOneStarReviews(): Promise<ReviewsPayload> {
+  const token = readSmartsheetToken();
+  if (!token) return { configured: false, error: null, reviews: [] };
+
+  const columnIds = Object.values(REVIEWS_COL).join(",");
+  // GET sheet with no pagination params returns all rows (column-restricted).
+  const res = await ssGet<RawSheet>(token, `/sheets/${REVIEWS_SHEET_ID}?columnIds=${columnIds}`);
+  if (!res.ok) return { configured: true, error: res.error, reviews: [] };
+
+  const reviews: ReviewRow[] = [];
+  for (const r of res.data.rows ?? []) {
+    const cellOf = (id: number) => r.cells.find((c) => c.columnId === id);
+    const text = (id: number): string => {
+      const cell = cellOf(id);
+      if (!cell) return "";
+      return String(cell.displayValue ?? (cell.value == null ? "" : cell.value)).trim();
+    };
+
+    const ratingCell = cellOf(REVIEWS_COL.rating);
+    if (!isOneStar(ratingCell?.value ?? ratingCell?.displayValue)) continue;
+
+    const createdRaw = String(cellOf(REVIEWS_COL.created)?.value ?? "");
+    reviews.push({
+      property: text(REVIEWS_COL.property) || "—",
+      source: text(REVIEWS_COL.source),
+      review: text(REVIEWS_COL.review),
+      managerResponse: text(REVIEWS_COL.managerResponse),
+      created: createdRaw ? easternDateOf(createdRaw) : "",
+    });
+  }
+  return { configured: true, error: null, reviews };
 }
 
 /**

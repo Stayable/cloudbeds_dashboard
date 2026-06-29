@@ -48,3 +48,14 @@ await sql`
   )
 `;
 console.log("dashboard_pins table ready.");
+
+// app_settings: small key/value store (lib/db.ts). Backs the Operations
+// Dashboard's lockable 1-star reviews date window (key 'ops_reviews_window').
+await sql`
+  create table if not exists app_settings (
+    key         text primary key,
+    value       text not null,
+    updated_at  timestamptz not null default now()
+  )
+`;
+console.log("app_settings table ready.");

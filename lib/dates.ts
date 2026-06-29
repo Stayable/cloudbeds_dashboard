@@ -14,6 +14,19 @@ export function easternToday(): string {
   }).format(new Date());
 }
 
+/** Convert an ISO datetime (e.g. "2026-06-27T01:27:09Z") to its Eastern calendar
+ *  date (YYYY-MM-DD). Returns "" for an unparseable input. */
+export function easternDateOf(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 /** Shift a YYYY-MM-DD string by N days (pure calendar math, DST-safe). */
 export function shiftYmd(ymd: string, days: number): string {
   const [y, m, d] = ymd.split("-").map(Number);

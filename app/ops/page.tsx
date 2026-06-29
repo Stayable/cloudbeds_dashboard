@@ -3,12 +3,15 @@ import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import EvictionsSection from "@/components/EvictionsSection";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
+import ReviewsSection from "@/components/ReviewsSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
-import { dayCount, resolveRange, easternToday } from "@/lib/dates";
+import { dayCount, resolveRange, easternToday, shiftYmd } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioOoo } from "@/lib/cloudbeds";
-import { getEvictions } from "@/lib/smartsheet";
+import { getEvictions, getOneStarReviews } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
+import { buildReviewsView } from "@/lib/reviews";
+import { getSetting } from "@/lib/db";
 
 // Operations Dashboard — role-based (not person-named) operational view. Gated to
 // the ops level (PIN in Neon dashboard_pins) OR exec/CEO. Sections: OOO rooms
@@ -57,14 +60,33 @@ export default async function OpsPage({
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
   const asOf = easternToday();
 
-  const [portfolio, insights, ooo, evictions] = await Promise.all([
+  const [portfolio, insights, ooo, evictions, reviewsPayload, savedWindow] = await Promise.all([
     getPortfolio(),
     getPortfolioInsights(start, end),
     getPortfolioOoo(asOf),
     getEvictions(),
+    getOneStarReviews(),
+    getSetting("ops_reviews_window"),
   ]);
 
   const properties = buildOccProperties(portfolio, insights);
+
+  // 1-star reviews: locked date window from Neon (shared); default to the last
+  // 30 days (Eastern) until a window is explicitly saved.
+  let reviewWindow = { from: shiftYmd(asOf, -29), to: asOf };
+  let windowSaved = false;
+  if (savedWindow) {
+    try {
+      const parsed = JSON.parse(savedWindow) as { from?: string; to?: string };
+      if (parsed.from && parsed.to) {
+        reviewWindow = { from: parsed.from, to: parsed.to };
+        windowSaved = true;
+      }
+    } catch {
+      /* fall back to the default window */
+    }
+  }
+  const reviewsView = buildReviewsView(reviewsPayload.reviews, reviewWindow.from, reviewWindow.to);
 
   // Out-of-service rooms per property (same mapping as Bea's view).
   const oooByCode = new Map(ooo.map((o) => [o.property.code, o]));
@@ -144,11 +166,17 @@ export default async function OpsPage({
           </section>
 
           <section id="reviews" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
-            <SectionHeading n={5} title="1-Star Reviews" sub="Low-rating reviews across properties" />
-            <Placeholder title="Ongoing build">
-              1-star review tracking is in development. This section will surface recent
-              low-rating guest reviews per property once the source is wired.
-            </Placeholder>
+            <SectionHeading
+              n={5}
+              title="1-Star Reviews"
+              sub="Live from Smartsheet · count + per-property detail · lockable date window"
+            />
+            <ReviewsSection
+              configured={reviewsPayload.configured}
+              error={reviewsPayload.error}
+              view={reviewsView}
+              saved={windowSaved}
+            />
           </section>
 
           <p className="mb-6 text-xs text-slate-400">
