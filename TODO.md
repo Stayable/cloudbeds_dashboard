@@ -3,13 +3,24 @@
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
 > **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — working
-> tree clean, all pushed (`fd31af1`). **LIVE at `dashboard.rentstayable.com`**.
-> Build green; **66 vitest tests pass** (14 files).
+> tree clean, all pushed (`76dc633`). **LIVE at `dashboard.rentstayable.com`**.
+> Build green; **70 vitest tests pass** (14 files).
 >
 > **Next action:** verify the deployed `/ops` (PIN `OPERATIONS`) §5 **1-Star
-> Reviews** renders live — count + Manager Responded + per-property collapsibles;
-> set & save a date window (persists to Neon, shared). Reviews/evictions can't
+> Reviews** renders live — count + Manager Responded + per-property collapsibles +
+> the NEW **prior-vs-current trend bar chart**; set & save a date window (persists
+> to Neon, shared) and confirm both segments re-pivot. Reviews/evictions can't
 > render locally (no `SMARTSHEET_API_TOKEN` in `.env.local`).
+>
+> **Session 07/01/26 — reviews trend chart shipped (`0fe7ff0`, `76dc633`).** §5
+> now charts each property's 1-star count for the locked window vs. the EQUAL-
+> LENGTH window immediately before it (7d→prior 7d, 14d→prior 14d; self-scaling
+> via `priorWindow` in `lib/dates.ts`). `buildReviewsView` (`lib/reviews.ts`) gains
+> `priorCount` per property + `priorTotal`/`priorFrom`/`priorTo`; properties in
+> EITHER window are included so a drop-to-zero still shows its prior bar. New
+> `ReviewsTrendChart` in `ReviewsSection.tsx` = **vertical grouped bars** (prior =
+> solid `slate-400`, current = `accent` blue) + per-property ▼/▲ delta badges +
+> portfolio prior→current line; scrolls horizontally on overflow. +4 unit tests.
 >
 > **Open / next:** (a) Leasing §2 still BLANK — pending EliseAI read API
 > (prospects + lease activity); (b) §3 Lease-vs-transient still pending DI
