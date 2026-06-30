@@ -4,6 +4,88 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ReviewsView } from "@/lib/reviews";
 
+// Per-property grouped bar chart: previous segment vs current segment. The
+// previous segment is the equal-length window immediately before the locked
+// one (computed server-side in buildReviewsView), so a 7-day window compares to
+// the prior 7 days, a 14-day window to the prior 14, etc. A property that
+// dropped its 1-star count "improved"; one that rose "worsened".
+function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays: number }) {
+  // Largest single bar across both segments, used to scale bar widths. Floor at
+  // 1 so an all-zero chart doesn't divide by zero.
+  const max = Math.max(1, ...view.byProperty.map((p) => Math.max(p.count, p.priorCount)));
+  const dayLabel = `${windowDays} day${windowDays === 1 ? "" : "s"}`;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          1-Star Reviews · Previous vs Current ({dayLabel})
+        </p>
+        <div className="flex items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" /> Prior ({view.priorFrom} → {view.priorTo})
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-ink" /> Current ({view.from} → {view.to})
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {view.byProperty.map((p) => {
+          const delta = p.count - p.priorCount; // <0 improved, >0 worsened
+          return (
+            <div key={p.property} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3">
+              <span className="truncate text-sm font-medium text-slate-700" title={p.property}>
+                {p.property}
+              </span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-3 rounded-sm bg-slate-300"
+                    style={{ width: `${(p.priorCount / max) * 100}%`, minWidth: p.priorCount ? "2px" : 0 }}
+                  />
+                  <span className="text-xs tabular-nums text-slate-400">{p.priorCount}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-3 rounded-sm bg-ink"
+                    style={{ width: `${(p.count / max) * 100}%`, minWidth: p.count ? "2px" : 0 }}
+                  />
+                  <span className="text-xs tabular-nums text-slate-600">{p.count}</span>
+                </div>
+              </div>
+              <span
+                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  delta < 0
+                    ? "bg-emerald-50 text-emerald-700"
+                    : delta > 0
+                      ? "bg-red-50 text-red-700"
+                      : "bg-slate-100 text-slate-500"
+                }`}
+                title={delta < 0 ? "Improved" : delta > 0 ? "Worsened" : "No change"}
+              >
+                {delta < 0 ? `▼ ${Math.abs(delta)}` : delta > 0 ? `▲ ${delta}` : "—"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-xs text-slate-400">
+        Portfolio: <span className="font-semibold text-slate-600">{view.priorTotal}</span> prior →{" "}
+        <span className="font-semibold text-slate-900">{view.total}</span> current
+        {view.total !== view.priorTotal && (
+          <span className={view.total < view.priorTotal ? "text-emerald-700" : "text-red-700"}>
+            {" "}
+            ({view.total < view.priorTotal ? "▼" : "▲"} {Math.abs(view.total - view.priorTotal)})
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}
+
 // Operations Dashboard §5 — 1-Star Reviews. Shows the count + manager-responded
 // count for a LOCKED date window (persisted in Neon, shared across viewers), a
 // set-and-save editor (ops/exec), and a per-property collapsible breakdown.
@@ -26,6 +108,11 @@ export default function ReviewsSection({
   const [errorMsg, setErrorMsg] = useState("");
 
   const dirty = from !== view.from || to !== view.to;
+
+  // Length of the locked window in days (inclusive), used to label the
+  // previous segment ("Prior 7 days", etc.).
+  const windowDays =
+    Math.round((Date.parse(view.to) - Date.parse(view.from)) / 86_400_000) + 1;
 
   async function save() {
     setStatus("saving");
@@ -126,6 +213,9 @@ export default function ReviewsSection({
           </p>
         </div>
       </div>
+
+      {/* Per-property trend: previous segment vs current segment */}
+      {view.byProperty.length > 0 && <ReviewsTrendChart view={view} windowDays={windowDays} />}
 
       {/* Per-property collapsible breakdown */}
       {view.byProperty.length === 0 ? (
