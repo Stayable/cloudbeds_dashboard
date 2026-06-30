@@ -10,57 +10,78 @@ import type { ReviewsView } from "@/lib/reviews";
 // the prior 7 days, a 14-day window to the prior 14, etc. A property that
 // dropped its 1-star count "improved"; one that rose "worsened".
 function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays: number }) {
-  // Largest single bar across both segments, used to scale bar widths. Floor at
+  // Largest single bar across both segments, used to scale bar heights. Floor at
   // 1 so an all-zero chart doesn't divide by zero.
   const max = Math.max(1, ...view.byProperty.map((p) => Math.max(p.count, p.priorCount)));
   const dayLabel = `${windowDays} day${windowDays === 1 ? "" : "s"}`;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
           1-Star Reviews · Previous vs Current ({dayLabel})
         </p>
-        <div className="flex items-center gap-4 text-xs text-slate-500">
+        <div className="flex items-center gap-4 text-xs text-slate-600">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" /> Prior ({view.priorFrom} → {view.priorTo})
+            <span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Prior ({view.priorFrom} → {view.priorTo})
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-ink" /> Current ({view.from} → {view.to})
+            <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Current ({view.from} → {view.to})
           </span>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {view.byProperty.map((p) => {
-          const delta = p.count - p.priorCount; // <0 improved, >0 worsened
-          return (
-            <div key={p.property} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3">
-              <span className="truncate text-sm font-medium text-slate-700" title={p.property}>
-                {p.property}
-              </span>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-3 rounded-sm bg-slate-300"
-                    style={{ width: `${(p.priorCount / max) * 100}%`, minWidth: p.priorCount ? "2px" : 0 }}
-                  />
-                  <span className="text-xs tabular-nums text-slate-400">{p.priorCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-3 rounded-sm bg-ink"
-                    style={{ width: `${(p.count / max) * 100}%`, minWidth: p.count ? "2px" : 0 }}
-                  />
-                  <span className="text-xs tabular-nums text-slate-600">{p.count}</span>
+      {/* Vertical grouped bars: one column per property, two bars (prior, current). */}
+      <div className="overflow-x-auto">
+        <div className="flex min-w-fit items-end gap-5 px-1" style={{ height: "180px" }}>
+          {view.byProperty.map((p) => {
+            const delta = p.count - p.priorCount; // <0 improved, >0 worsened
+            return (
+              <div key={p.property} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                {/* bar pair, growing from the baseline */}
+                <div className="flex w-full items-end justify-center gap-1.5">
+                  <div className="flex flex-1 flex-col items-center justify-end" style={{ maxWidth: "28px" }}>
+                    <span className="mb-0.5 text-[11px] font-medium tabular-nums text-slate-500">
+                      {p.priorCount}
+                    </span>
+                    <div
+                      className="w-full rounded-t-sm bg-slate-400"
+                      style={{ height: `${(p.priorCount / max) * 130}px`, minHeight: p.priorCount ? "3px" : 0 }}
+                      title={`Prior: ${p.priorCount}`}
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col items-center justify-end" style={{ maxWidth: "28px" }}>
+                    <span className="mb-0.5 text-[11px] font-semibold tabular-nums text-accent">
+                      {p.count}
+                    </span>
+                    <div
+                      className="w-full rounded-t-sm bg-accent"
+                      style={{ height: `${(p.count / max) * 130}px`, minHeight: p.count ? "3px" : 0 }}
+                      title={`Current: ${p.count}`}
+                    />
+                  </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* x-axis: property name + improvement/regression badge under each column */}
+      <div className="mt-2 flex min-w-fit gap-5 border-t border-slate-100 px-1 pt-2">
+        {view.byProperty.map((p) => {
+          const delta = p.count - p.priorCount;
+          return (
+            <div key={p.property} className="flex flex-1 flex-col items-center gap-1 text-center">
+              <span className="max-w-[88px] truncate text-xs font-medium text-slate-700" title={p.property}>
+                {p.property}
+              </span>
               <span
-                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   delta < 0
-                    ? "bg-emerald-50 text-emerald-700"
+                    ? "bg-emerald-100 text-emerald-700"
                     : delta > 0
-                      ? "bg-red-50 text-red-700"
+                      ? "bg-red-100 text-red-700"
                       : "bg-slate-100 text-slate-500"
                 }`}
                 title={delta < 0 ? "Improved" : delta > 0 ? "Worsened" : "No change"}
@@ -72,7 +93,7 @@ function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays
         })}
       </div>
 
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-slate-500">
         Portfolio: <span className="font-semibold text-slate-600">{view.priorTotal}</span> prior →{" "}
         <span className="font-semibold text-slate-900">{view.total}</span> current
         {view.total !== view.priorTotal && (
