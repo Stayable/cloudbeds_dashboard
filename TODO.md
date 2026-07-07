@@ -6,6 +6,44 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > tree clean, all pushed (`76dc633`). **LIVE at `dashboard.rentstayable.com`**.
 > Build green; **70 vitest tests pass** (14 files).
 >
+> **Session 07/08/26 — LEASING §2 SHIPPED (EliseAI Snowflake → Neon).** Reader
+> Account provisioned by Steph; connected, schema mapped, funnel BUILT & verified
+> locally end-to-end. **Not yet committed/deployed.** Remaining = Vercel env +
+> deploy (below).
+> - **What shipped:** `/ops` §2 Leasing is now LIVE (was a placeholder). Funnel
+>   Leads→Engaged→Tours(booked/attended)→Apps(started/approved)→Leased + Lead→Tour
+>   / Tour→Lease conversion tiles + Cancelled + current pipeline snapshot
+>   (Inquiry/Applicant/Leased/Cancelled) + per-property table + CSV/PDF export.
+>   Per-property/All toggle + PeriodControls (windowed by event date).
+> - **Data path:** nightly PII-FREE aggregate sync Snowflake→Neon. `PROSPECT_EVENTS_
+>   RISE8` (funnel) + `PROSPECTS_RISE8` (snapshot), GROUP BY at the Snowflake
+>   boundary — no name/email/phone leaves the warehouse. New: `config/elise.ts` +
+>   `config/elise-buildings.json` (building→Stayable map), `lib/snowflake.ts`,
+>   `lib/elise-sync.ts`, `lib/leasing.ts` (12 unit tests), `lib/db.ts` funnel
+>   read/write, `components/LeasingSection.tsx`, `scripts/elise-sync.mjs` +
+>   `scripts/snowflake-probe.mjs`, Neon tables `elise_funnel_daily` +
+>   `elise_pipeline_snapshot` (db-init), `app/api/cron/elise-sync` + `vercel.json`
+>   (daily 12:00 UTC). **82 vitest tests pass; prod build green.**
+> - **Backfill already ran against the SHARED Neon** (same DATABASE_URL local+prod)
+>   → 8,134 funnel rows + 32 snapshot rows. So `/ops` renders leasing immediately
+>   on deploy (verified: last-30 ALL = 2,256 leads / 142 leased).
+> - **REMAINING to go live (do next):**
+>   1. Add to Vercel (Production+Preview): `SNOWFLAKE_ACCOUNT=ihpsnqz-rise8_reader`,
+>      `SNOWFLAKE_USER=rise8_reader`, `SNOWFLAKE_PASSWORD=<the rotated pw>`,
+>      `SNOWFLAKE_WAREHOUSE=RISE8_WAREHOUSE`, `SNOWFLAKE_DATABASE=RISE8_DATA`,
+>      `SNOWFLAKE_SCHEMA=DA`, `SNOWFLAKE_ROLE=SYSADMIN`, and `CRON_SECRET=<random>`.
+>      (Needed for the nightly cron; the page itself only needs DATABASE_URL, set.)
+>   2. Commit + push (not done — awaiting Kyle) and deploy. Cron registers on deploy.
+>   3. Optional: hit `/api/cron/elise-sync` once to confirm the refresh.
+> - **CAVEAT (verify):** funnel windows by Elise `EVENT_DATETIME::DATE` (TIMESTAMP_NTZ,
+>   tz unconfirmed) — NOT tz-converted to Eastern. Day-boundary ±1 possible. Verify
+>   against a known Elise report; add `CONVERT_TIMEZONE` if it's UTC. Password
+>   expires on Elise's schedule → rotate in Vercel, or move to key-pair auth.
+>
+> **Follow-up timing (SUPERSEDED 07/08):** the 07/09–07/10 Elise chase is moot —
+> account is provisioned and working. No follow-up needed. Prior open verify item
+> still stands:
+>
 > **Next action:** verify the deployed `/ops` (PIN `OPERATIONS`) §5 **1-Star
 > Reviews** renders live — count + Manager Responded + per-property collapsibles +
 > the NEW **prior-vs-current trend bar chart**; set & save a date window (persists
@@ -22,8 +60,21 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > solid `slate-400`, current = `accent` blue) + per-property ▼/▲ delta badges +
 > portfolio prior→current line; scrolls horizontally on overflow. +4 unit tests.
 >
-> **Open / next:** (a) Leasing §2 still BLANK — pending EliseAI read API
-> (prospects + lease activity); (b) §3 Lease-vs-transient still pending DI
+> **Session 07/01/26 — EliseAI access clarified (see memory `elise-data-share`).**
+> Elise's "Reporting API" is a **Snowflake Data Share, NOT a REST API.** We're a
+> non-Snowflake shop → we get a **Snowflake Reader Account** (free; Elise
+> provisions login + db). **Decision (Kyle): nightly aggregate sync → Neon** —
+> a daily job runs PII-free GROUP-BY SQL against Snowflake, writes funnel rollups
+> (leads→engaged→tours→apps→leases per property/period) into Neon; dashboard reads
+> Neon. PII (names/emails/phones/transcripts/recordings) NEVER enters our app.
+> Leasing §2 source = `events_leasing` + `prospects` + `calendar_events`.
+> **BLOCKER:** Kyle to request the Reader Account from EliseAI and obtain
+> connection details (account locator, username, temp password, database name,
+> warehouse). Also need Elise↔Stayable property-ID map (8 properties). Nothing
+> builds/tests until provisioned.
+>
+> **Open / next:** (a) Leasing §2 still BLANK — Snowflake Reader Account
+> provisioning is the blocker (above); (b) §3 Lease-vs-transient still pending DI
 > Reservations scope; (c) security re-issue all 8 Cloudbeds keys WITHOUT Guest
 > scope (works ≠ correctly scoped); (d) reviews fetch scans ~7k rows/req (cached
 > 10 min) — leaner later if needed.

@@ -4,6 +4,7 @@ import PeriodControls from "@/components/PeriodControls";
 import EvictionsSection from "@/components/EvictionsSection";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
 import ReviewsSection from "@/components/ReviewsSection";
+import LeasingSection from "@/components/LeasingSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange, easternToday, shiftYmd } from "@/lib/dates";
@@ -11,7 +12,8 @@ import { getPortfolio, getPortfolioInsights, getPortfolioOoo } from "@/lib/cloud
 import { getEvictions, getOneStarReviews } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildReviewsView } from "@/lib/reviews";
-import { getSetting } from "@/lib/db";
+import { buildLeasingViews } from "@/lib/leasing";
+import { getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured } from "@/lib/db";
 
 // Operations Dashboard — role-based (not person-named) operational view. Gated to
 // the ops level (PIN in Neon dashboard_pins) OR exec/CEO. Sections: OOO rooms
@@ -41,16 +43,6 @@ function SectionHeading({ n, title, sub }: { n: number; title: string; sub: stri
   );
 }
 
-/** Dashed-border "coming soon" placeholder used by Leasing and 1-Star Reviews. */
-function Placeholder({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-      <p className="text-sm font-semibold text-slate-700">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">{children}</p>
-    </div>
-  );
-}
-
 export default async function OpsPage({
   searchParams,
 }: {
@@ -60,16 +52,21 @@ export default async function OpsPage({
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
   const asOf = easternToday();
 
-  const [portfolio, insights, ooo, evictions, reviewsPayload, savedWindow] = await Promise.all([
-    getPortfolio(),
-    getPortfolioInsights(start, end),
-    getPortfolioOoo(asOf),
-    getEvictions(),
-    getOneStarReviews(),
-    getSetting("ops_reviews_window"),
-  ]);
+  const [portfolio, insights, ooo, evictions, reviewsPayload, savedWindow, eliseFunnel, elisePipeline, eliseReady] =
+    await Promise.all([
+      getPortfolio(),
+      getPortfolioInsights(start, end),
+      getPortfolioOoo(asOf),
+      getEvictions(),
+      getOneStarReviews(),
+      getSetting("ops_reviews_window"),
+      getEliseFunnel(start, end),
+      getElisePipeline(),
+      eliseFunnelConfigured(),
+    ]);
 
   const properties = buildOccProperties(portfolio, insights);
+  const leasingViews = buildLeasingViews(eliseFunnel, elisePipeline);
 
   // 1-star reviews: locked date window from Neon (shared); default to the last
   // 30 days (Eastern) until a window is explicitly saved.
@@ -136,11 +133,21 @@ export default async function OpsPage({
           </section>
 
           <section id="leasing" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
-            <SectionHeading n={2} title="Leasing" sub="Prospects & lease activity · pending vendor API" />
-            <Placeholder title="Requesting leasing (read) API from Elise">
-              Prospects and lease activity will appear here once EliseAI grants read-only API
-              access. Request submitted — no data is shown until the scope is approved.
-            </Placeholder>
+            <SectionHeading
+              n={2}
+              title="Leasing"
+              sub={`Funnel + pipeline · EliseAI · ${rangeLabel} · Eastern`}
+            />
+            <div className="mb-4">
+              <PeriodControls preset={preset} start={start} end={end} />
+            </div>
+            <LeasingSection
+              configured={eliseReady}
+              views={leasingViews}
+              from={start}
+              to={end}
+              asOf={end}
+            />
           </section>
 
           <section id="occupancy" className="mb-10 scroll-mt-20 lg:scroll-mt-6">

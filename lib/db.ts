@@ -74,3 +74,97 @@ export async function setSetting(key: string, value: string): Promise<void> {
     on conflict (key) do update set value = excluded.value, updated_at = now()
   `;
 }
+
+// --- EliseAI leasing funnel (PII-free rollups from the Snowflake data share) --
+// Written by the nightly sync (lib/elise-sync.ts); read by /ops §2. See
+// scripts/db-init.mjs for the elise_funnel_daily / elise_pipeline_snapshot DDL.
+
+export type EliseFunnelRow = { code: string; day: string; eventType: string; n: number };
+export type ElisePipelineRow = { code: string; status: string; n: number };
+
+/** Funnel-daily rows whose Eastern event date falls in [from, to] (inclusive).
+ *  `day` is returned as a YYYY-MM-DD string (cast in SQL to avoid tz drift). */
+export async function getEliseFunnel(from: string, to: string): Promise<EliseFunnelRow[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select code, to_char(day, 'YYYY-MM-DD') as day, event_type, n
+      from elise_funnel_daily
+      where day >= ${from} and day <= ${to}
+    `) as { code: string; day: string; event_type: string; n: number }[];
+    return rows.map((r) => ({ code: r.code, day: r.day, eventType: r.event_type, n: Number(r.n) }));
+  } catch {
+    return [];
+  }
+}
+
+/** Current prospect-status snapshot (Inquiry/Applicant/Leased/Cancelled). */
+export async function getElisePipeline(): Promise<ElisePipelineRow[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select code, prospect_status, n from elise_pipeline_snapshot
+    `) as { code: string; prospect_status: string; n: number }[];
+    return rows.map((r) => ({ code: r.code, status: r.prospect_status, n: Number(r.n) }));
+  } catch {
+    return [];
+  }
+}
+
+/** True when the funnel table has any rows (i.e. a sync has run). */
+export async function eliseFunnelConfigured(): Promise<boolean> {
+  try {
+    const sql = db();
+    const rows = (await sql`select 1 from elise_funnel_daily limit 1`) as unknown[];
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Upsert funnel rows (nightly sync). Chunked positional insert. */
+export async function upsertEliseFunnel(
+  rows: { buildingId: number; code: string; day: string; eventType: string; n: number }[],
+): Promise<void> {
+  if (!rows.length) return;
+  const sql = db();
+  const CHUNK = 400;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const values: string[] = [];
+    const params: unknown[] = [];
+    chunk.forEach((r, j) => {
+      const b = j * 5;
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5})`);
+      params.push(r.buildingId, r.code, r.day, r.eventType, r.n);
+    });
+    await sql.query(
+      `insert into elise_funnel_daily (building_id, code, day, event_type, n)
+       values ${values.join(",")}
+       on conflict (building_id, day, event_type)
+       do update set n = excluded.n, code = excluded.code`,
+      params,
+    );
+  }
+}
+
+/** Replace the whole pipeline snapshot (delete + insert) in one sync. */
+export async function replaceElisePipeline(
+  rows: { buildingId: number; code: string; status: string; n: number }[],
+): Promise<void> {
+  const sql = db();
+  await sql.query("delete from elise_pipeline_snapshot");
+  if (!rows.length) return;
+  const values: string[] = [];
+  const params: unknown[] = [];
+  rows.forEach((r, j) => {
+    const b = j * 4;
+    values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4})`);
+    params.push(r.buildingId, r.code, r.status, r.n);
+  });
+  await sql.query(
+    `insert into elise_pipeline_snapshot (building_id, code, prospect_status, n)
+     values ${values.join(",")}`,
+    params,
+  );
+}

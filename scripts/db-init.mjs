@@ -59,3 +59,37 @@ await sql`
   )
 `;
 console.log("app_settings table ready.");
+
+// elise_funnel_daily: PII-free leasing funnel rollup from the EliseAI Snowflake
+// data share (RISE8_DATA.DA.PROSPECT_EVENTS_RISE8), refreshed by the nightly
+// sync (scripts/elise-sync.mjs / the /api/cron/elise-sync route). One row per
+// (building, day, event_type) with a count. `code` is the mapped Stayable
+// property code (config/elise.ts); two Elise buildings can share a code (the
+// unlaunched dupes fold into LL/DP), so reads GROUP BY code and SUM n.
+await sql`
+  create table if not exists elise_funnel_daily (
+    building_id  bigint not null,
+    code         text not null,
+    day          date not null,
+    event_type   text not null,
+    n            integer not null,
+    primary key (building_id, day, event_type)
+  )
+`;
+await sql`create index if not exists elise_funnel_daily_day_idx on elise_funnel_daily (day)`;
+console.log("elise_funnel_daily table ready.");
+
+// elise_pipeline_snapshot: current prospect-status counts (Inquiry/Applicant/
+// Leased/Cancelled) from PROSPECTS_RISE8 — a point-in-time snapshot overwritten
+// each sync (not windowed). No PII (status + count only).
+await sql`
+  create table if not exists elise_pipeline_snapshot (
+    building_id      bigint not null,
+    code             text not null,
+    prospect_status  text not null,
+    n                integer not null,
+    captured_at      timestamptz not null default now(),
+    primary key (building_id, prospect_status)
+  )
+`;
+console.log("elise_pipeline_snapshot table ready.");
