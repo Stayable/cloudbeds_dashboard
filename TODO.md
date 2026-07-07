@@ -6,10 +6,12 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > tree clean, all pushed (`76dc633`). **LIVE at `dashboard.rentstayable.com`**.
 > Build green; **70 vitest tests pass** (14 files).
 >
-> **Session 07/08/26 — LEASING §2 SHIPPED (EliseAI Snowflake → Neon).** Reader
-> Account provisioned by Steph; connected, schema mapped, funnel BUILT & verified
-> locally end-to-end. **Not yet committed/deployed.** Remaining = Vercel env +
-> deploy (below).
+> **Session 07/08/26 — LEASING §2 SHIPPED, DEPLOYED & VERIFIED (EliseAI → Neon).**
+> Reader Account provisioned by Steph; connected, schema mapped, funnel built,
+> committed (`0dddf30`), pushed, and **LIVE on production** (deploy
+> `dpl_9k7Hrp…`). Cron endpoint verified **401 with a wrong bearer** → route live
+> + `CRON_SECRET` enforced. `SNOWFLAKE_*` + `CRON_SECRET` env vars set in Vercel
+> (Production). `/ops` §2 renders from the already-backfilled Neon data.
 > - **What shipped:** `/ops` §2 Leasing is now LIVE (was a placeholder). Funnel
 >   Leads→Engaged→Tours(booked/attended)→Apps(started/approved)→Leased + Lead→Tour
 >   / Tour→Lease conversion tiles + Cancelled + current pipeline snapshot
@@ -27,18 +29,22 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > - **Backfill already ran against the SHARED Neon** (same DATABASE_URL local+prod)
 >   → 8,134 funnel rows + 32 snapshot rows. So `/ops` renders leasing immediately
 >   on deploy (verified: last-30 ALL = 2,256 leads / 142 leased).
-> - **REMAINING to go live (do next):**
->   1. Add to Vercel (Production+Preview): `SNOWFLAKE_ACCOUNT=ihpsnqz-rise8_reader`,
->      `SNOWFLAKE_USER=rise8_reader`, `SNOWFLAKE_PASSWORD=<the rotated pw>`,
->      `SNOWFLAKE_WAREHOUSE=RISE8_WAREHOUSE`, `SNOWFLAKE_DATABASE=RISE8_DATA`,
->      `SNOWFLAKE_SCHEMA=DA`, `SNOWFLAKE_ROLE=SYSADMIN`, and `CRON_SECRET=<random>`.
->      (Needed for the nightly cron; the page itself only needs DATABASE_URL, set.)
->   2. Commit + push (not done — awaiting Kyle) and deploy. Cron registers on deploy.
->   3. Optional: hit `/api/cron/elise-sync` once to confirm the refresh.
-> - **CAVEAT (verify):** funnel windows by Elise `EVENT_DATETIME::DATE` (TIMESTAMP_NTZ,
->   tz unconfirmed) — NOT tz-converted to Eastern. Day-boundary ±1 possible. Verify
->   against a known Elise report; add `CONVERT_TIMEZONE` if it's UTC. Password
->   expires on Elise's schedule → rotate in Vercel, or move to key-pair auth.
+> - **OPEN follow-ups (optional, non-blocking):**
+>   1. **Prove the prod sync end-to-end:** Vercel → Project → Settings → Cron Jobs
+>      → **Run** on `elise-sync` (injects the real secret). Expect
+>      `{ok:true, funnel:~8134, snapshot:32, skipped:0}`. Can't trigger from CLI
+>      (no secret value locally); Claude can confirm the result after Kyle runs it.
+>   2. **TZ CAVEAT (verify):** funnel windows by Elise `EVENT_DATETIME::DATE`
+>      (TIMESTAMP_NTZ, tz unconfirmed) — NOT tz-converted to Eastern. Day-boundary
+>      ±1 possible. Check one property vs a known Elise report; add
+>      `CONVERT_TIMEZONE('UTC','America/New_York',…)` in lib/snowflake.ts +
+>      scripts/elise-sync.mjs and re-sync if it's UTC.
+>   3. **Password expiry:** the reader-account pw rotates on Elise's schedule →
+>      sync breaks until updated in Vercel. Consider asking Elise for key-pair
+>      (RSA) auth to make it permanent.
+> - **Backfill note:** local `node scripts/elise-sync.mjs` already populated the
+>   SHARED Neon (8,134 funnel + 32 snapshot rows), so leasing renders now; the
+>   nightly cron just keeps it fresh.
 >
 > **Follow-up timing (SUPERSEDED 07/08):** the 07/09–07/10 Elise chase is moot —
 > account is provisioned and working. No follow-up needed. Prior open verify item
