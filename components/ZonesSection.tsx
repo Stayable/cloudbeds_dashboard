@@ -37,19 +37,18 @@ function statusOf(r: { ooo: boolean; occupied: boolean }): "ooo" | "occupied" | 
 const CHIP_CLASS: Record<"ooo" | "occupied" | "vacant", string> = {
   occupied: "border-accent bg-accent text-white",
   vacant: "border-slate-200 bg-white text-slate-600",
-  ooo: "border-amber-300 bg-amber-50 text-amber-800",
+  ooo: "border-yellow-300 bg-yellow-200 text-yellow-900",
 };
 
 function RoomChip({ name, ooo, occupied, reason }: { name: string; ooo: boolean; occupied: boolean; reason?: string }) {
   const s = statusOf({ ooo, occupied });
-  const title = s === "ooo" ? `Out of service — ${reason ?? "—"}` : s === "occupied" ? "Occupied" : "Vacant";
+  const title = s === "ooo" ? `OOO — ${reason ?? "—"}` : s === "occupied" ? "Occupied" : "Vacant";
   return (
     <span
       title={title}
       className={"inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums " + CHIP_CLASS[s]}
     >
       {name}
-      {s === "ooo" && <span className="ml-1 text-[10px] uppercase tracking-wide text-amber-600">OOO</span>}
     </span>
   );
 }
@@ -58,7 +57,7 @@ function Legend() {
   const items: { s: "occupied" | "vacant" | "ooo"; label: string }[] = [
     { s: "occupied", label: "Occupied" },
     { s: "vacant", label: "Vacant" },
-    { s: "ooo", label: "Out of service" },
+    { s: "ooo", label: "OOO" },
   ];
   return (
     <div className="flex flex-wrap items-center gap-3">
