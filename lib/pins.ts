@@ -27,12 +27,13 @@ async function effectivePins(): Promise<Map<Level, string>> {
   return out;
 }
 
-/** The level a submitted PIN unlocks, or null. Only exec + per-user levels are
- *  reachable by PIN; the home / is public (no base login). */
+/** The level a submitted PIN unlocks, or null. The home / is gated behind the
+ *  `base` PIN (MAIN) — it is no longer public. `base` is checked last so a
+ *  more-specific level always wins if PINs were ever set equal. */
 export async function findLevelByPin(pin: string): Promise<Level | null> {
   if (!pin) return null;
   const pins = await effectivePins();
-  const order: Level[] = ["exec", "crystal", "monica", "bea", "ops"];
+  const order: Level[] = ["exec", "crystal", "monica", "bea", "ops", "base"];
   for (const level of order) {
     if (pins.get(level) === pin) return level;
   }

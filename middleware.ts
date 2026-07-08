@@ -1,12 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, canAccess, gateEnabled, requiredLevel, verifyCookie } from "@/lib/auth";
+import { AUTH_COOKIE, canAccess, gateEnabled, verifyCookie } from "@/lib/auth";
 
-// Only the per-user dashboards (/crystal, /monica, /bea) and /rob (exec) are
-// gated. The home / and everything else are PUBLIC (view-only aggregate data).
+// Everything under the gate now requires a PIN — the home / is gated at the
+// `base` level (MAIN pin), not public. Only the paths excluded in `matcher`
+// below (login, /test, the public write APIs, the cron endpoint) stay open.
 // The cookie is a signed level token, verified here with no DB read.
 export async function middleware(req: NextRequest) {
-  // Public: home + any base-level route.
-  if (requiredLevel(req.nextUrl.pathname) === "base") return NextResponse.next();
   if (!gateEnabled()) return NextResponse.next();
 
   const level = await verifyCookie(req.cookies.get(AUTH_COOKIE)?.value);
@@ -23,8 +22,9 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // Protect everything except: login, auth endpoint, the PUBLIC intake page and
   // its write endpoint, the feedback + crystal-note APIs (which self-check their
-  // own token inline), Next internals, and static files.
+  // own token inline), the cron endpoint (self-checks CRON_SECRET; called by
+  // Vercel with no cookie), Next internals, and static files.
   matcher: [
-    "/((?!login|api/auth|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/cron(?:/.*)?|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };

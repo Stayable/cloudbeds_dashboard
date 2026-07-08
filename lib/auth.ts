@@ -41,12 +41,14 @@ export function homeForLevel(level: Level): string {
   return `/${level}`; // crystal, monica, bea, …
 }
 
-/** Can `level` view `pathname`? exec sees all; a user level reaches only its own
- *  route; base reaches only base routes. */
+/** Can `level` view `pathname`? exec sees all; base routes (the shared home /)
+ *  are visible to ANY authenticated level — the `base`/MAIN pin exists so the
+ *  home is gated (not public), but per-user levels can still reach it (e.g. the
+ *  "← Dashboard" back-link). A per-user level still reaches only its own /route. */
 export function canAccess(level: Level, pathname: string): boolean {
   if (level === "exec") return true; // CEO sees everything
   const need = requiredLevel(pathname);
-  if (need === "base") return level === "base";
+  if (need === "base") return true; // any authenticated level sees the shared home
   return need === level;
 }
 

@@ -268,6 +268,130 @@ export async function getPortfolioOoo(asOf: string): Promise<PropertyOoo[]> {
   );
 }
 
+// --- Room inventory with OOO overlay (for the zone view) --------------------
+// All rooms for a property (code + type), each flagged if it is out_of_service
+// on `asOf`. Room codes are inventory identifiers, not guest PII.
+
+export type RoomStatus = {
+  name: string;
+  type: string;
+  ooo: boolean; // out of service on asOf (room block)
+  occupied: boolean; // In-House reservation overlaps asOf
+  reason?: string; // OOO reason
+};
+
+/** Room numbers occupied (reservation status In-House, stay overlaps `asOf`) for
+ *  one property, from DI Reservations dataset 3. PII-FREE: groups on room_numbers
+ *  + reservation_status with a room_count measure — no guest fields requested.
+ *  Best-effort overlay: any failure returns an empty set (rooms still list). */
+async function getOccupiedRoomNumbers(apiKey: string, apiPropertyId: string, asOf: string): Promise<Set<string>> {
+  const occupied = new Set<string>();
+  const body = {
+    property_ids: [Number(apiPropertyId)],
+    dataset_id: 3,
+    columns: [{ cdf: { column: "room_count" } }],
+    group_rows: [{ cdf: { column: "room_numbers" } }, { cdf: { column: "reservation_status" } }],
+    filters: {
+      and: [
+        { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: asOf },
+        { cdf: { column: "checkout_date" }, operator: "greater_than_or_equal", value: asOf },
+      ],
+    },
+    settings: { totals: false, details: true },
+  };
+  try {
+    const res = await fetch(`${DI_BASE}/reports/query/data?mode=Run`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-PROPERTY-ID": apiPropertyId,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+    if (!res.ok) return occupied;
+    const parsed = (await res.json()) as { index?: unknown[] };
+    for (const row of Array.isArray(parsed.index) ? parsed.index : []) {
+      if (!Array.isArray(row)) continue;
+      if (String(row[1] ?? "") !== "In-House") continue;
+      // room_numbers can be a comma/space-joined list for multi-room bookings.
+      for (const rn of String(row[0] ?? "").split(/[\s,]+/)) {
+        const t = rn.trim();
+        if (t) occupied.add(t);
+      }
+    }
+  } catch {
+    /* best-effort overlay — leave the set empty */
+  }
+  return occupied;
+}
+
+/** Every room for one property + OOO and occupied overlays as of `asOf`. Fails
+ *  only if the key lacks the Room scope (no room-name source) so the UI can
+ *  surface that rather than showing internal roomIDs as fake room numbers.
+ *  `apiPropertyId` (null when unverified) enables the occupied overlay. */
+async function getRoomsWithStatus(
+  apiKey: string,
+  apiPropertyId: string | null,
+  asOf: string,
+): Promise<CloudbedsResult<RoomStatus[]>> {
+  const [nameRes, blocksRes, occupied] = await Promise.all([
+    getRoomNameMap(apiKey),
+    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
+    apiPropertyId ? getOccupiedRoomNumbers(apiKey, apiPropertyId, asOf) : Promise.resolve(new Set<string>()),
+  ]);
+  if (!nameRes.loaded) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Room scope missing on this property's key — re-issue it with the Room scope to list rooms.",
+    };
+  }
+  // roomID → reason for out_of_service blocks active on asOf (blocks are a
+  // nice-to-have overlay; if that call failed we still list the rooms).
+  const oooById = new Map<string, string>();
+  for (const b of blocksRes.ok ? blocksRes.data?.roomBlocks ?? [] : []) {
+    if (b.roomBlockType !== "out_of_service") continue;
+    for (const r of b.rooms ?? []) oooById.set(r.roomID, b.roomBlockReason || "—");
+  }
+
+  const rooms: RoomStatus[] = [];
+  for (const [roomID, info] of nameRes.map) {
+    if (!info.roomName) continue; // never surface an internal id as a room number
+    rooms.push({
+      name: info.roomName,
+      type: info.roomTypeName,
+      ooo: oooById.has(roomID),
+      occupied: occupied.has(info.roomName),
+      reason: oooById.get(roomID),
+    });
+  }
+  return { ok: true, data: rooms };
+}
+
+export type PropertyRooms = {
+  property: Property;
+  configured: boolean;
+  result: CloudbedsResult<RoomStatus[]> | null;
+};
+
+/** Full room inventory (OOO + occupied overlays) per configured property. */
+export async function getPortfolioRooms(asOf: string): Promise<PropertyRooms[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyRooms> => {
+      const key = readKey(property.code);
+      if (!key) return { property, configured: false, result: null };
+      return {
+        property,
+        configured: true,
+        result: await getRoomsWithStatus(key, property.apiPropertyId, asOf),
+      };
+    }),
+  );
+}
+
 // --- Data Insights (date-ranged occupancy / ADR / RevPAR) -------------------
 // Confirmed query shape (see memory data-insights-occupancy). occupancy/adr/
 // revpar auto-aggregate; counts/currency are not requested (no aggregation key

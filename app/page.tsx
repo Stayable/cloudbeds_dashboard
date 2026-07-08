@@ -1,15 +1,19 @@
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import PersonalViewEntry from "@/components/PersonalViewEntry";
+import ZonesSection, { type ZoneProperty } from "@/components/ZonesSection";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
+import { getPortfolio, getPortfolioInsights, getPortfolioRooms } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
+import { buildZoneGroups } from "@/lib/zones";
+import { ZONE_CONFIG } from "@/config/zones";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 
 const NAV: NavItem[] = [
   { id: "portfolio", label: "Portfolio", n: 1 },
   { id: "by-property", label: "By property", n: 2 },
   { id: "detail", label: "Detail", n: 3 },
+  { id: "zones", label: "Zones", n: 4 },
 ];
 
 // Render per-request so runtime env vars (CLOUDBEDS_API_KEY_*) are always read
@@ -24,12 +28,33 @@ export default async function DashboardPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights] = await Promise.all([
+  const [portfolio, insights, rooms] = await Promise.all([
     getPortfolio(),
     getPortfolioInsights(start, end),
+    getPortfolioRooms(end),
   ]);
 
   const properties = buildOccProperties(portfolio, insights);
+
+  // Room inventory grouped into buildings/zones (ROOM-ZONING.md → config/zones.ts).
+  const zoneProperties: ZoneProperty[] = rooms.map((pr): ZoneProperty => {
+    const { property, configured, result } = pr;
+    const base = { code: property.code, name: property.name, id: property.id };
+    if (!configured || !result)
+      return { ...base, configured: false, total: 0, occupiedTotal: 0, oooTotal: 0, groups: [] };
+    if (!result.ok)
+      return { ...base, configured: true, error: result.error, total: 0, occupiedTotal: 0, oooTotal: 0, groups: [] };
+    const list = result.data;
+    const groups = buildZoneGroups(list, ZONE_CONFIG[property.code] ?? []);
+    return {
+      ...base,
+      configured: true,
+      total: list.length,
+      occupiedTotal: list.filter((r) => r.occupied && !r.ooo).length,
+      oooTotal: list.filter((r) => r.ooo).length,
+      groups,
+    };
+  });
 
   const reportingCount = properties.filter((p) => p.rawOcc !== null).length;
   const configuredCount = properties.filter((p) => p.configured).length;
@@ -100,8 +125,9 @@ export default async function DashboardPage({
 
       <div className="lg:flex lg:gap-8">
         <SectionNav items={NAV} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 space-y-8">
           <OccupancyView properties={properties} exportDate={end} />
+          <ZonesSection properties={zoneProperties} exportDate={end} />
         </div>
       </div>
 

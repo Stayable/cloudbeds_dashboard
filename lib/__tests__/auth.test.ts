@@ -44,19 +44,20 @@ describe("canAccess", () => {
     expect(canAccess("exec", "/crystal")).toBe(true);
     expect(canAccess("exec", "/rob")).toBe(true);
   });
-  it("a user level reaches only its own route", () => {
+  it("a user level reaches its own route + the shared home, not other users'", () => {
     expect(canAccess("crystal", "/crystal")).toBe(true);
     expect(canAccess("crystal", "/monica")).toBe(false);
-    expect(canAccess("crystal", "/")).toBe(false);
+    expect(canAccess("crystal", "/")).toBe(true); // shared home visible to any authed level
   });
-  it("base reaches base only", () => {
+  it("base (MAIN pin) reaches the home but no per-user route", () => {
     expect(canAccess("base", "/")).toBe(true);
     expect(canAccess("base", "/rob")).toBe(false);
+    expect(canAccess("base", "/crystal")).toBe(false);
   });
-  it("ops reaches only /ops; exec still sees it", () => {
+  it("ops reaches /ops + home, not other users'; exec still sees all", () => {
     expect(canAccess("ops", "/ops")).toBe(true);
     expect(canAccess("ops", "/monica")).toBe(false);
-    expect(canAccess("ops", "/")).toBe(false);
+    expect(canAccess("ops", "/")).toBe(true);
     expect(canAccess("exec", "/ops")).toBe(true);
   });
 });

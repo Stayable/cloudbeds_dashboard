@@ -14,7 +14,7 @@ const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url) { console.error("No DATABASE_URL(_UNPOOLED) in .env.local"); process.exit(1); }
 const sql = neon(url);
 
-const LEVELS = ["exec", "crystal", "monica", "bea", "ops"]; // login levels (base is public)
+const LEVELS = ["base", "exec", "crystal", "monica", "bea", "ops"]; // login levels (base/MAIN gates the home /)
 
 async function list(label) {
   const rows = await sql`select level, pin, updated_at from dashboard_pins order by level`;
