@@ -2,10 +2,49 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — working
-> tree clean, all pushed (`76dc633`). **LIVE at `dashboard.rentstayable.com`**.
-> Build green; **70 vitest tests pass** (14 files).
+> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — all
+> pushed (`40a5f5a`). **LIVE & DEPLOYED at `dashboard.rentstayable.com`**.
+> Build green; **89 vitest tests pass** (16 files). Only untracked file:
+> `outputs/EliseDataAccess_Email_070226.md` (unrelated prior-session draft; left
+> out of commits by design).
 >
+> **Session 07/09/26 — HOME §4 ZONES + HOME GATED BY `MAIN` (shipped, deployed,
+> verified live).** Two commits: `899cdce` (Zones + gate) and `40a5f5a` (legend
+> tweak). Both deployed to production (`dpl_7tMGiz…` READY, aliased to the custom
+> domain).
+> - **§4 Zones (home `/`)** — new section, **tabbed per property** (mirrors the
+>   Detail tab pattern; nav item #4 "Zones"). Rooms grouped into buildings/zones
+>   from **`ROOM-ZONING.md`** → `config/zones.ts` (`ZONE_CONFIG` keyed by CODE;
+>   inclusive ranges; KW parity-split). Pure logic `lib/zones.ts`
+>   (`zoneForRoom`/`buildZoneGroups`, unit-tested). Unmatched rooms → "Other".
+>   Room chips **colored by live status** + Legend: **blue = Occupied · white =
+>   Vacant · yellow = OOO**. Per-zone counts + CSV/PDF export.
+> - **Data path:** `getPortfolioRooms(asOf)` in `lib/cloudbeds.ts` →
+>   `getRoomsWithStatus` = getRooms (names) + getRoomBlocks (OOO overlay) +
+>   **per-room occupancy**. Occupancy is **PII-FREE**: DI Reservations dataset 3
+>   grouped on `room_numbers` + `reservation_status="In-House"`, measure
+>   `room_count`, filter checkin≤asOf≤checkout, `details:true`. `room_numbers`
+>   match getRooms `roomName` exactly (Davenport 114/114). Probe:
+>   `scripts/probe-room-occupancy.mjs`. New component `components/ZonesSection.tsx`.
+>   See memory `room-zones-and-occupancy`.
+> - **Home `/` NO LONGER PUBLIC** — gated at `base` level by PIN **`MAIN`** (Neon
+>   `dashboard_pins`, seeded via `scripts/seed-pins.mjs base=MAIN`). `middleware.ts`
+>   no longer short-circuits base routes; `canAccess` now lets ANY authed level see
+>   the shared home (keeps per-user "← Dashboard" back-link working); `api/cron`
+>   added to matcher exclusions so the Elise cron still runs (self-checks
+>   CRON_SECRET, no cookie). `findLevelByPin`/seed `LEVELS` include `base`.
+>   Verified live: `/` → 307→/login, wrong PIN → 401, `MAIN` → 200. See memory
+>   `home-gated-by-main-pin`. **Current PINs:** base=`MAIN`, exec=`STYBLCEO`,
+>   crystal=`CRYSTL`, monica=`MONICA`, bea=`BEAOPS`, ops=`OPERATIONS`.
+> - **Open follow-ups:** (a) **Distribute the `MAIN` PIN** to anyone who used the
+>   home without a PIN — they now hit the login wall. (b) KW/JW/DP wing→zone
+>   assignments are inferred from unlabelled floor maps (flagged provisional in
+>   the UI) — confirm on-site to lock them in `config/zones.ts`. (c) Zone occupancy
+>   overlay is "today" (asOf=range end) — make range-aware only if asked.
+> - **Note:** during cleanup I accidentally killed a SEPARATE app the user had on
+>   port 3000 (a RISE8 marketing dev server) — restartable, not this repo.
+>
+
 > **Session 07/08/26 — LEASING §2 SHIPPED, DEPLOYED & VERIFIED (EliseAI → Neon).**
 > Reader Account provisioned by Steph; connected, schema mapped, funnel built,
 > committed (`0dddf30`), pushed, and **LIVE on production** (deploy
