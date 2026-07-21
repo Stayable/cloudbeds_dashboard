@@ -45,4 +45,29 @@ describe("sumSnapshotRows", () => {
   it("empty → zeros", () => {
     expect(sumSnapshotRows([])).toEqual({ transientNights:0, leaseNights:0, otherBlocks:0, ooo:0, inventory:0, transientRev:0, leaseRev:0 });
   });
+
+  it("composes stored snapshot rows + a live 'today' row into MTD inputs (Task 3r)", () => {
+    // Simulates getRevenueReportInputs's MTD rollup: stored days BEFORE asOf
+    // (ReportSnapshotRow — identity columns + the 7 RowInputs fields) plus the
+    // live "today" RowInputs, summed via sumSnapshotRows. Pure — no DB call.
+    const storedDays = [
+      { propertyCode:"DP", stayDate:"2026-07-01", transientNights:10, leaseNights:80, otherBlocks:1, ooo:2, inventory:153, transientRev:400.00, leaseRev:2500.00 },
+      { propertyCode:"DP", stayDate:"2026-07-02", transientNights:8,  leaseNights:83, otherBlocks:3, ooo:2, inventory:153, transientRev:368.50, leaseRev:2675.56 },
+    ];
+    const toRowInputs = (r: (typeof storedDays)[number]) => {
+      const { transientNights, leaseNights, otherBlocks, ooo, inventory, transientRev, leaseRev } = r;
+      return { transientNights, leaseNights, otherBlocks, ooo, inventory, transientRev, leaseRev };
+    };
+    const today = { transientNights:10, leaseNights:84, otherBlocks:1, ooo:2, inventory:153, transientRev:492.05, leaseRev:2706.13 };
+
+    const mtd = sumSnapshotRows([...storedDays.map(toRowInputs), today]);
+
+    expect(mtd.transientNights).toBe(28);
+    expect(mtd.leaseNights).toBe(247);
+    expect(mtd.otherBlocks).toBe(5);
+    expect(mtd.ooo).toBe(6);
+    expect(mtd.inventory).toBe(459); // summed, not capacity×days recomputed
+    expect(mtd.transientRev).toBeCloseTo(1260.55, 2);
+    expect(mtd.leaseRev).toBeCloseTo(7881.69, 2);
+  });
 });

@@ -11,9 +11,12 @@
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
 import { dayCount, monthStart, shiftYmd } from "@/lib/dates";
+import { getEarliestSnapshotDate, getReportSnapshots, type ReportSnapshotRow } from "@/lib/db";
 import {
   classifyForReport,
   derive,
+  sumSnapshotRows,
+  type DerivedRow,
   type PeriodBlock,
   type PropertyActual,
   type PropertyOnTheBooks,
@@ -1018,7 +1021,7 @@ export async function getPortfolioLeaseMix(asOf: string): Promise<PropertyLeaseM
   );
 }
 
-// --- Revenue/occupancy report inputs (Task 3) -------------------------------
+// --- Revenue/occupancy report inputs (Task 3, reworked Task 3r) -------------
 // Assembles the per-property RowInputs (lib/revenue-report.ts) that `derive`
 // turns into the automated daily revenue report. Query shapes below are the
 // Task 1 spike's verbatim decisions — see
@@ -1029,6 +1032,13 @@ export async function getPortfolioLeaseMix(asOf: string): Promise<PropertyLeaseM
 // full reconciliation table and flagged gaps (short version: Yesterday
 // reconciles exactly; MTD/YTD room-block totals and inventory drift from
 // Monica's Yardi-sourced figures for reasons not resolved in this task).
+//
+// Task 3r (Kyle's decision, .superpowers/sdd/briefs/task-3r-brief.md): dataset-3
+// status/rate-plan fields are CURRENT-STATE only (see the drift note on
+// `getNightsByPlanDay` above) — re-deriving MTD/YTD live for past days is not
+// faithful. MTD/YTD/LY now read from the Neon `report_daily_snapshot` table
+// (Task 3b) instead of live per-day Cloudbeds loops. Yesterday (single day) and
+// on-the-books (forward 7 days) are UNCHANGED — still live and exact.
 
 export type ReportRanges = {
   asOf: string;
@@ -1265,11 +1275,28 @@ async function buildRowInputs(
   };
 }
 
+/** Pick the 7 numeric RowInputs fields off a stored snapshot row (drops the
+ *  propertyCode/stayDate identity columns). */
+function toRowInputs(row: ReportSnapshotRow): RowInputs {
+  const { transientNights, leaseNights, otherBlocks, ooo, inventory, transientRev, leaseRev } = row;
+  return { transientNights, leaseNights, otherBlocks, ooo, inventory, transientRev, leaseRev };
+}
+
 /** Fetch the actual+on-the-books revenue-report inputs for every configured
- *  property, in parallel, for the report dated `asOf` (the "Yesterday" date). */
+ *  property, in parallel, for the report dated `asOf` (the "Yesterday" date).
+ *
+ *  MTD/YTD (Task 3r): stored snapshots for every day BEFORE `asOf` + the live
+ *  "today" (= Yesterday block) figure, summed via `sumSnapshotRows`. This is
+ *  correct whether or not the cron has already persisted today's snapshot (this
+ *  function is also called ad hoc by the /report page + downloads) and never
+ *  double-counts. The snapshot rows' summed `inventory` is used as-is — NOT
+ *  recomputed as capacity×days.
+ *
+ *  LY blocks (lyYesterday/lyMtd/lyYtd): snapshots ONLY, no live fetch. `null`
+ *  when no history exists yet for that range (expected for the first year). */
 export async function getRevenueReportInputs(
   asOf: string,
-): Promise<{ actual: PropertyActual[]; onTheBooks: PropertyOnTheBooks[] }> {
+): Promise<{ actual: PropertyActual[]; onTheBooks: PropertyOnTheBooks[]; trackingSince: string | null }> {
   const ranges = reportRanges(asOf);
   const actual: PropertyActual[] = [];
   const onTheBooks: PropertyOnTheBooks[] = [];
@@ -1288,28 +1315,41 @@ export async function getRevenueReportInputs(
         console.error(`[revenue-report] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
       }
 
-      const periodBlock = async (range: [string, string], lyRange: [string, string]): Promise<PeriodBlock> => {
-        const [actualInputs, lyInputs] = await Promise.all([
-          buildRowInputs(key, apiPropertyId, range[0], range[1], capacity, getNightsByPlanDay),
-          buildRowInputs(key, apiPropertyId, lyRange[0], lyRange[1], capacity, getNightsByPlanDay),
-        ]);
-        const lyHasData =
-          lyInputs.transientNights + lyInputs.leaseNights + lyInputs.otherBlocks + lyInputs.ooo + lyInputs.transientRev + lyInputs.leaseRev >
-          0;
-        return {
-          actual: derive(actualInputs, keDays(range)),
-          lastYear: lyHasData ? derive(lyInputs, keDays(lyRange)) : null,
-        };
+      // Yesterday: live single-day fetch, UNCHANGED. Also reused below as the
+      // "today" contribution to MTD/YTD (see rollup()).
+      const todayInputs = await buildRowInputs(key, apiPropertyId, asOf, asOf, capacity, getNightsByPlanDay);
+      const yesterday: PeriodBlock = { actual: derive(todayInputs, keDays(ranges.yesterday)), lastYear: null };
+
+      // LY: snapshots only. No live Cloudbeds call, no "today" figure (the
+      // range is entirely in the past).
+      const lyBlock = async (lyRange: [string, string]): Promise<DerivedRow | null> => {
+        const stored = await getReportSnapshots(property.code, lyRange[0], lyRange[1]);
+        if (stored.length === 0) return null;
+        return derive(sumSnapshotRows(stored.map(toRowInputs)), keDays(lyRange));
       };
 
-      const [yesterday, mtd, ytd] = await Promise.all([
-        periodBlock(ranges.yesterday, ranges.lyYesterday),
-        periodBlock(ranges.mtd, ranges.lyMtd),
-        periodBlock(ranges.ytd, ranges.lyYtd),
+      // MTD/YTD: stored snapshots for days BEFORE asOf, plus today's live figure.
+      const rollup = async (range: [string, string]): Promise<DerivedRow> => {
+        const stored = await getReportSnapshots(property.code, range[0], shiftYmd(asOf, -1));
+        const inputs = sumSnapshotRows([...stored.map(toRowInputs), todayInputs]);
+        return derive(inputs, keDays(range));
+      };
+
+      const [lyYesterday, lyMtd, lyYtd, mtdActual, ytdActual] = await Promise.all([
+        lyBlock(ranges.lyYesterday),
+        lyBlock(ranges.lyMtd),
+        lyBlock(ranges.lyYtd),
+        rollup(ranges.mtd),
+        rollup(ranges.ytd),
       ]);
+
+      yesterday.lastYear = lyYesterday;
+      const mtd: PeriodBlock = { actual: mtdActual, lastYear: lyMtd };
+      const ytd: PeriodBlock = { actual: ytdActual, lastYear: lyYtd };
 
       actual.push({ code: property.code, name: property.name, yesterday, mtd, ytd });
 
+      // On-the-books: UNCHANGED, live forward 7 days.
       const days = await Promise.all(
         ranges.onTheBooks.map(async (date) => {
           const inputs = await buildRowInputs(key, apiPropertyId, date, date, capacity, getOnTheBooksNightsByPlanDay);
@@ -1320,5 +1360,6 @@ export async function getRevenueReportInputs(
     }),
   );
 
-  return { actual, onTheBooks };
+  const trackingSince = await getEarliestSnapshotDate(null);
+  return { actual, onTheBooks, trackingSince };
 }

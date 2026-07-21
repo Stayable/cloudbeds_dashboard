@@ -74,6 +74,10 @@ export type PropertyOnTheBooks = { code: string; name: string; days: OnTheBooksD
 export type RevenueReport = {
   asOf: string; generatedEastern: string;
   actual: PropertyActual[]; onTheBooks: PropertyOnTheBooks[]; sourceNote: string;
+  /** Earliest banked report_daily_snapshot date (portfolio-wide), or undefined
+   *  if no snapshots exist yet. MTD/YTD accumulate from stored snapshots since
+   *  this date + the live "today" figure — see getRevenueReportInputs. */
+  trackingSince?: string;
 };
 export const SOURCE_NOTE =
   "Cloudbeds-sourced. Transient nights/revenue and OOO from Cloudbeds; lease classified by rate plan. " +
