@@ -10,16 +10,18 @@
 
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
-import { dayCount, monthStart, shiftYmd } from "@/lib/dates";
+import { dayCount, easternToday, monthStart, shiftYmd } from "@/lib/dates";
 import { getEarliestSnapshotDate, getReportSnapshots, type ReportSnapshotRow } from "@/lib/db";
 import {
   classifyForReport,
   derive,
   sumSnapshotRows,
+  SOURCE_NOTE,
   type DerivedRow,
   type PeriodBlock,
   type PropertyActual,
   type PropertyOnTheBooks,
+  type RevenueReport,
   type RowInputs,
 } from "@/lib/revenue-report";
 
@@ -1362,4 +1364,23 @@ export async function getRevenueReportInputs(
 
   const trackingSince = await getEarliestSnapshotDate(null);
   return { actual, onTheBooks, trackingSince };
+}
+
+/** Single source of truth for "turn a date into a full RevenueReport" — the
+ *  /report page (this task), the download routes (Task 7), and the cron job
+ *  (Task 10) all call this instead of re-deriving asOf/generatedEastern
+ *  themselves. Defaults `asOf` to Yesterday (Eastern) when omitted, matching
+ *  the daily report's natural cadence (today's data isn't final until the
+ *  night audit runs). */
+export async function buildRevenueReport(asOf?: string): Promise<RevenueReport> {
+  const day = asOf ?? shiftYmd(easternToday(), -1);
+  const { actual, onTheBooks, trackingSince } = await getRevenueReportInputs(day);
+  return {
+    asOf: day,
+    generatedEastern: `${easternToday()} ET`,
+    actual,
+    onTheBooks,
+    trackingSince: trackingSince ?? undefined,
+    sourceNote: SOURCE_NOTE,
+  };
 }
