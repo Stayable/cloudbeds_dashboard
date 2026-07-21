@@ -11,7 +11,7 @@
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
 import { dayCount, easternToday, monthStart, shiftYmd } from "@/lib/dates";
-import { getEarliestSnapshotDate, getReportSnapshots, type ReportSnapshotRow } from "@/lib/db";
+import { getEarliestSnapshotDate, getReportSnapshots, upsertReportSnapshot, type ReportSnapshotRow } from "@/lib/db";
 import {
   classifyForReport,
   derive,
@@ -1364,6 +1364,37 @@ export async function getRevenueReportInputs(
 
   const trackingSince = await getEarliestSnapshotDate(null);
   return { actual, onTheBooks, trackingSince };
+}
+
+/** Persist ONE day's exact snapshot for every configured property (Task 10
+ *  daily cron). Banks the same figures the "Yesterday" block would show if the
+ *  report ran promptly for `asOf`: capacity from getDashboard, nights via
+ *  getNightsByPlanDay (in-house only — this is an actual, not on-the-books,
+ *  day). Must run BEFORE buildRevenueReport for the same `asOf` so future
+ *  runs' MTD/YTD rollups include this day (today's own MTD/YTD still come from
+ *  stored[..asOf-1] + a live "today" fetch inside getRevenueReportInputs, so
+ *  there is no double-count either way).
+ *
+ *  Per-property failures (missing key, Cloudbeds error, Neon error) are caught
+ *  and skipped — one bad property must not abort the run. */
+export async function persistDailySnapshots(asOf: string): Promise<{ written: number }> {
+  let written = 0;
+  await Promise.all(
+    PROPERTIES.map(async (property) => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return;
+      try {
+        const dashboard = await getDashboard(key);
+        const capacity = dashboard.ok ? dashboard.data.capacity : 0;
+        const inputs = await buildRowInputs(key, property.apiPropertyId, asOf, asOf, capacity, getNightsByPlanDay);
+        await upsertReportSnapshot(property.code, asOf, inputs);
+        written++;
+      } catch (e) {
+        console.error(`[revenue-report] snapshot failed for ${property.code} ${asOf}:`, e);
+      }
+    }),
+  );
+  return { written };
 }
 
 /** Single source of truth for "turn a date into a full RevenueReport" — the
