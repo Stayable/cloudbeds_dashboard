@@ -2,7 +2,24 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session):** Branch `claude/nifty-thompson-ts8zny` — all
+> **Pickup (next CLI session) — 07/22/26: REVENUE/OCCUPANCY REPORT → TEAMS built
+> (11 tasks, review clean, NOT yet pushed/deployed).** Recreates Monica's daily
+> report from Cloudbeds; gated `/report` page + `/report/latest.xlsx|pdf`; daily
+> cron (`/api/cron/revenue-report`, 10:00 UTC) persists a daily snapshot, builds
+> the report, and POSTs an Adaptive Card to Teams via the Power Automate flow
+> (`TEAMS_FLOW_URL`). MTD/YTD accumulate from Neon `report_daily_snapshot` going
+> forward (revenue exact; counts fill over time; LY null until a year banks).
+> Lease/transient by rate plan (`classifyForReport`: monthly/weekly lease + long
+> term = lease). 108 vitest tests, build green, whole-branch review = ready to
+> merge. Spec `docs/superpowers/specs/2026-07-21-…`, plan `…/plans/2026-07-22-…`.
+> **NEXT (Kyle / Task 12):** `git push`; set `TEAMS_FLOW_URL` (+ optional
+> `PUBLIC_BASE_URL`) in Vercel (Production, Sensitive); deploy; open `/report`
+> (MAIN pin) to verify all 8 properties; Vercel → Cron Jobs → Run `revenue-report`
+> → expect a card in Test Channel + `{ok:true,status:202}`. Then compare to
+> Monica's report for 2–3 properties. Open follow-ups: KE adjusted-% distortion
+> during the snapshot fill phase; one-time historical REVENUE backfill (optional).
+>
+> **Prior pickup:** Branch `claude/nifty-thompson-ts8zny` — all
 > pushed (`40a5f5a`). **LIVE & DEPLOYED at `dashboard.rentstayable.com`**.
 > Build green; **89 vitest tests pass** (16 files). Only untracked file:
 > `outputs/EliseDataAccess_Email_070226.md` (unrelated prior-session draft; left
