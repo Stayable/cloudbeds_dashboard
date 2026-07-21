@@ -168,15 +168,24 @@ Browser (gated by PIN, base/exec):
   Teams connector webhook.
 - Stored as secret env var **`TEAMS_FLOW_URL`** (contains a `sig=` token) — never
   committed; set in Vercel + `.env.local`.
-- **Verified 2026-07-21:** a test POST returned **HTTP 202 Accepted**. Body must
-  be `Content-Type: application/json; charset=utf-8` and correctly UTF-8 encoded
-  (a mis-encoded body returned **400 InvalidRequestContent**).
-- **Open:** confirm the flow's expected body schema by checking what the test
-  rendered in Teams — simple fields (`title`/`text`) vs a full **Adaptive Card**
-  JSON. The report card format (below) is finalized against that.
+- **Body schema CONFIRMED (2026-07-21/22):** the flow's step is **"Post card in
+  a chat or channel"** (flowbot Adaptive Card). It feeds the raw HTTP body
+  straight into the card, so the POST body **must be a full Adaptive Card JSON**
+  — top-level `"type": "AdaptiveCard"`, `"$schema"`, `"version": "1.4"`, `"body"`.
+  Simple `{"text": …}` / `{"title": …}` payloads fail the run with
+  *AdaptiveSerializationException: Property 'type' must be 'AdaptiveCard'*
+  (trigger still returns 202; the failure is downstream in the post step).
+- **Encoding:** `Content-Type: application/json; charset=utf-8`, correctly UTF-8
+  encoded. A mis-encoded body returns **400 InvalidRequestContent**; keep card
+  text ASCII-safe or ensure proper UTF-8.
+- **Verified end-to-end 2026-07-22:** a valid Adaptive Card POST → **202** →
+  card **rendered in the "Test Channel"**. Delivery path proven.
+- The channel is chosen inside the flow's post step (currently "Test Channel").
+  Renaming the channel does not break it (ID-stable); deleting/recreating would.
 - **Card content:** portfolio Occupied% / RevPAR / Room Revenue (Yesterday +
-  MTD), per-property occ% + RevPAR mini-table, biggest LY movers, and buttons:
-  **View report** (`/report`), **Download Excel**, **Download PDF**.
+  MTD), per-property occ% + RevPAR mini-table, biggest LY movers, and buttons
+  (`Action.OpenUrl`): **View report** (`/report`), **Download Excel**,
+  **Download PDF**. Built as an Adaptive Card v1.4 object and POSTed as-is.
 
 ### 5.3 Cadence
 
