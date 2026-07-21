@@ -93,3 +93,25 @@ await sql`
   )
 `;
 console.log("elise_pipeline_snapshot table ready.");
+
+// report_daily_snapshot: PII-free daily banked figures per property (lib/db.ts
+// upsertReportSnapshot/getReportSnapshots), written by a later cron task.
+// MTD/YTD occupancy can't be reconstructed from Cloudbeds for past days, so we
+// bank each day's exact numbers here and sum stored days (Kyle's decision,
+// task-3b-brief.md). One row per (property_code, stay_date); re-runs upsert.
+await sql`
+  create table if not exists report_daily_snapshot (
+    property_code     text not null,
+    stay_date         date not null,
+    transient_nights  int not null default 0,
+    lease_nights      int not null default 0,
+    other_blocks      int not null default 0,
+    ooo               int not null default 0,
+    transient_rev     numeric not null default 0,
+    lease_rev         numeric not null default 0,
+    inventory         int not null default 0,
+    updated_at        timestamptz not null default now(),
+    primary key (property_code, stay_date)
+  )
+`;
+console.log("report_daily_snapshot table ready.");

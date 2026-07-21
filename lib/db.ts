@@ -2,6 +2,7 @@
 // persisting /test submissions and exec feedback). Never import from a client
 // component. One table `submissions` (see scripts/db-init.mjs).
 import { neon } from "@neondatabase/serverless";
+import type { RowInputs } from "./revenue-report";
 
 function db() {
   const url = process.env.DATABASE_URL;
@@ -167,4 +168,88 @@ export async function replaceElisePipeline(
      values ${values.join(",")}`,
     params,
   );
+}
+
+// --- Report daily snapshot (banked figures for MTD/YTD rollups) -------------
+// PII-free per-day aggregates per property (CLAUDE.md §5.6). Written by a
+// later cron task; read by the revenue report's MTD/YTD rollups via
+// sumSnapshotRows (lib/revenue-report.ts). See scripts/db-init.mjs for DDL.
+
+export type ReportSnapshotRow = RowInputs & { propertyCode: string; stayDate: string };
+
+/** Upsert one day's snapshot for a property. Idempotent — safe to re-run. */
+export async function upsertReportSnapshot(
+  propertyCode: string,
+  stayDate: string,
+  inputs: RowInputs,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into report_daily_snapshot (
+      property_code, stay_date, transient_nights, lease_nights, other_blocks,
+      ooo, transient_rev, lease_rev, inventory
+    )
+    values (
+      ${propertyCode}, ${stayDate}, ${inputs.transientNights}, ${inputs.leaseNights},
+      ${inputs.otherBlocks}, ${inputs.ooo}, ${inputs.transientRev}, ${inputs.leaseRev},
+      ${inputs.inventory}
+    )
+    on conflict (property_code, stay_date) do update set
+      transient_nights = excluded.transient_nights,
+      lease_nights = excluded.lease_nights,
+      other_blocks = excluded.other_blocks,
+      ooo = excluded.ooo,
+      transient_rev = excluded.transient_rev,
+      lease_rev = excluded.lease_rev,
+      inventory = excluded.inventory,
+      updated_at = now()
+  `;
+}
+
+/** Snapshot rows in [start, end] (inclusive), optionally filtered to one
+ *  property. Ordered by property_code, stay_date. */
+export async function getReportSnapshots(
+  propertyCode: string | null,
+  start: string,
+  end: string,
+): Promise<ReportSnapshotRow[]> {
+  const sql = db();
+  const rows = (await sql`
+    select
+      property_code, to_char(stay_date, 'YYYY-MM-DD') as stay_date,
+      transient_nights, lease_nights, other_blocks, ooo,
+      transient_rev, lease_rev, inventory
+    from report_daily_snapshot
+    where stay_date >= ${start} and stay_date <= ${end}
+      and (${propertyCode}::text is null or property_code = ${propertyCode})
+    order by property_code, stay_date
+  `) as {
+    property_code: string; stay_date: string;
+    transient_nights: number; lease_nights: number; other_blocks: number; ooo: number;
+    transient_rev: string; lease_rev: string; inventory: number;
+  }[];
+  return rows.map((r) => ({
+    propertyCode: r.property_code,
+    stayDate: r.stay_date,
+    transientNights: Number(r.transient_nights),
+    leaseNights: Number(r.lease_nights),
+    otherBlocks: Number(r.other_blocks),
+    ooo: Number(r.ooo),
+    transientRev: Number(r.transient_rev),
+    leaseRev: Number(r.lease_rev),
+    inventory: Number(r.inventory),
+  }));
+}
+
+/** Earliest banked stay_date for a property (or across all if null), as
+ *  YYYY-MM-DD. Null if no snapshots exist yet. Backs the report's
+ *  "tracking since" note. */
+export async function getEarliestSnapshotDate(propertyCode: string | null): Promise<string | null> {
+  const sql = db();
+  const rows = (await sql`
+    select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
+    from report_daily_snapshot
+    where ${propertyCode}::text is null or property_code = ${propertyCode}
+  `) as { min_date: string | null }[];
+  return rows[0]?.min_date ?? null;
 }

@@ -48,6 +48,23 @@ export function variance(a: number | null, b: number | null): number | null {
   return a == null || b == null ? null : a - b;
 }
 
+/** Element-wise sum of daily snapshot rows into a single RowInputs (e.g. for
+ *  MTD/YTD rollups over stored days). Empty input → all-zero row. */
+export function sumSnapshotRows(rows: RowInputs[]): RowInputs {
+  return rows.reduce<RowInputs>(
+    (acc, r) => ({
+      transientNights: acc.transientNights + r.transientNights,
+      leaseNights: acc.leaseNights + r.leaseNights,
+      otherBlocks: acc.otherBlocks + r.otherBlocks,
+      ooo: acc.ooo + r.ooo,
+      inventory: acc.inventory + r.inventory,
+      transientRev: acc.transientRev + r.transientRev,
+      leaseRev: acc.leaseRev + r.leaseRev,
+    }),
+    { transientNights: 0, leaseNights: 0, otherBlocks: 0, ooo: 0, inventory: 0, transientRev: 0, leaseRev: 0 },
+  );
+}
+
 export type PeriodBlock = { actual: DerivedRow; lastYear: DerivedRow | null };
 export type PropertyActual = {
   code: string; name: string; yesterday: PeriodBlock; mtd: PeriodBlock; ytd: PeriodBlock;

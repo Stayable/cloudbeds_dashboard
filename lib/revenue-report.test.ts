@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derive, variance } from "./revenue-report";
+import { derive, variance, sumSnapshotRows } from "./revenue-report";
 
 describe("derive", () => {
   it("computes Davenport Yesterday rows", () => {
@@ -27,5 +27,22 @@ describe("derive", () => {
   it("variance returns null when a side is null", () => {
     expect(variance(10, 4)).toBe(6);
     expect(variance(10, null)).toBeNull();
+  });
+});
+
+describe("sumSnapshotRows", () => {
+  it("element-wise sums daily rows", () => {
+    const r = sumSnapshotRows([
+      { transientNights:10, leaseNights:84, otherBlocks:1, ooo:2, inventory:153, transientRev:492.05, leaseRev:2706.13 },
+      { transientNights:8,  leaseNights:83, otherBlocks:3, ooo:2, inventory:153, transientRev:368.50, leaseRev:2675.56 },
+    ]);
+    expect(r.transientNights).toBe(18);
+    expect(r.leaseNights).toBe(167);
+    expect(r.ooo).toBe(4);
+    expect(r.inventory).toBe(306);
+    expect(r.transientRev).toBeCloseTo(860.55, 2);
+  });
+  it("empty → zeros", () => {
+    expect(sumSnapshotRows([])).toEqual({ transientNights:0, leaseNights:0, otherBlocks:0, ooo:0, inventory:0, transientRev:0, leaseRev:0 });
   });
 });
