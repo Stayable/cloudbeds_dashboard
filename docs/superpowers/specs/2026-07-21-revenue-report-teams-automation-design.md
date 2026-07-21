@@ -275,3 +275,17 @@ Everything else is self-contained in this repo + existing Cloudbeds keys.
 | Cron DST drift | Documented; ±1h acceptable for a morning report |
 | LY data sparse for reopened properties | Expected; render blanks like the source |
 | "Other blocks" misclassification | Verify roomblock reason mapping at build |
+
+---
+
+## ADDENDUM — 2026-07-22: daily-snapshot architecture (supersedes §9 "snapshots deferred")
+
+Live validation (Task 3) proved MTD/YTD occupancy counts + OOO cannot be
+reconstructed from Cloudbeds for past days (dataset-3 status + rate plan are
+current-state; getRoomBlocks range OOO doesn't reconcile; no historical
+capacity). Revenue is historically exact via dataset-1 `service_date`.
+**Decision (Kyle, 2026-07-22): bank daily snapshots** in Neon
+(`report_daily_snapshot`); the daily cron persists each day's exact figures and
+MTD/YTD are summed from stored days (accurate going forward, labeled "tracking
+since <date>" until a full period fills). This is how Monica's spreadsheet
+effectively works. See the plan's "PLAN REVISION — 2026-07-22" section.

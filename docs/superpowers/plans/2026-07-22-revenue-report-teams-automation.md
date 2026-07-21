@@ -679,3 +679,45 @@ git commit -m "chore(report): daily cron schedule (10:00 UTC) + env docs"
 - The **prototype Excel generator** written during design (data transcribed from Monica's PDF, in session scratchpad) is a layout reference for Task 4 only — Task 4's data comes exclusively from `getRevenueReportInputs`.
 - The Teams card body **must** be a full Adaptive Card (v1.4) — confirmed 2026-07-22; simple `{text}` fails the flow.
 - Card "Download" buttons link to gated routes; a viewer opening them from Teams will hit the MAIN-pin login first (intended).
+
+---
+
+## PLAN REVISION — 2026-07-22 (daily-snapshot architecture; Kyle's decision)
+
+**Why:** Task 3's live validation proved MTD/YTD occupancy COUNTS + OOO totals
+cannot be reconstructed from Cloudbeds for past days — DI dataset-3
+`reservation_status`/rate-plan reflect *current* state, `getRoomBlocks` range OOO
+doesn't reconcile, and no historical capacity is exposed. Revenue IS historically
+exact (dataset-1 `service_date`). Kyle's decision: **bank daily snapshots** (like
+Monica's own spreadsheet). Supersedes spec §9 "snapshots deferred".
+
+**New Task 3b — snapshot persistence (`lib/db.ts` + Neon table).** Add table
+`report_daily_snapshot(property_code text, stay_date date, transient_nights int,
+lease_nights int, other_blocks int, ooo int, transient_rev numeric, lease_rev
+numeric, inventory int, updated_at timestamptz, PRIMARY KEY(property_code,
+stay_date))` (created in the existing db-init path). PII-free aggregates only
+(CLAUDE.md §5.6). Functions: `upsertReportSnapshot(code, stayDate, inputs)` and
+`getReportSnapshots(code|null, start, end)` returning rows to sum. Unit-test the
+sum/aggregation helper `sumSnapshotRows(rows) → RowInputs`.
+
+**Task 3 change:** `getRevenueReportInputs(asOf)` now sources:
+- **Yesterday** block: the live single-day fetch (already built — exact).
+- **MTD / YTD / LY** blocks: `sumSnapshotRows(getReportSnapshots(code, rangeStart,
+  rangeEnd))` — NOT the live per-day loop. LY blocks are `null` until a year of
+  snapshots exists. Keep the single-day `buildRowInputs` helper (reused by the
+  cron writer). Add `trackingSince` (earliest snapshot date) to the report so the
+  UI/renderers can label MTD/YTD "partial since <date>".
+- **On-the-books**: unchanged (live forward 7 days).
+
+**Task 10 (cron) change:** each run, FIRST fetch the exact single-day figures for
+`asOf` for every property and `upsertReportSnapshot`, THEN build the report
+(Yesterday live, MTD/YTD from snapshots incl. the day just written) and post the
+card. Idempotent (upsert on PK).
+
+**Model change (Task 2 already merged):** add optional `trackingSince?: string`
+to `RevenueReport`; fold a "MTD/YTD accumulate from <trackingSince>" line into
+`sourceNote` at build time. Renderers (Tasks 4–7) render the note; no other
+renderer change.
+
+**Optional follow-up (not now):** one-time historical REVENUE-only backfill of the
+snapshot table (dataset-1 `service_date` is exact); counts cannot be backfilled.
