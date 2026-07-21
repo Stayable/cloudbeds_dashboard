@@ -1,9 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    {
-      "path": "/api/cron/elise-sync",
-      "schedule": "0 12 * * *"
-    }
+    { "path": "/api/cron/elise-sync", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/revenue-report", "schedule": "0 10 * * *" }
   ]
 }
