@@ -95,6 +95,28 @@ query shape that yields per-day room-nights AND revenue grouped by rate plan
   transient/lease ratio, with a visible flag that the revenue split is
   unavailable. (Chosen posture: design for the split, fallback ready.)
 
+**LIVE PROBE FINDING (2026-07-22, Davenport 318197):**
+- DI **dataset 7 returns only the "dynamic" fields** — `occupancy`,
+  `mfd_occupancy`, `adr`, `revpar` — which come back clean and auto-aggregated.
+  The **count/currency columns** (`rooms_sold`, `room_revenue`, `capacity_count`,
+  `out_of_service_count`, `blocked_room_count`) are **silently dropped**:
+  `modifier:"sum"` → 400 "Unknown field", bare → omitted from the response. So
+  dataset 7 alone CANNOT produce Occupied/OOO/Available/Room Revenue counts.
+  → **Rooms/OOO/other-blocks counts + Room Revenue must come from the app's
+  existing dataset-1 detail-sum path (`getFinanceAggregates`, which chunks per
+  day and sums detail rows client-side) and `getRoomBlocks`, NOT dataset-7
+  aggregates.** Occupancy%/ADR/RevPAR can still come from dataset-7 dynamics.
+- **API-vs-Monica (Davenport, dynamic fields only, daily-avg over range):**
+  Yesterday occ 61.4% (mfd 62.7%) vs Monica 62.1%, **RevPAR $20.90 = $20.90 exact**;
+  MTD occ 67.5%/mfd 68.9% vs 69.2%, RevPAR $24.92 vs $25.26 (~1%);
+  YTD occ 57.8%/mfd 60.9% vs 64.3%, RevPAR $20.55 vs $22.51 (~9%).
+  → Short windows match tightly; **YTD diverges as expected** — the Yardi lease
+  blend (Jan–Aug) plus weighting method. Confirms the Cloudbeds-only caveat is
+  real and is largest on YTD for lease-heavy reopened properties. Use
+  occupied/inventory **weighting** (not a flat daily average) in the builder.
+- Local access = **Davenport key only**; the full 8-property API sample must run
+  in the deployed env (all `CLOUDBEDS_API_KEY_*` present).
+
 ---
 
 ## 4. Data-fidelity caveats (printed on the report)
