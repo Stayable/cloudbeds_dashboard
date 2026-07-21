@@ -21,3 +21,8 @@ next-env.d.ts
 
 # Snowflake data-share schema dumps (local exploration; may contain business addresses)
 .snowflake-discovery/
+
+# Local input artifacts / stray screenshots (not versioned)
+/*.pdf
+/*.png
+outputs/EliseDataAccess_Email_070226.md
