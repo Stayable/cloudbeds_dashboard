@@ -1,3 +1,24 @@
+// Report-specific lease/transient classification (Kyle's decision, 2026-07-22 —
+// see .superpowers/sdd/briefs/task-3-brief.md). Deliberately NOT the same rule
+// as lib/lease.ts `classifyRatePlan` (which treats weekly plans as lease for
+// the in-house lease-mix widget). This report's Transient/Lease revenue split
+// only recognizes genuine lease products; weekly-RATE promos are Transient.
+// Verified live against Davenport 2026-07-19: reconciles Monica's exact split
+// (Transient $492.05 / Lease $2,706.13).
+const REPORT_LEASE_KEYWORDS = ["monthly lease", "weekly lease", "long term"];
+
+/**
+ * Classify a (possibly comma-joined multi-plan) rate-plan string for this
+ * report. Lease iff any segment/keyword match contains "monthly lease",
+ * "weekly lease", or "long term" (lease takes precedence on multi-plan
+ * strings). Everything else — including "discounted weekly rate", "employee
+ * weekly rate", bare "weekly rate", "base rate", "book direct" — is transient.
+ */
+export function classifyForReport(ratePlan: string): "lease" | "transient" {
+  const s = (ratePlan ?? "").toLowerCase();
+  return REPORT_LEASE_KEYWORDS.some((k) => s.includes(k)) ? "lease" : "transient";
+}
+
 export type RowInputs = {
   transientNights: number; leaseNights: number; otherBlocks: number; ooo: number;
   inventory: number; transientRev: number; leaseRev: number;

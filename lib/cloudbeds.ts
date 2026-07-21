@@ -10,7 +10,15 @@
 
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
-import { dayCount, shiftYmd } from "@/lib/dates";
+import { dayCount, monthStart, shiftYmd } from "@/lib/dates";
+import {
+  classifyForReport,
+  derive,
+  type PeriodBlock,
+  type PropertyActual,
+  type PropertyOnTheBooks,
+  type RowInputs,
+} from "@/lib/revenue-report";
 
 const BASE_URL = "https://hotels.cloudbeds.com/api/v1.3";
 
@@ -729,6 +737,10 @@ async function diDataset1Grouped(
   measureColumns: string[],
   start: string,
   end: string,
+  // Additive, optional: extra AND-ed filters beyond the service_date range
+  // (e.g. transaction_type="Room Rate" for the revenue-report split). Existing
+  // callers (getFinanceAggregates) omit this and are unaffected.
+  extraFilters: { cdf: { column: string }; operator: string; value: string }[] = [],
 ): Promise<CloudbedsResult<Dataset3Grouped>> {
   const body = {
     property_ids: [Number(apiPropertyId)],
@@ -739,6 +751,7 @@ async function diDataset1Grouped(
       and: [
         { cdf: { column: "service_date" }, operator: "greater_than_or_equal", value: start },
         { cdf: { column: "service_date" }, operator: "less_than_or_equal", value: end },
+        ...extraFilters,
       ],
     },
     settings: { totals: false, details: true },
@@ -885,12 +898,20 @@ export async function getPortfolioFinance(start: string, end: string): Promise<P
 
 export type LeaseMix = { monthly: number; weekly: number; transient: number; total: number };
 
-/** In-house lease mix for one property as of `asOf` (YYYY-MM-DD), from DI dataset 3. */
-async function getLeaseMix(
+/** Raw in-house(or on-the-books)-on-`day` dataset-3 query grouped by rate
+ *  plan, measure `room_count`, details:true. Shared by `getLeaseMix` (sums
+ *  room_count per `classifyRatePlan` bucket, `status="In-House"` default —
+ *  unchanged behavior) and the revenue-report nights queries (COUNT ROWS per
+ *  `classifyForReport` bucket — see caveat there re: room_count inflation).
+ *  `status` defaults to "In-House" (the original getLeaseMix behavior,
+ *  extracted verbatim — Task 3); the revenue-report on-the-books query passes
+ *  "Confirmed" as a second call (future days have no In-House rows yet). */
+async function diDataset3InHouseByPlanDay(
   apiKey: string,
   apiPropertyId: string,
-  asOf: string,
-): Promise<CloudbedsResult<LeaseMix>> {
+  day: string,
+  status: string = "In-House",
+): Promise<CloudbedsResult<Dataset3Grouped>> {
   const body = {
     property_ids: [Number(apiPropertyId)],
     dataset_id: 3,
@@ -898,8 +919,8 @@ async function getLeaseMix(
     group_rows: [{ cdf: { column: "public_rate_plan" } }],
     filters: {
       and: [
-        { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: asOf },
-        { cdf: { column: "checkout_date" }, operator: "greater_than", value: asOf },
+        { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: day },
+        { cdf: { column: "checkout_date" }, operator: "greater_than", value: day },
         // In-house snapshot (CLAUDE.md §5 / spec §5): the count must be physically
         // in-house rooms, not every reservation whose dates merely straddle asOf.
         // Verified live on Davenport (318197) 2026-06-24 via probe-lease-query.mjs:
@@ -910,7 +931,7 @@ async function getLeaseMix(
         // be dropped or they inflate the mix (esp. monthly leases at +30 room_count).
         // Operator `equals` with value "In-House" is accepted by the API and yields
         // the in-house-only set (647 -> 644 for Davenport on this date).
-        { cdf: { column: "reservation_status" }, operator: "equals", value: "In-House" },
+        { cdf: { column: "reservation_status" }, operator: "equals", value: status },
       ],
     },
     // details:true is REQUIRED — see shape note above; details:false drops the measure.
@@ -943,17 +964,34 @@ async function getLeaseMix(
   }
   if (!res.ok) return { ok: false, status: res.status, error: `Data Insights HTTP ${res.status}`, body: parsed };
 
-  // `index[i]` is [ratePlanName]; `records.room_count[i]` is the rooms for that
-  // same row. Zip them and sum rooms per lease classification.
   const p = parsed as { index?: unknown[]; records?: { room_count?: unknown[] } };
-  const index = Array.isArray(p?.index) ? p.index : [];
+  const index = (Array.isArray(p?.index) ? p.index : []).map((row) =>
+    Array.isArray(row) ? String(row[0] ?? "") : String(row ?? ""),
+  );
   const rooms = Array.isArray(p?.records?.room_count) ? p.records!.room_count! : [];
+  const records: Record<string, number[]> = {
+    room_count: rooms.map((x) => (typeof x === "number" ? x : 0)),
+  };
+  return { ok: true, data: { index, records } };
+}
+
+/** In-house lease mix for one property as of `asOf` (YYYY-MM-DD), from DI dataset 3. */
+async function getLeaseMix(
+  apiKey: string,
+  apiPropertyId: string,
+  asOf: string,
+): Promise<CloudbedsResult<LeaseMix>> {
+  const res = await diDataset3InHouseByPlanDay(apiKey, apiPropertyId, asOf);
+  if (!res.ok) return res;
+
+  // `index[i]` is the rate-plan name; `records.room_count[i]` is the rooms for
+  // that same row. Zip them and sum rooms per lease classification.
+  const { index, records } = res.data;
+  const rooms = records.room_count ?? [];
   const mix: LeaseMix = { monthly: 0, weekly: 0, transient: 0, total: 0 };
   for (let i = 0; i < index.length; i++) {
-    const row = index[i];
-    const plan = Array.isArray(row) ? String(row[0] ?? "") : String(row ?? "");
-    const r = rooms[i];
-    const n = typeof r === "number" ? r : 0;
+    const plan = index[i];
+    const n = rooms[i] ?? 0;
     const cls = classifyRatePlan(plan);
     if (cls === "lease-monthly") mix.monthly += n;
     else if (cls === "lease-weekly") mix.weekly += n;
@@ -978,4 +1016,309 @@ export async function getPortfolioLeaseMix(asOf: string): Promise<PropertyLeaseM
       return { property, configured: true, result: await getLeaseMix(key, property.apiPropertyId, asOf) };
     }),
   );
+}
+
+// --- Revenue/occupancy report inputs (Task 3) -------------------------------
+// Assembles the per-property RowInputs (lib/revenue-report.ts) that `derive`
+// turns into the automated daily revenue report. Query shapes below are the
+// Task 1 spike's verbatim decisions — see
+// docs/superpowers/notes/2026-07-22-revenue-report-probe-findings.md — plus
+// the report-specific `classifyForReport` classifier (Kyle's decision,
+// .superpowers/sdd/briefs/task-3-brief.md). Live-validated against Davenport
+// (318197) 2026-07-22; see .superpowers/sdd/briefs/task-3-report.md for the
+// full reconciliation table and flagged gaps (short version: Yesterday
+// reconciles exactly; MTD/YTD room-block totals and inventory drift from
+// Monica's Yardi-sourced figures for reasons not resolved in this task).
+
+export type ReportRanges = {
+  asOf: string;
+  yesterday: [string, string];
+  mtd: [string, string];
+  ytd: [string, string];
+  lyYesterday: [string, string];
+  lyMtd: [string, string];
+  lyYtd: [string, string];
+  onTheBooks: string[];
+};
+
+/** Derive the report's six actual date ranges + 7 forward on-the-books days
+ *  from the report's `asOf` (the "Yesterday" date). Pure — unit-tested in
+ *  lib/revenue-report-inputs.test.ts. */
+export function reportRanges(asOf: string): ReportRanges {
+  const yStart = `${asOf.slice(0, 4)}-01-01`;
+  const ly = (d: string) => `${Number(d.slice(0, 4)) - 1}${d.slice(4)}`;
+  return {
+    asOf,
+    yesterday: [asOf, asOf],
+    mtd: [monthStart(asOf), asOf],
+    ytd: [yStart, asOf],
+    lyYesterday: [ly(asOf), ly(asOf)],
+    lyMtd: [ly(monthStart(asOf)), ly(asOf)],
+    lyYtd: [ly(yStart), ly(asOf)],
+    onTheBooks: Array.from({ length: 7 }, (_, i) => shiftYmd(asOf, i + 1)),
+  };
+}
+
+/** Room-Rate revenue for ONE day, split transient/lease per `classifyForReport`.
+ *  Dataset 1, `service_date` = day, `transaction_type = "Room Rate"` (excludes
+ *  fees/tax/payments), grouped by `public_rate_plan`, sum `debit_amount` per
+ *  bucket. Verified exact against Davenport 2026-07-19 ($492.05 / $2,706.13). */
+async function getRoomRevenueByPlanDay(
+  apiKey: string,
+  apiPropertyId: string,
+  day: string,
+): Promise<CloudbedsResult<{ transient: number; lease: number }>> {
+  const res = await diDataset1Grouped(apiKey, apiPropertyId, "public_rate_plan", ["debit_amount"], day, day, [
+    { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
+  ]);
+  if (!res.ok) return res;
+  let transient = 0;
+  let lease = 0;
+  for (let i = 0; i < res.data.index.length; i++) {
+    const amt = res.data.records.debit_amount?.[i] ?? 0;
+    if (classifyForReport(res.data.index[i]) === "lease") lease += amt;
+    else transient += amt;
+  }
+  return { ok: true, data: { transient, lease } };
+}
+
+/** In-house nights for ONE day, split transient/lease per `classifyForReport`.
+ *  Dataset 3, COUNTS ROWS per bucket (index.length) — NOT sum(room_count),
+ *  which is inflated by rate-plan-change history (see the caveat on
+ *  `diDataset3InHouseByPlanDay`/`getLeaseMix`). Task 1 spike (same-day,
+ *  2026-07-19): Lease exact (84); Transient off by ~2 (8 vs Monica's 10) —
+ *  likely same-day arrivals still `Confirmed` rather than `In-House` at
+ *  report-run time. Not force-corrected here.
+ *
+ *  IMPORTANT, discovered during Task 3 live re-validation (2026-07-22, 3 days
+ *  after the target date): `reservation_status` — and a reservation's
+ *  rate-plan string, which can grow a new comma-joined segment if the plan
+ *  changes — reflect the CURRENT state at QUERY TIME, not a historical
+ *  snapshot as of the queried day. Re-running this query for a stale past
+ *  date will drift further from the true count as (a) guests who have since
+ *  checked out drop out of the `In-House` filter entirely, and (b) a
+ *  reservation whose rate plan was later changed to a lease plan retroactively
+ *  reclassifies its earlier nights from transient to lease (lease has
+ *  precedence in `classifyForReport`). Confirmed live: the same 2026-07-19
+ *  query returned Transient=6/Lease=86 when run on 2026-07-22, vs the
+ *  same-day spike's Transient=8/Lease=84. **The daily report must run
+ *  promptly (same day / next morning) for accurate "Yesterday" nights — a
+ *  delayed re-run is not a faithful historical reproduction.** */
+async function getNightsByPlanDay(
+  apiKey: string,
+  apiPropertyId: string,
+  day: string,
+): Promise<CloudbedsResult<{ transient: number; lease: number }>> {
+  const res = await diDataset3InHouseByPlanDay(apiKey, apiPropertyId, day, "In-House");
+  if (!res.ok) return res;
+  let transient = 0;
+  let lease = 0;
+  for (const plan of res.data.index) {
+    if (classifyForReport(plan) === "lease") lease += 1;
+    else transient += 1;
+  }
+  return { ok: true, data: { transient, lease } };
+}
+
+/** On-the-books nights for ONE future day: same dataset-3 shape but the
+ *  in-house-only filter would return ~0 rows for a day nobody has arrived at
+ *  yet. Queries the two non-final statuses separately (Confirmed = booked,
+ *  not yet arrived; In-House = a current guest whose stay extends into this
+ *  future day) and sums — Cancelled/No-Show are excluded by omission, same
+ *  allow-list spirit as `RES_CANCELLED_STATUSES` used elsewhere in this file.
+ *  NOT independently live-validated (the brief's required validation targets
+ *  are Yesterday/MTD/YTD actuals only) — flagged as an approximation. */
+async function getOnTheBooksNightsByPlanDay(
+  apiKey: string,
+  apiPropertyId: string,
+  day: string,
+): Promise<CloudbedsResult<{ transient: number; lease: number }>> {
+  const [confirmed, inHouse] = await Promise.all([
+    diDataset3InHouseByPlanDay(apiKey, apiPropertyId, day, "Confirmed"),
+    diDataset3InHouseByPlanDay(apiKey, apiPropertyId, day, "In-House"),
+  ]);
+  const results = [confirmed, inHouse];
+  if (!confirmed.ok && !inHouse.ok) return confirmed;
+  let transient = 0;
+  let lease = 0;
+  for (const r of results) {
+    if (!r.ok) continue;
+    for (const plan of r.data.index) {
+      if (classifyForReport(plan) === "lease") lease += 1;
+      else transient += 1;
+    }
+  }
+  return { ok: true, data: { transient, lease } };
+}
+
+type BlockNights = { ooo: number; other: number };
+
+// /getRoomBlocks hard-caps date ranges — verified live 2026-07-22:
+// requesting >35 days returns HTTP 400 "Date range must be 35 days or less".
+// Stay comfortably under it.
+const BLOCK_QUERY_MAX_DAYS = 30;
+
+/** OOO + other-block room-nights within [start,end] (inclusive), each
+ *  clipped to the range. Chunks the /getRoomBlocks call into <=30-day windows
+ *  to respect the endpoint's 35-day cap; clipped overlap-nights decompose
+ *  additively across the (non-overlapping) chunk windows, so summing chunk
+ *  results is exact for the full range.
+ *
+ *  Block date semantics (verified live against Davenport 2026-07-22, single
+ *  day 2026-07-19): `endDate` is EXCLUSIVE (checkout-style, like reservation
+ *  checkin/checkout elsewhere in this file) — that assumption reproduces
+ *  Monica's Yesterday figures EXACTLY (ooo=2, otherBlocks=1).
+ *
+ *  FLAGGED, NOT RESOLVED: this same room-night model materially under-counts
+ *  for multi-day ranges — live Davenport MTD (2026-07-01..19) gives ooo=43 vs
+ *  Monica's reported 105. Monica's range-level OOO total does not appear to
+ *  be a straightforward sum of this endpoint's block-night overlaps; its
+ *  exact derivation is unresolved (see task-3-report.md). Reported honestly,
+ *  not forced to match. */
+async function getBlockNights(apiKey: string, start: string, end: string): Promise<CloudbedsResult<BlockNights>> {
+  const totalDays = dayCount(start, end);
+  const windows: { s: string; e: string }[] = [];
+  for (let offset = 0; offset < totalDays; offset += BLOCK_QUERY_MAX_DAYS) {
+    const s = shiftYmd(start, offset);
+    const len = Math.min(BLOCK_QUERY_MAX_DAYS, totalDays - offset);
+    windows.push({ s, e: shiftYmd(s, len - 1) });
+  }
+
+  const results = await Promise.all(
+    windows.map((w) => cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: w.s, endDate: w.e })),
+  );
+  if (results.every((r) => !r.ok)) return results[0];
+
+  let ooo = 0;
+  let other = 0;
+  results.forEach((res, i) => {
+    if (!res.ok) return;
+    const { s, e } = windows[i];
+    const windowEndExclusive = shiftYmd(e, 1);
+    for (const b of res.data?.roomBlocks ?? []) {
+      const clipStart = b.startDate > s ? b.startDate : s;
+      const clipEndExclusive = b.endDate < windowEndExclusive ? b.endDate : windowEndExclusive;
+      if (clipEndExclusive <= clipStart) continue;
+      const nights = dayCount(clipStart, shiftYmd(clipEndExclusive, -1));
+      const roomNights = nights * (b.rooms ?? []).length;
+      if (b.roomBlockType === "out_of_service") ooo += roomNights;
+      else other += roomNights;
+    }
+  });
+  return { ok: true, data: { ooo, other } };
+}
+
+/** Assemble one RowInputs for [start,end] (used for both actual periods and
+ *  single on-the-books days). `nightsFn` differs between actual (in-house
+ *  only) and on-the-books (confirmed+in-house) callers. Best-effort: a failed
+ *  day is skipped (treated as 0) rather than failing the whole range — logged
+ *  server-side so failures are visible even though RowInputs has no error
+ *  slot to carry them (flagged as a follow-up concern in the report). */
+async function buildRowInputs(
+  apiKey: string,
+  apiPropertyId: string,
+  start: string,
+  end: string,
+  capacity: number,
+  nightsFn: (apiKey: string, apiPropertyId: string, day: string) => Promise<CloudbedsResult<{ transient: number; lease: number }>>,
+): Promise<RowInputs> {
+  const days = Array.from({ length: dayCount(start, end) }, (_, i) => shiftYmd(start, i));
+
+  const [revenueDays, nightsDays, blocks] = await Promise.all([
+    Promise.all(days.map((d) => getRoomRevenueByPlanDay(apiKey, apiPropertyId, d))),
+    Promise.all(days.map((d) => nightsFn(apiKey, apiPropertyId, d))),
+    getBlockNights(apiKey, start, end),
+  ]);
+
+  let transientRev = 0;
+  let leaseRev = 0;
+  for (const r of revenueDays) {
+    if (r.ok) {
+      transientRev += r.data.transient;
+      leaseRev += r.data.lease;
+    } else {
+      console.error(`[revenue-report] revenue fetch failed for ${apiPropertyId} — treated as $0:`, r.error);
+    }
+  }
+  let transientNights = 0;
+  let leaseNights = 0;
+  for (const n of nightsDays) {
+    if (n.ok) {
+      transientNights += n.data.transient;
+      leaseNights += n.data.lease;
+    } else {
+      console.error(`[revenue-report] nights fetch failed for ${apiPropertyId} — treated as 0:`, n.error);
+    }
+  }
+  const ooo = blocks.ok ? blocks.data.ooo : 0;
+  const otherBlocks = blocks.ok ? blocks.data.other : 0;
+  if (!blocks.ok) console.error(`[revenue-report] block fetch failed for ${apiPropertyId} — treated as 0:`, blocks.error);
+
+  return {
+    transientNights,
+    leaseNights,
+    otherBlocks,
+    ooo,
+    inventory: capacity * dayCount(start, end),
+    transientRev,
+    leaseRev,
+  };
+}
+
+/** Fetch the actual+on-the-books revenue-report inputs for every configured
+ *  property, in parallel, for the report dated `asOf` (the "Yesterday" date). */
+export async function getRevenueReportInputs(
+  asOf: string,
+): Promise<{ actual: PropertyActual[]; onTheBooks: PropertyOnTheBooks[] }> {
+  const ranges = reportRanges(asOf);
+  const actual: PropertyActual[] = [];
+  const onTheBooks: PropertyOnTheBooks[] = [];
+
+  await Promise.all(
+    PROPERTIES.map(async (property) => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return; // unconfigured — omitted from both arrays
+      const apiPropertyId = property.apiPropertyId;
+      const keDays = (range: [string, string]) =>
+        property.code === "KE" ? { keDays: dayCount(range[0], range[1]) } : undefined;
+
+      const dashboard = await getDashboard(key);
+      const capacity = dashboard.ok ? dashboard.data.capacity : 0;
+      if (!dashboard.ok) {
+        console.error(`[revenue-report] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
+      }
+
+      const periodBlock = async (range: [string, string], lyRange: [string, string]): Promise<PeriodBlock> => {
+        const [actualInputs, lyInputs] = await Promise.all([
+          buildRowInputs(key, apiPropertyId, range[0], range[1], capacity, getNightsByPlanDay),
+          buildRowInputs(key, apiPropertyId, lyRange[0], lyRange[1], capacity, getNightsByPlanDay),
+        ]);
+        const lyHasData =
+          lyInputs.transientNights + lyInputs.leaseNights + lyInputs.otherBlocks + lyInputs.ooo + lyInputs.transientRev + lyInputs.leaseRev >
+          0;
+        return {
+          actual: derive(actualInputs, keDays(range)),
+          lastYear: lyHasData ? derive(lyInputs, keDays(lyRange)) : null,
+        };
+      };
+
+      const [yesterday, mtd, ytd] = await Promise.all([
+        periodBlock(ranges.yesterday, ranges.lyYesterday),
+        periodBlock(ranges.mtd, ranges.lyMtd),
+        periodBlock(ranges.ytd, ranges.lyYtd),
+      ]);
+
+      actual.push({ code: property.code, name: property.name, yesterday, mtd, ytd });
+
+      const days = await Promise.all(
+        ranges.onTheBooks.map(async (date) => {
+          const inputs = await buildRowInputs(key, apiPropertyId, date, date, capacity, getOnTheBooksNightsByPlanDay);
+          return { date, row: derive(inputs, keDays([date, date])) };
+        }),
+      );
+      onTheBooks.push({ code: property.code, name: property.name, days });
+    }),
+  );
+
+  return { actual, onTheBooks };
 }
