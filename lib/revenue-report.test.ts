@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derive, variance, sumSnapshotRows } from "./revenue-report";
+import { derive, variance, sumSnapshotRows, isCountDependentRow } from "./revenue-report";
 
 describe("derive", () => {
   it("computes Davenport Yesterday rows", () => {
@@ -69,5 +69,24 @@ describe("sumSnapshotRows", () => {
     expect(mtd.inventory).toBe(459); // summed, not capacity×days recomputed
     expect(mtd.transientRev).toBeCloseTo(1260.55, 2);
     expect(mtd.leaseRev).toBeCloseTo(7881.69, 2);
+  });
+});
+
+describe("isCountDependentRow", () => {
+  it("flags every cell that depends on occupancy counts (Occupied/Transient/Lease nights/Other/OOO/Available/%/ADR)", () => {
+    const countDependent = [
+      "occupied", "transientNights", "leaseNights", "otherBlocks", "ooo", "available",
+      "pOcc", "pOoo", "pAvail", "occAdjLess20", "adrCombined", "adrTransient", "adrLease",
+    ] as const;
+    for (const key of countDependent) {
+      expect(isCountDependentRow(key)).toBe(true);
+    }
+  });
+
+  it("does NOT flag the cells backed by exact backfilled revenue/inventory (always shown)", () => {
+    const kept = ["inventory", "roomRev", "transientRev", "leaseRev", "revpar"] as const;
+    for (const key of kept) {
+      expect(isCountDependentRow(key)).toBe(false);
+    }
   });
 });

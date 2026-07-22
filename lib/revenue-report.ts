@@ -65,7 +65,52 @@ export function sumSnapshotRows(rows: RowInputs[]): RowInputs {
   );
 }
 
-export type PeriodBlock = { actual: DerivedRow; lastYear: DerivedRow | null };
+export type PeriodBlock = {
+  actual: DerivedRow;
+  lastYear: DerivedRow | null;
+  /** True when this block's ACTUAL counts (Occupied/Transient/Lease/Other
+   *  blocks/OOO/Available/%s/ADRs) are not yet a complete period — i.e. the
+   *  block sums stored count-snapshots that don't cover the whole range
+   *  (revenue-only backfill, counts still accumulating forward from the daily
+   *  cron). Revenue/RevPAR/Inventory remain correct and are never blanked.
+   *  Undefined/false = complete (e.g. Yesterday, a live single-day pull, is
+   *  always complete). Set by getRevenueReportInputs; renderers read it to
+   *  decide whether to blank count-dependent cells — see isCountDependentRow. */
+  countsPartial?: boolean;
+};
+
+/** The DerivedRow fields whose values are undermined when a period's counts
+ *  are partial (see PeriodBlock.countsPartial) — everything that depends on
+ *  Occupied/Transient/Lease/Other/OOO/Available nights. Kyle's decision,
+ *  .superpowers/sdd/briefs/partial-counts-brief.md: renderers blank exactly
+ *  these keys (display "—"/blank) when a block is partial; Inventory,
+ *  Room Revenue, Transient/Lease REVENUE, and RevPar are always shown — they
+ *  come from the exact revenue backfill, not accumulating counts. */
+const COUNT_DEPENDENT_KEYS: ReadonlySet<string> = new Set([
+  "occupied",
+  "transientNights",
+  "leaseNights",
+  "otherBlocks",
+  "ooo",
+  "available",
+  "pOcc",
+  "pOoo",
+  "pAvail",
+  "occAdjLess20",
+  "adrCombined",
+  "adrTransient",
+  "adrLease",
+]);
+
+/** True iff `key` (a DerivedRow field name) is one of the count-dependent
+ *  cells that must be blanked when its PeriodBlock.countsPartial is true.
+ *  Pure/no I/O — unit-tested directly; renderers key their metric-row tables
+ *  off DerivedRow field names precisely so this stays unambiguous (two rows
+ *  are both LABELED "Transient"/"Lease" — one nights, one revenue — so the
+ *  blanking decision must key off the field, not the display label). */
+export function isCountDependentRow(key: keyof DerivedRow): boolean {
+  return COUNT_DEPENDENT_KEYS.has(key);
+}
 export type PropertyActual = {
   code: string; name: string; yesterday: PeriodBlock; mtd: PeriodBlock; ytd: PeriodBlock;
 };

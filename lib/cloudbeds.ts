@@ -1326,16 +1326,29 @@ export async function getRevenueReportInputs(
       const keDays = (range: [string, string]) =>
         property.code === "KE" ? { keDays: dayCount(range[0], range[1]) } : undefined;
 
-      const dashboard = await getDashboard(key);
+      const [dashboard, countsSince] = await Promise.all([
+        getDashboard(key),
+        getEarliestCountsDate(property.code),
+      ]);
       const capacity = dashboard.ok ? dashboard.data.capacity : 0;
       if (!dashboard.ok) {
         console.error(`[revenue-report] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
       }
+      // A block's counts are partial (not yet a full period) when this
+      // property has no banked count-snapshot yet, or the earliest one lands
+      // AFTER the block's range start — i.e. some days in [start, asOf] are
+      // revenue-only. Kyle's decision, partial-counts-brief.md.
+      const countsPartialFor = (range: [string, string]) => !countsSince || countsSince > range[0];
 
       // Yesterday: live single-day fetch, UNCHANGED. Also reused below as the
-      // "today" contribution to MTD/YTD (see rollup()).
+      // "today" contribution to MTD/YTD (see rollup()). Always a complete
+      // single-day pull — never blanked.
       const todayInputs = await buildRowInputs(key, apiPropertyId, asOf, asOf, capacity, getNightsByPlanDay);
-      const yesterday: PeriodBlock = { actual: derive(todayInputs, keDays(ranges.yesterday)), lastYear: null };
+      const yesterday: PeriodBlock = {
+        actual: derive(todayInputs, keDays(ranges.yesterday)),
+        lastYear: null,
+        countsPartial: false,
+      };
 
       // LY: snapshots only. No live Cloudbeds call, no "today" figure (the
       // range is entirely in the past).
@@ -1361,8 +1374,8 @@ export async function getRevenueReportInputs(
       ]);
 
       yesterday.lastYear = lyYesterday;
-      const mtd: PeriodBlock = { actual: mtdActual, lastYear: lyMtd };
-      const ytd: PeriodBlock = { actual: ytdActual, lastYear: lyYtd };
+      const mtd: PeriodBlock = { actual: mtdActual, lastYear: lyMtd, countsPartial: countsPartialFor(ranges.mtd) };
+      const ytd: PeriodBlock = { actual: ytdActual, lastYear: lyYtd, countsPartial: countsPartialFor(ranges.ytd) };
 
       actual.push({ code: property.code, name: property.name, yesterday, mtd, ytd });
 

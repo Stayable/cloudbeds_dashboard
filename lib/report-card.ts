@@ -38,20 +38,45 @@ function sumRoomRev(actual: PropertyActual[], pick: (p: PropertyActual) => Deriv
   return total;
 }
 
+/** True if ANY aggregate-eligible property's MTD counts are partial — in that
+ *  case the portfolio MTD occupancy % would combine some properties' real
+ *  counts with others' ~1-day counts, so it must not be surfaced at all
+ *  (Kyle's decision, partial-counts-brief.md). Room Revenue (MTD) is
+ *  unaffected and always shown. */
+function mtdCountsPartial(actual: PropertyActual[]): boolean {
+  return actual.some((p) => !excludeFromAggregate(p.code) && p.mtd.countsPartial === true);
+}
+
 /**
  * Build the Adaptive Card (v1.4) POST body for the Teams daily report post.
  * Pure function: no I/O, JSON-serializable, ASCII-only output.
  */
 export function buildReportCard(report: RevenueReport, baseUrl: string): object {
   const portfolioOccYesterday = weightedOcc(report.actual, (p) => p.yesterday.actual);
-  const portfolioOccMtd = weightedOcc(report.actual, (p) => p.mtd.actual);
   const roomRevYesterday = sumRoomRev(report.actual, (p) => p.yesterday.actual);
   const roomRevMtd = sumRoomRev(report.actual, (p) => p.mtd.actual);
+  const mtdPartial = mtdCountsPartial(report.actual);
 
   const footerParts = [report.sourceNote];
   if (report.trackingSince) {
     footerParts.push(`MTD/YTD accumulate from ${report.trackingSince}`);
   }
+
+  // Portfolio MTD occupancy % is only meaningful once every aggregate-eligible
+  // property's MTD counts are a complete period — otherwise it blends real
+  // counts with ~1-day counts into a garbage figure. Omit the fact entirely
+  // when partial; Room Revenue (MTD) is unaffected and always shown.
+  const facts: { title: string; value: string }[] = [
+    { title: "Portfolio Occupancy (Yesterday)", value: pct(portfolioOccYesterday) },
+  ];
+  if (!mtdPartial) {
+    const portfolioOccMtd = weightedOcc(report.actual, (p) => p.mtd.actual);
+    facts.push({ title: "Portfolio Occupancy (MTD)", value: pct(portfolioOccMtd) });
+  }
+  facts.push(
+    { title: "Room Revenue (Yesterday)", value: money(roomRevYesterday) },
+    { title: "Room Revenue (MTD)", value: money(roomRevMtd) },
+  );
 
   const body: unknown[] = [
     {
@@ -69,12 +94,7 @@ export function buildReportCard(report: RevenueReport, baseUrl: string): object 
     },
     {
       type: "FactSet",
-      facts: [
-        { title: "Portfolio Occupancy (Yesterday)", value: pct(portfolioOccYesterday) },
-        { title: "Portfolio Occupancy (MTD)", value: pct(portfolioOccMtd) },
-        { title: "Room Revenue (Yesterday)", value: money(roomRevYesterday) },
-        { title: "Room Revenue (MTD)", value: money(roomRevMtd) },
-      ],
+      facts,
     },
     {
       type: "TextBlock",

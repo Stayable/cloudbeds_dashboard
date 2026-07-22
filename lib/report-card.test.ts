@@ -21,4 +21,25 @@ describe("buildReportCard", () => {
     const s = JSON.stringify(c);
     expect(s).not.toMatch(/[^\x00-\x7F]/);
   });
+
+  it("shows Portfolio Occupancy (MTD) when MTD counts are complete", () => {
+    const c:any = buildReportCard(rpt, "https://dashboard.rentstayable.com");
+    const factSet = c.body.find((b:any)=>b.type==="FactSet" && b.facts.some((f:any)=>f.title.startsWith("Portfolio Occupancy")));
+    const titles = factSet.facts.map((f:any)=>f.title);
+    expect(titles).toContain("Portfolio Occupancy (MTD)");
+    expect(titles).toContain("Room Revenue (MTD)");
+  });
+
+  it("omits the garbage Portfolio Occupancy (MTD) fact when MTD counts are partial, but keeps Room Revenue (MTD)", () => {
+    const partialRpt:any = {
+      ...rpt,
+      actual: [{ ...rpt.actual[0], mtd: { ...rpt.actual[0].mtd, countsPartial: true } }],
+    };
+    const c:any = buildReportCard(partialRpt, "https://dashboard.rentstayable.com");
+    const factSet = c.body.find((b:any)=>b.type==="FactSet" && b.facts.some((f:any)=>f.title.includes("Occupancy") || f.title.includes("Revenue")));
+    const titles = factSet.facts.map((f:any)=>f.title);
+    expect(titles).not.toContain("Portfolio Occupancy (MTD)");
+    expect(titles).toContain("Portfolio Occupancy (Yesterday)");
+    expect(titles).toContain("Room Revenue (MTD)");
+  });
 });

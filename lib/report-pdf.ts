@@ -2,6 +2,7 @@
 // Consumes only lib/revenue-report.ts model types -- no network, no fs.
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { isCountDependentRow } from "./revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -23,32 +24,34 @@ type MetricRow = {
   label: string;
   indent?: boolean;
   fmt: Fmt;
+  key: keyof DerivedRow;
   get: (row: DerivedRow) => number | null;
 };
 
 const METRIC_ROWS: MetricRow[] = [
-  { label: "Occupied", fmt: "count", get: (r) => r.occupied },
-  { label: "Transient", indent: true, fmt: "count", get: (r) => r.transientNights },
-  { label: "Lease", indent: true, fmt: "count", get: (r) => r.leaseNights },
-  { label: "Other blocks", fmt: "count", get: (r) => r.otherBlocks },
-  { label: "Out-of-Order", fmt: "count", get: (r) => r.ooo },
-  { label: "Available", fmt: "count", get: (r) => r.available },
-  { label: "Inventory", fmt: "count", get: (r) => r.inventory },
-  { label: "% Occupied", fmt: "percent", get: (r) => r.pOcc },
-  { label: "% Out-of-Order", fmt: "percent", get: (r) => r.pOoo },
-  { label: PCT_AVAILABLE_LABEL, fmt: "percent", get: (r) => r.pAvail },
+  { label: "Occupied", fmt: "count", key: "occupied", get: (r) => r.occupied },
+  { label: "Transient", indent: true, fmt: "count", key: "transientNights", get: (r) => r.transientNights },
+  { label: "Lease", indent: true, fmt: "count", key: "leaseNights", get: (r) => r.leaseNights },
+  { label: "Other blocks", fmt: "count", key: "otherBlocks", get: (r) => r.otherBlocks },
+  { label: "Out-of-Order", fmt: "count", key: "ooo", get: (r) => r.ooo },
+  { label: "Available", fmt: "count", key: "available", get: (r) => r.available },
+  { label: "Inventory", fmt: "count", key: "inventory", get: (r) => r.inventory },
+  { label: "% Occupied", fmt: "percent", key: "pOcc", get: (r) => r.pOcc },
+  { label: "% Out-of-Order", fmt: "percent", key: "pOoo", get: (r) => r.pOoo },
+  { label: PCT_AVAILABLE_LABEL, fmt: "percent", key: "pAvail", get: (r) => r.pAvail },
   {
     label: "% Occupied Adjusted (less 20 rms)",
     fmt: "percent",
+    key: "occAdjLess20",
     get: (r) => r.occAdjLess20,
   },
-  { label: "Room Revenue", fmt: "currency", get: (r) => r.roomRev },
-  { label: "Transient", indent: true, fmt: "currency", get: (r) => r.transientRev },
-  { label: "Lease", indent: true, fmt: "currency", get: (r) => r.leaseRev },
-  { label: "ADR Combined", fmt: "currency", get: (r) => r.adrCombined },
-  { label: "ADR Transient", indent: true, fmt: "currency", get: (r) => r.adrTransient },
-  { label: "ADR Lease", indent: true, fmt: "currency", get: (r) => r.adrLease },
-  { label: "RevPar", fmt: "currency", get: (r) => r.revpar },
+  { label: "Room Revenue", fmt: "currency", key: "roomRev", get: (r) => r.roomRev },
+  { label: "Transient", indent: true, fmt: "currency", key: "transientRev", get: (r) => r.transientRev },
+  { label: "Lease", indent: true, fmt: "currency", key: "leaseRev", get: (r) => r.leaseRev },
+  { label: "ADR Combined", fmt: "currency", key: "adrCombined", get: (r) => r.adrCombined },
+  { label: "ADR Transient", indent: true, fmt: "currency", key: "adrTransient", get: (r) => r.adrTransient },
+  { label: "ADR Lease", indent: true, fmt: "currency", key: "adrLease", get: (r) => r.adrLease },
+  { label: "RevPar", fmt: "currency", key: "revpar", get: (r) => r.revpar },
 ];
 
 function fmtCount(n: number): string {
@@ -68,6 +71,9 @@ function fmtValue(fmt: Fmt, n: number | null): string {
   if (fmt === "currency") return fmtCurrency(n);
   return fmtPercent(n);
 }
+/** "—" for a count-dependent cell blanked by a partial MTD/YTD block —
+ *  Kyle's decision, partial-counts-brief.md. */
+const BLANKED = "—";
 
 /** Metric rows applicable to a property, given whether any block has occAdjLess20. */
 function applicableMetricRows(anyAdjusted: boolean): MetricRow[] {
@@ -97,13 +103,16 @@ function actualBody(property: PropertyActual): string[][] {
     const label = metric.indent ? `  ${metric.label}` : metric.label;
     const cells: string[] = [label];
     for (const g of groups) {
+      // Kyle's decision, partial-counts-brief.md: blank count-dependent
+      // Actual/Variance cells for a partial MTD/YTD block; LY stays intact.
+      const blanked = g.countsPartial === true && isCountDependentRow(metric.key);
       const actualVal = metric.get(g.actual);
       const lastYearVal = g.lastYear ? metric.get(g.lastYear) : null;
       const varianceVal =
         actualVal == null || lastYearVal == null ? null : actualVal - lastYearVal;
-      cells.push(fmtValue(metric.fmt, actualVal));
+      cells.push(blanked ? BLANKED : fmtValue(metric.fmt, actualVal));
       cells.push(fmtValue(metric.fmt, lastYearVal));
-      cells.push(fmtValue(metric.fmt, varianceVal));
+      cells.push(blanked ? BLANKED : fmtValue(metric.fmt, varianceVal));
     }
     return cells;
   });

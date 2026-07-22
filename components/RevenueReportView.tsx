@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { isCountDependentRow } from "@/lib/revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -16,6 +17,7 @@ type MetricRow = {
   label: string;
   indent?: boolean;
   kind: MetricKind;
+  key: keyof DerivedRow;
   get: (row: DerivedRow) => number | null;
   /** The KE-only "% Occupied Adjusted (less 20 rms)" row — rendered only when
    *  at least one period in the block actually carries occAdjLess20. */
@@ -23,29 +25,30 @@ type MetricRow = {
 };
 
 const METRIC_ROWS: MetricRow[] = [
-  { label: "Occupied", kind: "count", get: (r) => r.occupied },
-  { label: "Transient", indent: true, kind: "count", get: (r) => r.transientNights },
-  { label: "Lease", indent: true, kind: "count", get: (r) => r.leaseNights },
-  { label: "Other blocks", kind: "count", get: (r) => r.otherBlocks },
-  { label: "Out-of-Order", kind: "count", get: (r) => r.ooo },
-  { label: "Available", kind: "count", get: (r) => r.available },
-  { label: "Inventory", kind: "count", get: (r) => r.inventory },
-  { label: "% Occupied", kind: "pct", get: (r) => r.pOcc },
-  { label: "% Out-of-Order", kind: "pct", get: (r) => r.pOoo },
-  { label: "% Available", kind: "pct", get: (r) => r.pAvail },
+  { label: "Occupied", kind: "count", key: "occupied", get: (r) => r.occupied },
+  { label: "Transient", indent: true, kind: "count", key: "transientNights", get: (r) => r.transientNights },
+  { label: "Lease", indent: true, kind: "count", key: "leaseNights", get: (r) => r.leaseNights },
+  { label: "Other blocks", kind: "count", key: "otherBlocks", get: (r) => r.otherBlocks },
+  { label: "Out-of-Order", kind: "count", key: "ooo", get: (r) => r.ooo },
+  { label: "Available", kind: "count", key: "available", get: (r) => r.available },
+  { label: "Inventory", kind: "count", key: "inventory", get: (r) => r.inventory },
+  { label: "% Occupied", kind: "pct", key: "pOcc", get: (r) => r.pOcc },
+  { label: "% Out-of-Order", kind: "pct", key: "pOoo", get: (r) => r.pOoo },
+  { label: "% Available", kind: "pct", key: "pAvail", get: (r) => r.pAvail },
   {
     label: "% Occupied Adjusted (less 20 rms)",
     kind: "pct",
+    key: "occAdjLess20",
     get: (r) => r.occAdjLess20,
     keOnly: true,
   },
-  { label: "Room Revenue", kind: "currency", get: (r) => r.roomRev },
-  { label: "Transient", indent: true, kind: "currency", get: (r) => r.transientRev },
-  { label: "Lease", indent: true, kind: "currency", get: (r) => r.leaseRev },
-  { label: "ADR Combined", kind: "currency", get: (r) => r.adrCombined },
-  { label: "ADR Transient", indent: true, kind: "currency", get: (r) => r.adrTransient },
-  { label: "ADR Lease", indent: true, kind: "currency", get: (r) => r.adrLease },
-  { label: "RevPar", kind: "currency", get: (r) => r.revpar },
+  { label: "Room Revenue", kind: "currency", key: "roomRev", get: (r) => r.roomRev },
+  { label: "Transient", indent: true, kind: "currency", key: "transientRev", get: (r) => r.transientRev },
+  { label: "Lease", indent: true, kind: "currency", key: "leaseRev", get: (r) => r.leaseRev },
+  { label: "ADR Combined", kind: "currency", key: "adrCombined", get: (r) => r.adrCombined },
+  { label: "ADR Transient", indent: true, kind: "currency", key: "adrTransient", get: (r) => r.adrTransient },
+  { label: "ADR Lease", indent: true, kind: "currency", key: "adrLease", get: (r) => r.adrLease },
+  { label: "RevPar", kind: "currency", key: "revpar", get: (r) => r.revpar },
 ];
 
 const AVAILABILITY_LABEL = "% Available";
@@ -67,6 +70,11 @@ function fmtMetric(kind: MetricKind, n: number | null): string {
   if (kind === "currency") return fmtCurrency(n);
   return fmtPct(n);
 }
+/** "—" placeholder for a count-dependent cell blanked by a partial block
+ *  (Kyle's decision, partial-counts-brief.md) — distinct from an ordinary
+ *  blank (missing LY history, or a non-KE property's adjusted-occ row),
+ *  which stays a plain empty cell via fmtMetric(null). */
+const BLANKED = "—";
 
 /** Availability highlighting (mirrors the xlsx conditional formatting):
  *  red bg <=15%, orange bg <=20%, purple bold text >=40%. */
@@ -140,7 +148,8 @@ function ActualTable({ property }: { property: PropertyActual }) {
               <tr key={metric.label} className="border-t border-slate-100">
                 {metricLabelCell(metric)}
                 {groups.map((g) => {
-                  const actualVal = metric.get(g.block.actual);
+                  const blanked = g.block.countsPartial === true && isCountDependentRow(metric.key);
+                  const actualVal = blanked ? null : metric.get(g.block.actual);
                   const lyVal = g.block.lastYear ? metric.get(g.block.lastYear) : null;
                   const varVal = actualVal == null || lyVal == null ? null : actualVal - lyVal;
                   return (
@@ -151,7 +160,7 @@ function ActualTable({ property }: { property: PropertyActual }) {
                           (isAvail ? availClass(actualVal) : "")
                         }
                       >
-                        {fmtMetric(metric.kind, actualVal)}
+                        {blanked ? BLANKED : fmtMetric(metric.kind, actualVal)}
                       </td>
                       <td
                         className={
@@ -167,7 +176,7 @@ function ActualTable({ property }: { property: PropertyActual }) {
                           (isAvail ? availClass(varVal) : "")
                         }
                       >
-                        {fmtMetric(metric.kind, varVal)}
+                        {blanked ? BLANKED : fmtMetric(metric.kind, varVal)}
                       </td>
                     </Fragment>
                   );

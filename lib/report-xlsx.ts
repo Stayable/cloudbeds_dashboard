@@ -1,6 +1,7 @@
 // Excel renderer for the daily occupancy/revenue report (Monica's layout).
 // Consumes only lib/revenue-report.ts model types -- no network, no fs.
 import ExcelJS from "exceljs";
+import { isCountDependentRow } from "./revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -35,32 +36,34 @@ type MetricRow = {
   label: string;
   indent?: boolean;
   fmt: string;
+  key: keyof DerivedRow;
   get: (row: DerivedRow) => number | null;
 };
 
 const METRIC_ROWS: MetricRow[] = [
-  { label: "Occupied", fmt: COUNT_FMT, get: (r) => r.occupied },
-  { label: "Transient", indent: true, fmt: COUNT_FMT, get: (r) => r.transientNights },
-  { label: "Lease", indent: true, fmt: COUNT_FMT, get: (r) => r.leaseNights },
-  { label: "Other blocks", fmt: COUNT_FMT, get: (r) => r.otherBlocks },
-  { label: "Out-of-Order", fmt: COUNT_FMT, get: (r) => r.ooo },
-  { label: "Available", fmt: COUNT_FMT, get: (r) => r.available },
-  { label: "Inventory", fmt: COUNT_FMT, get: (r) => r.inventory },
-  { label: "% Occupied", fmt: PCT_FMT, get: (r) => r.pOcc },
-  { label: "% Out-of-Order", fmt: PCT_FMT, get: (r) => r.pOoo },
-  { label: "% Available", fmt: PCT_FMT, get: (r) => r.pAvail },
+  { label: "Occupied", fmt: COUNT_FMT, key: "occupied", get: (r) => r.occupied },
+  { label: "Transient", indent: true, fmt: COUNT_FMT, key: "transientNights", get: (r) => r.transientNights },
+  { label: "Lease", indent: true, fmt: COUNT_FMT, key: "leaseNights", get: (r) => r.leaseNights },
+  { label: "Other blocks", fmt: COUNT_FMT, key: "otherBlocks", get: (r) => r.otherBlocks },
+  { label: "Out-of-Order", fmt: COUNT_FMT, key: "ooo", get: (r) => r.ooo },
+  { label: "Available", fmt: COUNT_FMT, key: "available", get: (r) => r.available },
+  { label: "Inventory", fmt: COUNT_FMT, key: "inventory", get: (r) => r.inventory },
+  { label: "% Occupied", fmt: PCT_FMT, key: "pOcc", get: (r) => r.pOcc },
+  { label: "% Out-of-Order", fmt: PCT_FMT, key: "pOoo", get: (r) => r.pOoo },
+  { label: "% Available", fmt: PCT_FMT, key: "pAvail", get: (r) => r.pAvail },
   {
     label: "% Occupied Adjusted (less 20 rms)",
     fmt: PCT_FMT,
+    key: "occAdjLess20",
     get: (r) => r.occAdjLess20,
   },
-  { label: "Room Revenue", fmt: CURRENCY_FMT, get: (r) => r.roomRev },
-  { label: "Transient", indent: true, fmt: CURRENCY_FMT, get: (r) => r.transientRev },
-  { label: "Lease", indent: true, fmt: CURRENCY_FMT, get: (r) => r.leaseRev },
-  { label: "ADR Combined", fmt: CURRENCY_FMT, get: (r) => r.adrCombined },
-  { label: "ADR Transient", indent: true, fmt: CURRENCY_FMT, get: (r) => r.adrTransient },
-  { label: "ADR Lease", indent: true, fmt: CURRENCY_FMT, get: (r) => r.adrLease },
-  { label: "RevPar", fmt: CURRENCY_FMT, get: (r) => r.revpar },
+  { label: "Room Revenue", fmt: CURRENCY_FMT, key: "roomRev", get: (r) => r.roomRev },
+  { label: "Transient", indent: true, fmt: CURRENCY_FMT, key: "transientRev", get: (r) => r.transientRev },
+  { label: "Lease", indent: true, fmt: CURRENCY_FMT, key: "leaseRev", get: (r) => r.leaseRev },
+  { label: "ADR Combined", fmt: CURRENCY_FMT, key: "adrCombined", get: (r) => r.adrCombined },
+  { label: "ADR Transient", indent: true, fmt: CURRENCY_FMT, key: "adrTransient", get: (r) => r.adrTransient },
+  { label: "ADR Lease", indent: true, fmt: CURRENCY_FMT, key: "adrLease", get: (r) => r.adrLease },
+  { label: "RevPar", fmt: CURRENCY_FMT, key: "revpar", get: (r) => r.revpar },
 ];
 
 function applyBanner(ws: ExcelJS.Worksheet, colCount: number) {
@@ -191,13 +194,22 @@ function renderActualBlock(
 
     groups.forEach((g, gi) => {
       const startCol = 2 + gi * 3;
-      const actualVal = metric.get(g.block.actual);
+      // Kyle's decision, partial-counts-brief.md: a count-dependent MTD/YTD
+      // cell whose counts aren't a complete period yet renders as a genuinely
+      // blank cell (empty string, NOT 0 / "$0.00") — LY stays intact (it's a
+      // complete historical period), so only Actual/Variance are blanked.
+      const blanked = g.block.countsPartial === true && isCountDependentRow(metric.key);
+      const rawActualVal = metric.get(g.block.actual);
+      const actualVal: number | string | null = blanked ? "" : rawActualVal;
       const lastYearVal = g.block.lastYear ? metric.get(g.block.lastYear) : null;
-      const varianceVal =
-        actualVal == null || lastYearVal == null ? null : actualVal - lastYearVal;
+      const varianceVal: number | string | null = blanked
+        ? ""
+        : rawActualVal == null || lastYearVal == null
+          ? null
+          : rawActualVal - lastYearVal;
 
       styledCell(ws, row, startCol, actualVal, {
-        fmt: metric.fmt,
+        fmt: blanked ? undefined : metric.fmt,
         align: "right",
         border: true,
       });
@@ -207,7 +219,7 @@ function renderActualBlock(
         border: true,
       });
       styledCell(ws, row, startCol + 2, varianceVal, {
-        fmt: metric.fmt,
+        fmt: blanked ? undefined : metric.fmt,
         align: "right",
         border: true,
       });
