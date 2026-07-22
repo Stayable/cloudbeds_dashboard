@@ -10,7 +10,7 @@
 
 export const AUTH_COOKIE = "sd_auth";
 
-export type Level = "base" | "exec" | "crystal" | "monica" | "bea" | "ops";
+export type Level = "base" | "exec" | "crystal" | "monica" | "bea" | "ops" | "elise";
 
 // Per-user dashboard levels (each unlocks only its own /<level> route; exec/CEO
 // sees everything). PINs live in Neon (lib/pins.ts) — there is no env-var PIN.
@@ -19,9 +19,10 @@ export const USER_PINS: { level: Exclude<Level, "base" | "exec"> }[] = [
   { level: "monica" },
   { level: "bea" },
   { level: "ops" },
+  { level: "elise" },
 ];
 
-export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea", "ops"];
+export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea", "ops", "elise"];
 
 /** Which level a path needs. /rob (the CEO's own view) => exec; each per-user
  *  route => its own level; everything else => base. */
@@ -41,13 +42,22 @@ export function homeForLevel(level: Level): string {
   return `/${level}`; // crystal, monica, bea, …
 }
 
+/** Levels that are FULLY ISOLATED — they may reach ONLY their own /<level>
+ *  route, not even the shared home (unlike other per-user levels, which can
+ *  still see / for the "← Dashboard" back-link). Used for external/vendor
+ *  access (e.g. EliseAI support) that must not see anything else in the app. */
+export const RESTRICTED_LEVELS = new Set<Level>(["elise"]);
+
 /** Can `level` view `pathname`? exec sees all; base routes (the shared home /)
  *  are visible to ANY authenticated level — the `base`/MAIN pin exists so the
  *  home is gated (not public), but per-user levels can still reach it (e.g. the
- *  "← Dashboard" back-link). A per-user level still reaches only its own /route. */
+ *  "← Dashboard" back-link). A per-user level still reaches only its own /route.
+ *  RESTRICTED_LEVELS (e.g. elise) are the exception: they reach ONLY their own
+ *  route, not even the shared home. */
 export function canAccess(level: Level, pathname: string): boolean {
   if (level === "exec") return true; // CEO sees everything
   const need = requiredLevel(pathname);
+  if (RESTRICTED_LEVELS.has(level)) return need === level; // elise: ONLY its own route
   if (need === "base") return true; // any authenticated level sees the shared home
   return need === level;
 }

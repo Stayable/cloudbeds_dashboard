@@ -24,6 +24,7 @@ describe("requiredLevel", () => {
     expect(requiredLevel("/")).toBe("base");
     expect(requiredLevel("/api/feedback")).toBe("base");
     expect(requiredLevel("/ops")).toBe("ops");
+    expect(requiredLevel("/elise")).toBe("elise");
   });
 });
 
@@ -35,6 +36,7 @@ describe("homeForLevel", () => {
     expect(homeForLevel("monica")).toBe("/monica");
     expect(homeForLevel("bea")).toBe("/bea");
     expect(homeForLevel("ops")).toBe("/ops");
+    expect(homeForLevel("elise")).toBe("/elise");
   });
 });
 
@@ -59,6 +61,13 @@ describe("canAccess", () => {
     expect(canAccess("ops", "/monica")).toBe(false);
     expect(canAccess("ops", "/")).toBe(true);
     expect(canAccess("exec", "/ops")).toBe(true);
+  });
+  it("elise is fully isolated: reaches ONLY /elise, not even the shared home; exec still sees it", () => {
+    expect(canAccess("elise", "/elise")).toBe(true);
+    expect(canAccess("elise", "/")).toBe(false);
+    expect(canAccess("elise", "/ops")).toBe(false);
+    expect(canAccess("crystal", "/")).toBe(true); // unrestricted per-user levels unaffected
+    expect(canAccess("exec", "/elise")).toBe(true);
   });
 });
 

@@ -33,7 +33,7 @@ async function effectivePins(): Promise<Map<Level, string>> {
 export async function findLevelByPin(pin: string): Promise<Level | null> {
   if (!pin) return null;
   const pins = await effectivePins();
-  const order: Level[] = ["exec", "crystal", "monica", "bea", "ops", "base"];
+  const order: Level[] = ["exec", "crystal", "monica", "bea", "ops", "elise", "base"];
   for (const level of order) {
     if (pins.get(level) === pin) return level;
   }
