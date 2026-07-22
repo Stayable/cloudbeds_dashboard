@@ -121,6 +121,33 @@ export default async function OpsPage({
         <p className="mt-1 text-sm text-white/70">
           OOO rooms, leasing, occupancy, evictions, and reviews across the portfolio.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-widest text-white/60">Export:</span>
+          <a
+            href="/ops/occupancy.pdf"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            Occupancy PDF
+          </a>
+          <a
+            href="/ops/ooo.pdf"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            OOO PDF
+          </a>
+          <a
+            href="/ops/leasing.pdf"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            Leasing PDF
+          </a>
+          <a
+            href="/ops/reviews.pdf"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            Reviews PDF
+          </a>
+        </div>
       </header>
 
       <div className="lg:flex lg:gap-8">
