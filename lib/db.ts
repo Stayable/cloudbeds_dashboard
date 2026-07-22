@@ -253,3 +253,56 @@ export async function getEarliestSnapshotDate(propertyCode: string | null): Prom
   `) as { min_date: string | null }[];
   return rows[0]?.min_date ?? null;
 }
+
+// --- Historical revenue-only backfill (Kyle's decision — see
+// .superpowers/sdd/briefs/revenue-backfill-brief.md) -------------------------
+// Revenue (dataset-1 service_date) IS historically exact and can be
+// reconstructed for past days; occupancy COUNTS cannot (dataset-3 status/rate-
+// plan fields are current-state only — see the drift note on
+// getNightsByPlanDay in lib/cloudbeds.ts) and must keep accumulating forward
+// via the daily cron's upsertReportSnapshot. upsertRevenueSnapshot therefore
+// touches ONLY transient_rev/lease_rev/inventory on conflict — the count
+// columns (transient_nights/lease_nights/other_blocks/ooo) are never clobbered
+// so a real count-snapshot banked by the cron always survives a backfill re-run.
+
+/** Upsert ONLY the revenue + inventory columns for one day/property. INSERTs a
+ *  fresh row with the count columns defaulted to 0 if none exists yet; on
+ *  conflict, updates transient_rev/lease_rev/inventory ONLY — never the count
+ *  columns, so a real cron-banked count snapshot is preserved. Idempotent. */
+export async function upsertRevenueSnapshot(
+  propertyCode: string,
+  stayDate: string,
+  transientRev: number,
+  leaseRev: number,
+  inventory: number,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into report_daily_snapshot (
+      property_code, stay_date, transient_rev, lease_rev, inventory
+    )
+    values (
+      ${propertyCode}, ${stayDate}, ${transientRev}, ${leaseRev}, ${inventory}
+    )
+    on conflict (property_code, stay_date) do update set
+      transient_rev = excluded.transient_rev,
+      lease_rev = excluded.lease_rev,
+      inventory = excluded.inventory,
+      updated_at = now()
+  `;
+}
+
+/** Earliest stay_date with a real (non-zero) count snapshot — i.e. banked by
+ *  the daily cron, not just the revenue backfill — for a property (or across
+ *  all if null). Null if no counts have been banked yet. Backs the report's
+ *  "counts accumulate since" caveat. */
+export async function getEarliestCountsDate(propertyCode: string | null): Promise<string | null> {
+  const sql = db();
+  const rows = (await sql`
+    select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
+    from report_daily_snapshot
+    where (${propertyCode}::text is null or property_code = ${propertyCode})
+      and (transient_nights + lease_nights + other_blocks + ooo) > 0
+  `) as { min_date: string | null }[];
+  return rows[0]?.min_date ?? null;
+}

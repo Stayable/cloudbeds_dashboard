@@ -11,7 +11,14 @@
 import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
 import { dayCount, easternToday, monthStart, shiftYmd } from "@/lib/dates";
-import { getEarliestSnapshotDate, getReportSnapshots, upsertReportSnapshot, type ReportSnapshotRow } from "@/lib/db";
+import {
+  getEarliestCountsDate,
+  getEarliestSnapshotDate,
+  getReportSnapshots,
+  upsertReportSnapshot,
+  upsertRevenueSnapshot,
+  type ReportSnapshotRow,
+} from "@/lib/db";
 import {
   classifyForReport,
   derive,
@@ -1071,6 +1078,20 @@ export function reportRanges(asOf: string): ReportRanges {
   };
 }
 
+/** Pure classify+sum helper: given (plan, amount) rows, split the total into
+ *  transient/lease per `classifyForReport`. Extracted from
+ *  `getRoomRevenueByPlanDay` so the actual math is unit-testable without any
+ *  I/O (Data Insights query shape is exercised live, not in unit tests). */
+export function sumRevenueByClass(planAmounts: { plan: string; amount: number }[]): { transient: number; lease: number } {
+  let transient = 0;
+  let lease = 0;
+  for (const { plan, amount } of planAmounts) {
+    if (classifyForReport(plan) === "lease") lease += amount;
+    else transient += amount;
+  }
+  return { transient, lease };
+}
+
 /** Room-Rate revenue for ONE day, split transient/lease per `classifyForReport`.
  *  Dataset 1, `service_date` = day, `transaction_type = "Room Rate"` (excludes
  *  fees/tax/payments), grouped by `public_rate_plan`, sum `debit_amount` per
@@ -1084,14 +1105,8 @@ async function getRoomRevenueByPlanDay(
     { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
   ]);
   if (!res.ok) return res;
-  let transient = 0;
-  let lease = 0;
-  for (let i = 0; i < res.data.index.length; i++) {
-    const amt = res.data.records.debit_amount?.[i] ?? 0;
-    if (classifyForReport(res.data.index[i]) === "lease") lease += amt;
-    else transient += amt;
-  }
-  return { ok: true, data: { transient, lease } };
+  const rows = res.data.index.map((plan, i) => ({ plan, amount: res.data.records.debit_amount?.[i] ?? 0 }));
+  return { ok: true, data: sumRevenueByClass(rows) };
 }
 
 /** In-house nights for ONE day, split transient/lease per `classifyForReport`.
@@ -1397,21 +1412,92 @@ export async function persistDailySnapshots(asOf: string): Promise<{ written: nu
   return { written };
 }
 
+/** Historical REVENUE-ONLY backfill (Kyle's decision — see
+ *  .superpowers/sdd/briefs/revenue-backfill-brief.md). Revenue (dataset-1
+ *  `service_date`) IS historically exact and can be reconstructed for any past
+ *  day; occupancy COUNTS cannot (dataset-3 status/rate-plan fields are
+ *  current-state only, not a historical snapshot — see the drift note on
+ *  `getNightsByPlanDay` above) and must keep accumulating forward via the
+ *  daily cron. This function therefore NEVER writes count fields — it calls
+ *  `upsertRevenueSnapshot` (partial upsert: transient_rev/lease_rev/inventory
+ *  ONLY), so a real cron-banked count snapshot for the same day is preserved.
+ *
+ *  For each configured property (key + apiPropertyId), fetches capacity ONCE
+ *  (current `getDashboard`, used as a proxy for historical capacity — a known,
+ *  accepted approximation for the revenue/RevPAR backfill), then walks each
+ *  day in [startDate, endDate] SEQUENTIALLY (to respect Data Insights rate
+ *  limits) fetching Room-Rate revenue and upserting it. Properties run in
+ *  parallel. A day that errors is logged and skipped — one bad day/property
+ *  never aborts the run. Idempotent: safe to re-run over any range. */
+export async function backfillRevenue(
+  startDate: string,
+  endDate: string,
+): Promise<{ days: number; rowsWritten: number; properties: number }> {
+  const days = Array.from({ length: dayCount(startDate, endDate) }, (_, i) => shiftYmd(startDate, i));
+  let rowsWritten = 0;
+  let properties = 0;
+
+  await Promise.all(
+    PROPERTIES.map(async (property) => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return; // unconfigured — skipped entirely
+      const apiPropertyId = property.apiPropertyId;
+      properties++;
+
+      const dashboard = await getDashboard(key);
+      const capacity = dashboard.ok ? dashboard.data.capacity : 0;
+      if (!dashboard.ok) {
+        console.error(`[backfill-revenue] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
+      }
+
+      // Sequential across days (per property) to respect DI rate limits;
+      // properties themselves already run in parallel via Promise.all above.
+      for (const day of days) {
+        try {
+          const rev = await getRoomRevenueByPlanDay(key, apiPropertyId, day);
+          if (!rev.ok) {
+            console.error(`[backfill-revenue] revenue fetch failed for ${property.code} ${day} — skipped:`, rev.error);
+            continue;
+          }
+          await upsertRevenueSnapshot(property.code, day, rev.data.transient, rev.data.lease, capacity);
+          rowsWritten++;
+        } catch (e) {
+          console.error(`[backfill-revenue] day failed for ${property.code} ${day} — skipped:`, e);
+        }
+      }
+    }),
+  );
+
+  return { days: days.length, rowsWritten, properties };
+}
+
 /** Single source of truth for "turn a date into a full RevenueReport" — the
  *  /report page (this task), the download routes (Task 7), and the cron job
  *  (Task 10) all call this instead of re-deriving asOf/generatedEastern
  *  themselves. Defaults `asOf` to Yesterday (Eastern) when omitted, matching
  *  the daily report's natural cadence (today's data isn't final until the
- *  night audit runs). */
+ *  night audit runs). `sourceNote` folds in the revenue-backfill caveat
+ *  (Kyle's decision, revenue-backfill-brief.md) so renderers need no change:
+ *  MTD/YTD revenue/RevPAR are the full, exact period (backfilled); occupancy
+ *  counts/%/ADR are partial, accumulating forward from the earliest real
+ *  cron-banked count day. */
 export async function buildRevenueReport(asOf?: string): Promise<RevenueReport> {
   const day = asOf ?? shiftYmd(easternToday(), -1);
-  const { actual, onTheBooks, trackingSince } = await getRevenueReportInputs(day);
+  const [{ actual, onTheBooks, trackingSince }, countsSince] = await Promise.all([
+    getRevenueReportInputs(day),
+    getEarliestCountsDate(null),
+  ]);
+  const note =
+    SOURCE_NOTE +
+    " MTD/YTD Room Revenue and RevPAR reflect the full period (revenue is backfilled and exact); occupancy counts, % Occupancy and ADR accumulate from " +
+    (countsSince ?? "the first cron run") +
+    " and are partial until a full period is banked.";
   return {
     asOf: day,
     generatedEastern: `${easternToday()} ET`,
     actual,
     onTheBooks,
     trackingSince: trackingSince ?? undefined,
-    sourceNote: SOURCE_NOTE,
+    sourceNote: note,
   };
 }
