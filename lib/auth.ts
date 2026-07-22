@@ -34,12 +34,11 @@ export function requiredLevel(pathname: string): Level {
   return "base";
 }
 
-/** The dashboard a level lands on after login. Exec/CEO (Rob) → /rob; each
- *  per-user level → its own route; base → /. */
+/** The dashboard a level lands on after login. Everyone lands on the shared
+ *  Home `/` (nav bar reaches everything else they're permitted); the `elise`
+ *  level is fully isolated and lands on its own /elise route instead. */
 export function homeForLevel(level: Level): string {
-  if (level === "base") return "/";
-  if (level === "exec") return "/rob";
-  return `/${level}`; // crystal, monica, bea, …
+  return level === "elise" ? "/elise" : "/";
 }
 
 /** Levels that are FULLY ISOLATED — they may reach ONLY their own /<level>
@@ -48,18 +47,51 @@ export function homeForLevel(level: Level): string {
  *  access (e.g. EliseAI support) that must not see anything else in the app. */
 export const RESTRICTED_LEVELS = new Set<Level>(["elise"]);
 
-/** Can `level` view `pathname`? exec sees all; base routes (the shared home /)
- *  are visible to ANY authenticated level — the `base`/MAIN pin exists so the
- *  home is gated (not public), but per-user levels can still reach it (e.g. the
- *  "← Dashboard" back-link). A per-user level still reaches only its own /route.
- *  RESTRICTED_LEVELS (e.g. elise) are the exception: they reach ONLY their own
- *  route, not even the shared home. */
+/** Can `level` view `pathname`? Route groups, in priority order:
+ *  1. `/elise` — RESERVED for the `elise` pin only. Not even exec/CEO may
+ *     reach it (checked before the exec short-circuit below).
+ *  2. `elise` itself can reach nothing else — fully isolated.
+ *  3. `exec` (CEO) sees everything else — shared pages, every personal
+ *     dashboard, and `/rob`.
+ *  4. `/rob` is exec-only (exec already handled above).
+ *  5. `/crystal`, `/monica`, `/bea` are owner-only per-user dashboards.
+ *  6. Everything else (shared pages `/`, `/ops`, `/report`, and any other
+ *     gated route) is visible to any authenticated, non-restricted level. */
 export function canAccess(level: Level, pathname: string): boolean {
-  if (level === "exec") return true; // CEO sees everything
-  const need = requiredLevel(pathname);
-  if (RESTRICTED_LEVELS.has(level)) return need === level; // elise: ONLY its own route
-  if (need === "base") return true; // any authenticated level sees the shared home
-  return need === level;
+  const seg = "/" + (pathname.split("/")[1] ?? "");
+  if (seg === "/elise") return level === "elise"; // /elise: ONLY the ELISE pin — not even exec
+  if (level === "elise") return false; // ELISE pin can reach nothing but /elise
+  if (level === "exec") return true; // CEO: everything else
+  if (seg === "/rob") return false; // exec-only (exec handled above)
+  if (seg === "/crystal" || seg === "/monica" || seg === "/bea") return seg === "/" + level; // owner only
+  // shared pages + any other gated route → any authenticated non-restricted level
+  return true;
+}
+
+// --- Nav bar: pages a level may navigate to ----------------------------------
+
+export type PageLink = { href: string; label: string };
+
+export const SHARED_PAGES: PageLink[] = [
+  { href: "/", label: "Home" },
+  { href: "/ops", label: "Operations" },
+  { href: "/report", label: "Revenue Report" },
+];
+
+const PERSONAL: Record<string, PageLink> = {
+  crystal: { href: "/crystal", label: "Crystal — VP Ops" },
+  monica: { href: "/monica", label: "Monica — Revenue" },
+  bea: { href: "/bea", label: "Bea — Ops Support" },
+};
+
+const EXEC_PAGE: PageLink = { href: "/rob", label: "Exec (CEO)" };
+
+/** Pages this level may navigate to (for the nav bar). */
+export function accessiblePages(level: Level): PageLink[] {
+  if (level === "elise") return [{ href: "/elise", label: "EliseAI Leasing" }];
+  if (level === "exec") return [...SHARED_PAGES, PERSONAL.crystal, PERSONAL.monica, PERSONAL.bea, EXEC_PAGE];
+  if (level in PERSONAL) return [...SHARED_PAGES, PERSONAL[level]];
+  return [...SHARED_PAGES]; // base, ops (viewer)
 }
 
 /** Sanitize a post-login redirect target to a same-site path. */
