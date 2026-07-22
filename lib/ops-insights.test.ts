@@ -233,7 +233,7 @@ describe("oooInsights", () => {
     expect(oooInsights(ooo)).toEqual(["No out-of-order data for this period."]);
   });
 
-  it("names the top property, the portfolio total, and the top reason", () => {
+  it("bases 'most blocked' on TOTAL, splits portfolio OOO vs Other, and keeps top reason", () => {
     const ooo: PropertyOoo[] = [
       {
         property: property({ code: "AA", name: "Alpha" }),
@@ -241,8 +241,8 @@ describe("oooInsights", () => {
         result: {
           ok: true,
           data: [
-            { room: "101", roomType: "Studio", roomTypeCode: "1DS", reason: "Renovation", startDate: "2026-07-01", endDate: "2026-07-31" },
-            { room: "102", roomType: "Studio", roomTypeCode: "1DS", reason: "Renovation", startDate: "2026-07-01", endDate: "2026-07-31" },
+            { room: "101", roomType: "Studio", roomTypeCode: "1DS", reason: "Renovation", startDate: "2026-07-01", endDate: "2026-07-31", category: "ooo" },
+            { room: "102", roomType: "Studio", roomTypeCode: "1DS", reason: "Renovation", startDate: "2026-07-01", endDate: "2026-07-31", category: "other" },
           ],
         },
       },
@@ -252,15 +252,18 @@ describe("oooInsights", () => {
         result: {
           ok: true,
           data: [
-            { room: "201", roomType: "Studio", roomTypeCode: "1DS", reason: "Maintenance", startDate: "2026-07-01", endDate: "2026-07-31" },
+            { room: "201", roomType: "Studio", roomTypeCode: "1DS", reason: "Maintenance", startDate: "2026-07-01", endDate: "2026-07-31", category: "ooo" },
           ],
         },
       },
     ];
     const out = oooInsights(ooo);
-    expect(out).toContain("Alpha has the most rooms out of order (2).");
-    expect(out).toContain("Portfolio total rooms out of order: 3.");
-    expect(out).toContain("Top out-of-order reason: Renovation (2 rooms).");
+    // Alpha has 2 TOTAL blocked rooms (1 ooo + 1 other) vs Bravo's 1 -- "most
+    // blocked" ranks by total, not just the ooo category.
+    expect(out).toContain("Alpha has the most blocked rooms (2).");
+    // Portfolio: Alpha(1 ooo, 1 other) + Bravo(1 ooo, 0 other) = 2 ooo, 1 other, 3 total.
+    expect(out).toContain("Portfolio total blocked rooms: 3 (2 out-of-order, 1 other blocks).");
+    expect(out).toContain("Top block reason: Renovation (2 rooms).");
   });
 });
 

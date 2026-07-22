@@ -9,7 +9,7 @@
 import type { OccProperty } from "@/components/OccupancyView";
 import type { LeasingView } from "@/lib/leasing";
 import type { ReviewsView } from "@/lib/reviews";
-import type { PropertyOoo } from "@/lib/cloudbeds";
+import { summarizeOoo, type PropertyOoo } from "@/lib/cloudbeds";
 import { pct, int } from "@/lib/ops-pdf-kit";
 
 const LOW_OCC_THRESHOLD = 65; // percent -- OccProperty occupancy fields are 0-100, not fractions
@@ -150,27 +150,43 @@ export function reviewsInsights(view: ReviewsView): string[] {
   return out;
 }
 
-function oooCount(p: PropertyOoo): number {
+function totalBlockedCount(p: PropertyOoo): number {
   return p.result?.ok ? p.result.data.length : 0;
 }
 
-/** Property with the most out-of-order rooms, the portfolio total, and the
- *  top OOO reason (when reasons are available). Only properties with a
- *  successful OOO read are considered. */
+/** Property with the most TOTAL blocked rooms (Out-of-Order + Other combined
+ *  -- not just the out_of_service subset), the portfolio Out-of-Order-vs-Other
+ *  split, and the top block reason (across every category). Only properties
+ *  with a successful blocks read are considered.
+ *
+ *  Reworked for the OOO-vs-Other breakdown (Kyle's decision,
+ *  ooo-breakdown-brief.md): the dashboard used to under-report vs ops (Bea)
+ *  because it only counted out_of_service blocks. "Most blocked" now ranks by
+ *  TOTAL so a property with many "other" blocks (e.g. owner holds) still
+ *  surfaces, and a dedicated line reconciles the OOO/Other split. */
 export function oooInsights(ooo: PropertyOoo[]): string[] {
   const withData = ooo.filter((p) => p.configured && p.result?.ok);
   if (withData.length === 0) return ["No out-of-order data for this period."];
 
   const out: string[] = [];
 
-  const ranked = [...withData].sort((a, b) => oooCount(b) - oooCount(a));
+  const ranked = [...withData].sort((a, b) => totalBlockedCount(b) - totalBlockedCount(a));
   const top = ranked[0];
-  if (oooCount(top) > 0) {
-    out.push(`${top.property.name} has the most rooms out of order (${int(oooCount(top))}).`);
+  if (totalBlockedCount(top) > 0) {
+    out.push(`${top.property.name} has the most blocked rooms (${int(totalBlockedCount(top))}).`);
   }
 
-  const total = withData.reduce((s, p) => s + oooCount(p), 0);
-  out.push(`Portfolio total rooms out of order: ${int(total)}.`);
+  let portfolioOoo = 0;
+  let portfolioOther = 0;
+  for (const p of withData) {
+    if (!p.result?.ok) continue;
+    const s = summarizeOoo(p.result.data);
+    portfolioOoo += s.ooo;
+    portfolioOther += s.other;
+  }
+  out.push(
+    `Portfolio total blocked rooms: ${int(portfolioOoo + portfolioOther)} (${int(portfolioOoo)} out-of-order, ${int(portfolioOther)} other blocks).`,
+  );
 
   const reasonCounts = new Map<string, number>();
   for (const p of withData) {
@@ -183,7 +199,7 @@ export function oooInsights(ooo: PropertyOoo[]): string[] {
   }
   if (reasonCounts.size > 0) {
     const [topReason, topReasonCount] = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-    out.push(`Top out-of-order reason: ${topReason} (${int(topReasonCount)} rooms).`);
+    out.push(`Top block reason: ${topReason} (${int(topReasonCount)} rooms).`);
   }
 
   return out;

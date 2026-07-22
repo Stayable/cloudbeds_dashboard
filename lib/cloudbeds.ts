@@ -160,9 +160,13 @@ export async function getPortfolio(): Promise<PropertyDashboard[]> {
   );
 }
 
-// --- Out-of-service rooms (which rooms, not just the count) ------------------
-// getRoomBlocks lists out_of_service blocks (room + reason + dates); getRooms
-// maps roomID → room name/type. Room identifiers are inventory, not guest PII.
+// --- Blocked rooms: Out-of-Order vs Other (which rooms, not just the count) --
+// getRoomBlocks lists ALL room blocks (room + reason + dates) -- out_of_service
+// PLUS other block types (e.g. blocked_dates); getRooms maps roomID → room
+// name/type. Room identifiers are inventory, not guest PII. Ops (Bea) counts
+// every block type; the dashboard used to show out_of_service only, which
+// undercounted vs her tally (e.g. JN 20 vs 35) -- so every OooRoom below is
+// tagged `category: "ooo" | "other"` and callers show the full breakdown.
 
 /** Human room identity from getRooms: the room CODE (roomName, e.g. "133"),
  *  the type ("Single Studio") and the type short-code ("1DS") — the same
@@ -190,6 +194,7 @@ export type OooRoom = {
   reason: string;
   startDate: string;
   endDate: string;
+  category: "ooo" | "other"; // "ooo" = roomBlockType out_of_service; "other" = every other block type
 };
 
 /** All rooms for a property → roomID → code/type. getRooms is paginated
@@ -219,13 +224,20 @@ async function getRoomNameMap(apiKey: string): Promise<{ map: Map<string, OooRoo
   return { map, loaded };
 }
 
-/** Map out-of-service blocks → rooms using the name map. Pure (no I/O) so the
- *  no-raw-id guarantee is unit-tested. Unresolved roomIDs get a blank `room`
- *  (the UI shows a placeholder + a "Room scope" notice) — never the raw id. */
+/** Map ALL room blocks (out_of_service AND every other block type, e.g.
+ *  blocked_dates) → rooms using the name map. Pure (no I/O) so the no-raw-id
+ *  guarantee is unit-tested. Unresolved roomIDs get a blank `room` (the UI
+ *  shows a placeholder + a "Room scope" notice) — never the raw id.
+ *
+ *  Root cause of the JN 20-vs-35 discrepancy (Kyle, confirmed live against
+ *  Davenport 2026-07-21): this used to filter to out_of_service only, so the
+ *  dashboard undercounted vs ops' all-blocks tally. Now every block is
+ *  included, tagged with `category` so callers can show the breakdown
+ *  (Out-of-Order vs Other blocks vs Total) instead of silently dropping rows. */
 export function buildOooRooms(nameById: Map<string, OooRoomInfo>, roomBlocks: RawBlock[]): OooRoom[] {
   const out: OooRoom[] = [];
   for (const b of roomBlocks ?? []) {
-    if (b.roomBlockType !== "out_of_service") continue;
+    const category: "ooo" | "other" = b.roomBlockType === "out_of_service" ? "ooo" : "other";
     for (const r of b.rooms ?? []) {
       const info = nameById.get(r.roomID);
       out.push({
@@ -235,6 +247,7 @@ export function buildOooRooms(nameById: Map<string, OooRoomInfo>, roomBlocks: Ra
         reason: b.roomBlockReason || "—",
         startDate: b.startDate,
         endDate: b.endDate,
+        category,
       });
     }
   }
@@ -247,10 +260,24 @@ export function buildOooRooms(nameById: Map<string, OooRoomInfo>, roomBlocks: Ra
   return out;
 }
 
-/** Out-of-service rooms active on `asOf` (YYYY-MM-DD) for one property, with
- *  room codes + types. Errors if the room-name source is unavailable while
- *  blocks exist (key missing the Room scope) so the UI surfaces that rather
- *  than rendering internal roomIDs as fake room numbers. */
+/** Pure summary: {ooo, other, total} rooms by category. Used by the /bea and
+ *  /ops OOO explorer, the OOO PDF, and oooInsights so the breakdown always
+ *  reconciles (ooo + other === total === rooms.length). */
+export function summarizeOoo(rooms: OooRoom[]): { ooo: number; other: number; total: number } {
+  let ooo = 0;
+  let other = 0;
+  for (const r of rooms) {
+    if (r.category === "ooo") ooo++;
+    else other++;
+  }
+  return { ooo, other, total: rooms.length };
+}
+
+/** ALL blocked rooms (out_of_service + other block types) active on `asOf`
+ *  (YYYY-MM-DD) for one property, with room codes + types, each tagged
+ *  `category`. Errors if the room-name source is unavailable while blocks
+ *  exist (key missing the Room scope) so the UI surfaces that rather than
+ *  rendering internal roomIDs as fake room numbers. */
 async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResult<OooRoom[]>> {
   const [nameRes, blocksRes] = await Promise.all([
     getRoomNameMap(apiKey),
@@ -259,9 +286,9 @@ async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResul
   if (!blocksRes.ok) return blocksRes;
 
   const blocks = blocksRes.data?.roomBlocks ?? [];
-  const hasOos = blocks.some((b) => b.roomBlockType === "out_of_service");
+  const hasBlocks = blocks.length > 0;
   // Roomblock scope works but Room scope does not: we have blocks but no names.
-  if (!nameRes.loaded && hasOos) {
+  if (!nameRes.loaded && hasBlocks) {
     return {
       ok: false,
       status: 403,
@@ -277,7 +304,7 @@ export type PropertyOoo = {
   result: CloudbedsResult<OooRoom[]> | null;
 };
 
-/** Out-of-service rooms per configured property, as of `asOf`. */
+/** All blocked rooms (Out-of-Order + Other) per configured property, as of `asOf`. */
 export async function getPortfolioOoo(asOf: string): Promise<PropertyOoo[]> {
   return Promise.all(
     PROPERTIES.map(async (property): Promise<PropertyOoo> => {

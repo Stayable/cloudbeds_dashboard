@@ -53,6 +53,7 @@ describe("renderOooPdf", () => {
               reason: "Renovation",
               startDate: "2026-07-01",
               endDate: "2026-07-31",
+              category: "ooo",
             },
             {
               room: "102",
@@ -61,6 +62,7 @@ describe("renderOooPdf", () => {
               reason: "Renovation",
               startDate: "2026-07-01",
               endDate: "2026-07-31",
+              category: "ooo",
             },
             {
               room: "103",
@@ -69,6 +71,7 @@ describe("renderOooPdf", () => {
               reason: "",
               startDate: "2026-07-01",
               endDate: "2026-07-31",
+              category: "other",
             },
           ],
         },
