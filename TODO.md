@@ -2,8 +2,21 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup (next CLI session) — 07/22/26: REVENUE/OCCUPANCY REPORT → TEAMS built
-> (11 tasks, review clean, NOT yet pushed/deployed).** Recreates Monica's daily
+> **Pickup — 07/23/26: SHIPPED & DEPLOYED to production** (`dpl_3WDWRT7k…`, commit
+> `d0d0f52`, READY, serving dashboard.rentstayable.com; all routes smoke-checked
+> 307→/login). Live now: revenue report → Teams (+ backfill route + partial-cell
+> blanking), role-based login, `/elise` (ELISE pin), 4 Ops category PDFs
+> (occupancy/ooo/leasing/reviews), OOO Out-of-Order/Other/Total breakdown.
+> **REMAINING (Kyle):** (1) set `TEAMS_FLOW_URL` in Vercel (Prod, Sensitive) →
+> redeploy so the daily Teams card posts (until then it no-ops, no crash);
+> (2) run the revenue backfill in monthly chunks: `GET /api/cron/backfill-revenue?
+> start=&end=` with the `CRON_SECRET` bearer, Jan→Jul, to fill MTD/YTD revenue;
+> (3) verify on prod: login nav, `/report` 8 props, OOO breakdown vs Bea's 35,
+> "X of 8 reporting" header, `/elise` with ELISE pin. Then drop prod
+> `/report/latest.xlsx` + Monica's 7-21 report in `outputs/` for the full compare.
+>
+> **(superseded) 07/22 pre-deploy pickup:** REVENUE/OCCUPANCY REPORT → TEAMS built
+> (11 tasks, review clean).** Recreates Monica's daily
 > report from Cloudbeds; gated `/report` page + `/report/latest.xlsx|pdf`; daily
 > cron (`/api/cron/revenue-report`, 10:00 UTC) persists a daily snapshot, builds
 > the report, and POSTs an Adaptive Card to Teams via the Power Automate flow
