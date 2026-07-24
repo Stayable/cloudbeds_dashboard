@@ -2,6 +2,44 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Checkpoint — 07/25/26.** Revenue-report accuracy + Rob's YoY + brand.
+> All code committed & pushed (`6954621` latest, branch claude/nifty-thompson-ts8zny).
+> - **[x] Rob's YoY revenue** shipped (`e23d63e`): /report overview MTD/YTD This
+>   Year / Last Year / Δ% cards + toggleable **dark/light-blue** grouped-bar chart.
+>   2025 revenue backfilled (2,920 rows, CB Room-Rate). JN excluded, DP noted.
+> - **[x] Revenue VALIDATED vs Monica's 7/23 report** — same-date YTD **+0.09%
+>   portfolio**, ≤~0.8%/property (see RevenueReconciliation_Stayable_072426.xlsx).
+> - **[x] Revenue txn-type RESOLVED = "Room Rate" only** (reverted the "Room
+>   Revenue" add `caccfaa`→`65aad1a`; it overshoots Monica +2.5-3.3%). Cancelled
+>   auto-excluded ($0 room-rate). ADR = room rate only.
+> - **[x] BOTH years' occupancy COUNT cells backfilled from Monica's frozen files**
+>   (count-only, validated EXACT vs her summary): 2026 Jan1–Jul20 (1,608 rows) +
+>   **2025 LY full-year (2,920 rows)**. So MTD/YTD + Last-Year Occupied/Transient/
+>   Lease/%Occ/OOO/ADR now populate on /report. KEY: read "Block C" (target year in
+>   idx2, the settled copy). Scripts: parse-monica-counts.py + backfill-counts-from-
+>   monica.mjs (re-run each new Monica file). See memory monica-revenue-methodology.
+> - **[x] Accuracy finding:** historical DAILY figures are point-in-time (drift from
+>   CB re-query via rate-plan reclassification); MTD/YTD + live "yesterday" accurate.
+> - **[x] Monica methodology confirmed + doc** (outputs/RevenueReportMethodology_
+>   Stayable_072426.md — mirror its Sources/Notes/Legend onto /report, still TODO).
+> - **[x] Stayable brand colors app-wide** (`a88a25e`): ink #041E42 navy, accent
+>   #0091F5, +skyLight #91D1FA, gold #FDDA24 (from rentstayable.com).
+> - **[x] Log Out nav + loading overlay** (`5a9d018`); **/report active for all
+>   users** (elise excluded by design); /report redesign (`7e2a147`).
+> - **[x] Snowflake share AUDITED** (scripts/snowflake-introspect.mjs): 30 views
+>   exposed, dashboard uses only 2 (leasing funnel + pipeline).
+> - **NEXT / PARKED (Rob-facing + ops):**
+>   1. (opt) LY *revenue* exact-match from Monica's files (currently CB, ~0.2% off).
+>   2. **Elise data** — enrich Leasing (lead source / AI-booked % / tour no-show /
+>      cancellation reasons — same 2 views) → new sections: Renewals, Evictions
+>      (`DEMAND_NOTICES`, overlaps Smartsheet), Maintenance/Turns, Voice-AI. PII =
+>      GROUP-BY at Snowflake only.
+>   3. /report polish: Monica footer, freshness stamp, per-property sparklines,
+>      YoY MTD/YTD toggle + Δ labels, export/Teams parity.
+>   4. **Confirm `TEAMS_FLOW_URL` set** in Vercel (daily Teams card still no-ops
+>      until then — carried from 07/23).
+>   5. Standing security: re-issue all 8 CB keys WITHOUT Guest scope.
+>
 > **Pickup — 07/24/26.** Post-deploy session: P1/P2 done, /report redesigned,
 > revenue methodology VALIDATED against Monica, one revenue fix identified.
 > - **[x] P1 `TEAMS_FLOW_URL`** set in Vercel + redeployed (Kyle).
