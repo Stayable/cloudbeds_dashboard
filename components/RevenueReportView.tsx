@@ -488,6 +488,141 @@ function Legend() {
   );
 }
 
+// --- Year-over-year revenue (Rob's ask: MTD revenue vs last year) -----------
+// Last-year figures come from the 2025 revenue backfill (report_daily_snapshot
+// LY range). JN is EXCLUDED (not operated Apr'25–Mar'26 — not year-comparable;
+// may revisit). DP is INCLUDED but flagged (opened Jun'25). Portfolio totals sum
+// only properties that have a last-year figure, so the % is apples-to-apples.
+const YOY_EXCLUDE = new Set<string>(["JN"]);
+const YOY_FLAG: Record<string, string> = { DP: "opened Jun ’25" };
+
+function deltaPct(ty: number | null, ly: number | null): number | null {
+  if (ty == null || ly == null || ly === 0) return null;
+  return (ty - ly) / ly;
+}
+function DeltaBadge({ ty, ly }: { ty: number | null; ly: number | null }) {
+  const p = deltaPct(ty, ly);
+  if (p == null) return <span className="text-xs text-slate-400">—</span>;
+  const up = p >= 0;
+  return (
+    <span className={"text-xs font-semibold " + (up ? "text-emerald-600" : "text-red-600")}>
+      {up ? "▲" : "▼"} {(Math.abs(p) * 100).toFixed(1)}%
+    </span>
+  );
+}
+
+function YoyCard({ label, ty, ly }: { label: string; ty: number; ly: number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-baseline justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
+        <DeltaBadge ty={ty} ly={ly} />
+      </div>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{fmtCompactCurrency(ty)}</p>
+      <p className="mt-0.5 text-xs text-slate-400">
+        last year {fmtCompactCurrency(ly)}
+      </p>
+    </div>
+  );
+}
+
+type YoyItem = { code: string; name: string; mtdTY: number | null; mtdLY: number | null; flag: string | null };
+
+function YoyChart({ items }: { items: YoyItem[] }) {
+  const max = Math.max(1, ...items.flatMap((x) => [x.mtdTY ?? 0, x.mtdLY ?? 0]));
+  const H = 130;
+  return (
+    <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="mb-3 text-xs text-slate-500">Month-to-date room revenue — this year vs last year</p>
+      <div className="flex items-end gap-5" style={{ minHeight: H + 20 }}>
+        {items.map((x) => (
+          <div key={x.code} className="flex shrink-0 flex-col items-center gap-1">
+            <div className="flex items-end gap-1" style={{ height: H }}>
+              <div
+                title={`This year ${fmtCompactCurrency(x.mtdTY)}`}
+                className="w-5 rounded-t bg-ink"
+                style={{ height: `${((x.mtdTY ?? 0) / max) * H}px` }}
+              />
+              <div
+                title={`Last year ${fmtCompactCurrency(x.mtdLY)}`}
+                className="w-5 rounded-t bg-slate-300"
+                style={{ height: `${((x.mtdLY ?? 0) / max) * H}px` }}
+              />
+            </div>
+            <span className="text-[10px] font-medium text-slate-600">{x.code}</span>
+            {x.flag && <span className="text-[9px] text-amber-600">{x.flag}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-4 text-xs text-slate-500">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-ink" /> This year
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300" /> Last year
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function YoyRevenue({ props }: { props: PropertyActual[] }) {
+  const [show, setShow] = useState(true);
+  const items: YoyItem[] = props
+    .filter((p) => !YOY_EXCLUDE.has(p.code))
+    .map((p) => ({
+      code: p.code,
+      name: p.name,
+      mtdTY: p.mtd.actual.roomRev,
+      mtdLY: p.mtd.lastYear?.roomRev ?? null,
+      flag: YOY_FLAG[p.code] ?? null,
+    }));
+
+  // Portfolio totals: sum only properties that HAVE a last-year figure.
+  const roll = (tyKey: "mtd" | "ytd") => {
+    let ty = 0,
+      ly = 0;
+    for (const p of props) {
+      if (YOY_EXCLUDE.has(p.code)) continue;
+      const block = p[tyKey];
+      const lyVal = block.lastYear?.roomRev ?? null;
+      if (lyVal == null) continue;
+      ty += block.actual.roomRev ?? 0;
+      ly += lyVal;
+    }
+    return { ty, ly };
+  };
+  const mtd = roll("mtd");
+  const ytd = roll("ytd");
+  const hasLY = mtd.ly > 0 || ytd.ly > 0;
+
+  if (!hasLY) return null; // no last-year data banked yet
+
+  return (
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">Revenue vs. Last Year</h3>
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          {show ? "Hide chart" : "Show chart"}
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <YoyCard label="MTD Room Revenue" ty={mtd.ty} ly={mtd.ly} />
+        <YoyCard label="YTD Room Revenue" ty={ytd.ty} ly={ytd.ly} />
+      </div>
+      <p className="mt-2 text-xs text-slate-400">
+        Room revenue, this year vs last year. Excludes Jacksonville North (not operated last year).
+        Davenport opened Jun&nbsp;&rsquo;25 (partial last-year comparison).
+      </p>
+      {show && <YoyChart items={items} />}
+    </div>
+  );
+}
+
 export default function RevenueReportView({ report }: { report: RevenueReport }) {
   const [selected, setSelected] = useState<string>("all");
   const [view, setView] = useState<"actual" | "onTheBooks">("actual");
@@ -525,6 +660,7 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
         {selected === "all" || !current ? (
           <>
             <PortfolioSummary props={report.actual} />
+            <YoyRevenue props={report.actual} />
             <p className="mb-3 text-xs text-slate-500">
               Click a property for its full Actual / On-the-Books detail. Occupancy, ADR and RevPAR
               shown are yesterday&apos;s; Room Revenue is year-to-date (exact).

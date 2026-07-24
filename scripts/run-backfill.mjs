@@ -34,10 +34,14 @@ if (!SECRET) {
   process.exit(1);
 }
 
-// --- month chunks: Jan → Jul 2026 -----------------------------------------
-const YEAR = 2026;
+// --- month chunks --------------------------------------------------------
+// Usage: node scripts/run-backfill.mjs [year] [startMonth] [endMonth]
+//   default 2026 1 7 (this year, Jan→Jul). For last-year YoY: 2025 1 12.
+const YEAR = Number(process.argv[2] ?? 2026);
+const MO_START = Number(process.argv[3] ?? 1);
+const MO_END = Number(process.argv[4] ?? 7);
 const chunks = [];
-for (let mo = 1; mo <= 7; mo++) {
+for (let mo = MO_START; mo <= MO_END; mo++) {
   const start = `${YEAR}-${String(mo).padStart(2, "0")}-01`;
   const lastDay = new Date(Date.UTC(YEAR, mo, 0)).getUTCDate(); // day 0 of next month
   const end = `${YEAR}-${String(mo).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
