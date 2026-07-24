@@ -12,10 +12,10 @@ import { PROPERTIES, type Property } from "@/config/properties";
 import { classifyRatePlan } from "@/lib/lease";
 import { dayCount, easternToday, monthStart, shiftYmd } from "@/lib/dates";
 import {
+  bankDailySnapshot,
   getEarliestCountsDate,
   getEarliestSnapshotDate,
   getReportSnapshots,
-  upsertReportSnapshot,
   upsertRevenueSnapshot,
   type ReportSnapshotRow,
 } from "@/lib/db";
@@ -1456,7 +1456,9 @@ export async function persistDailySnapshots(asOf: string): Promise<{ written: nu
         const dashboard = await getDashboard(key);
         const capacity = dashboard.ok ? dashboard.data.capacity : 0;
         const inputs = await buildRowInputs(key, property.apiPropertyId, asOf, asOf, capacity, getNightsByPlanDay);
-        await upsertReportSnapshot(property.code, asOf, inputs);
+        // Capture-once: freeze the day when first banked with real counts so our
+        // stored history never drifts from a later CB re-query (source of truth).
+        await bankDailySnapshot(property.code, asOf, inputs);
         written++;
       } catch (e) {
         console.error(`[revenue-report] snapshot failed for ${property.code} ${asOf}:`, e);

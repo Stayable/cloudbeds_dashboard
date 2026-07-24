@@ -206,6 +206,74 @@ export async function upsertReportSnapshot(
   `;
 }
 
+/** CAPTURE-ONCE daily bank (the store is our source of truth going forward, so
+ *  a captured day must FREEZE — never drift from a later CB re-query). Inserts a
+ *  fresh row; on conflict it fills ONLY a still-empty (all-count-zero) row and
+ *  otherwise leaves an already-banked real day untouched. A failed/zero capture
+ *  stays open for re-capture until it lands real counts, then freezes. Used by
+ *  the daily cron; the historical backfills use their own upserts. */
+export async function bankDailySnapshot(
+  propertyCode: string,
+  stayDate: string,
+  inputs: RowInputs,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into report_daily_snapshot (
+      property_code, stay_date, transient_nights, lease_nights, other_blocks,
+      ooo, transient_rev, lease_rev, inventory
+    )
+    values (
+      ${propertyCode}, ${stayDate}, ${inputs.transientNights}, ${inputs.leaseNights},
+      ${inputs.otherBlocks}, ${inputs.ooo}, ${inputs.transientRev}, ${inputs.leaseRev},
+      ${inputs.inventory}
+    )
+    on conflict (property_code, stay_date) do update set
+      transient_nights = excluded.transient_nights,
+      lease_nights = excluded.lease_nights,
+      other_blocks = excluded.other_blocks,
+      ooo = excluded.ooo,
+      transient_rev = excluded.transient_rev,
+      lease_rev = excluded.lease_rev,
+      inventory = excluded.inventory,
+      updated_at = now()
+    where report_daily_snapshot.transient_nights = 0
+      and report_daily_snapshot.lease_nights = 0
+      and report_daily_snapshot.other_blocks = 0
+      and report_daily_snapshot.ooo = 0
+  `;
+}
+
+/** Gap detector: for each `codes` property × each day in [start, end], report
+ *  the (property, date) pairs that lack a REAL occupancy capture — i.e. no row,
+ *  OR only a revenue-only row with all counts = 0 (which happens if the daily
+ *  cron missed the day but a revenue backfill left a stub). Since our store is
+ *  the source of truth, that's silent occupancy loss. Intended for the FORWARD
+ *  era (recent window) where every active property has real occupancy daily;
+ *  historical pre-acquisition zero days (JN Apr'25–Mar'26, DP pre-Jun'25) would
+ *  read as gaps, so keep the window recent. */
+export async function findSnapshotGaps(
+  start: string,
+  end: string,
+  codes: string[],
+): Promise<{ propertyCode: string; stayDate: string }[]> {
+  const sql = db();
+  const rows = (await sql`
+    with days as (
+      select generate_series(${start}::date, ${end}::date, interval '1 day')::date as d
+    ),
+    props as (select unnest(${codes}::text[]) as code)
+    select props.code as property_code, to_char(days.d, 'YYYY-MM-DD') as stay_date
+    from days cross join props
+    left join report_daily_snapshot s
+      on s.property_code = props.code and s.stay_date = days.d
+      and (s.transient_nights + s.lease_nights + s.other_blocks + s.ooo) > 0
+    where s.property_code is null
+    order by props.code, days.d
+  `) as { property_code: string; stay_date: string }[];
+  return rows.map((r) => ({ propertyCode: r.property_code, stayDate: r.stay_date }));
+}
+
 /** Snapshot rows in [start, end] (inclusive), optionally filtered to one
  *  property. Ordered by property_code, stay_date. */
 export async function getReportSnapshots(
