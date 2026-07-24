@@ -14,14 +14,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   direct Q&A): lease=Monthly+Weekly rate plan · **revenue = "rate and revenue"
 >   codes only** · ADR room-rate-only · OOO vs Other blocks · 7-day OTB · Yardi→CB
 >   at 2025. See memory `monica-revenue-methodology`.
-> - **[ ] REVENUE FIX (identified, not yet applied):** our pull
->   (`getRoomRevenueByPlanDay`, lib/cloudbeds.ts) filters `transaction_type =
->   "Room Rate"` ONLY, but a probe (`scripts/probe-transaction-types.mjs`, DP
->   Jul 1–19) shows a **distinct "Room Revenue" type** ($2,205/19d, sporadic) that
->   Monica INCLUDES and we OMIT → small consistent under-count (~0.14% DP).
->   **Fix:** filter `transaction_type IN ("Room Rate","Room Revenue")` (keep
->   excluding Items&Services/Tax/Cancellation/Fee/Adjustment/Payment), re-run
->   backfill, re-reconcile. Split logic unaffected. **Awaiting Kyle go-ahead.**
+> - **[x] REVENUE transaction-type RESOLVED — stays "Room Rate" only.** A probe
+>   found a distinct "Room Revenue" type (~2.5% of Room Rate, DP YTD $17,168).
+>   Briefly added it (`caccfaa`) then REVERTED: per-day ground truth shows
+>   Room-Rate-only matches Monica's DP YTD to **−0.09%**, while rate+revenue
+>   overshoots **+2.5–3.3%**. Monica's "rate and revenue" = her Excel column
+>   *titled* "Room Revenue" fed by room-RATE txns (wording trap). No re-backfill
+>   needed — existing backfill (Room Rate) is correct. See memory
+>   `monica-revenue-methodology`.
 > - **[x] /report REDESIGNED & pushed** (`7e2a147`): nav rail (All + 8 props) →
 >   "All" shows portfolio KPI tiles + clickable leaderboard; per-property = KPI
 >   tiles + Actual/On-the-Books toggle + that one detailed table. No more 16

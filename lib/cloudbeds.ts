@@ -1126,26 +1126,24 @@ export function sumRevenueByClass(planAmounts: { plan: string; amount: number }[
   return { transient, lease };
 }
 
-/** Room revenue for ONE day, split transient/lease per `classifyForReport`.
- *  Dataset 1, `service_date` = day, transaction_type IN ("Room Rate",
- *  "Room Revenue") — the two room-charge codes Monica sums as "rate and revenue"
- *  (confirmed 07/24/26; excludes Items&Services/Tax/Cancellation/Fee/Adjustment/
- *  Payment). Grouped by `public_rate_plan`, sum `debit_amount` per bucket.
- *  "Room Revenue" is a distinct, sporadic type (manual postings) we previously
- *  omitted — see scripts/probe-transaction-types.mjs and memory
- *  monica-revenue-methodology. DI has no `in` operator (400), so use an OR group. */
+/** Room-Rate revenue for ONE day, split transient/lease per `classifyForReport`.
+ *  Dataset 1, `service_date` = day, `transaction_type = "Room Rate"` (excludes
+ *  fees/tax/payments), grouped by `public_rate_plan`, sum `debit_amount` per
+ *  bucket. Verified exact against Davenport 2026-07-19 ($492.05 / $2,706.13).
+ *
+ *  NOTE (07/24/26): Cloudbeds has a SEPARATE "Room Revenue" transaction type
+ *  (~2.5% of Room Rate at DP YTD). Monica's report EXCLUDES it — her verified
+ *  YTD matches "Room Rate" only to ~0.1% (her Excel column is *titled* "Room
+ *  Revenue" but is fed by room-rate transactions). Do NOT add "Room Revenue"
+ *  here — it overshoots her figures by ~2.5–3.3%. See memory
+ *  monica-revenue-methodology + scripts/probe-transaction-types.mjs. */
 async function getRoomRevenueByPlanDay(
   apiKey: string,
   apiPropertyId: string,
   day: string,
 ): Promise<CloudbedsResult<{ transient: number; lease: number }>> {
   const res = await diDataset1Grouped(apiKey, apiPropertyId, "public_rate_plan", ["debit_amount"], day, day, [
-    {
-      or: [
-        { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
-        { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Revenue" },
-      ],
-    },
+    { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
   ]);
   if (!res.ok) return res;
   const rows = res.data.index.map((plan, i) => ({ plan, amount: res.data.records.debit_amount?.[i] ?? 0 }));
