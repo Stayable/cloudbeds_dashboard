@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import LogOut from "@/components/LogOut";
 import { AUTH_COOKIE, RESTRICTED_LEVELS, accessiblePages, verifyCookie } from "@/lib/auth";
 
 // Persistent top nav — one login, reach every page your role permits without
@@ -31,6 +32,7 @@ export default async function Nav() {
             </Link>
           ))}
         </div>
+        <LogOut />
       </div>
     </nav>
   );
