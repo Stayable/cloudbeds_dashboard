@@ -21,8 +21,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > - **[x] Full DASHBOARD OVERHAUL prompt** drafted for Claude design (whole app, not
 >   just /report) — scratchpad `dashboard-overhaul-prompt.md` (Stayable palette baked
 >   in). HELD for Kyle to run; adapt output back into app after.
-> - **[ ] VERIFY: Cloudbeds key expiry/renewal** — can't read from here; an expired
->   key silently stops the cron → gaps. Confirm keys auto-renew or track expiry.
+> - **[x] Cloudbeds key expiry — RESOLVED (Kyle 07/25): NO hard expiry.** Keys only
+>   lapse after ~30 days of INACTIVITY; the daily cron keeps them alive. So no
+>   silent-death risk under normal operation. (memory `cloudbeds-auth` corrected.)
 > - **[x] Snowflake share audit** — 30 views, only 2 used (see prior entry / memory).
 >
 > **Checkpoint — 07/25/26.** Revenue-report accuracy + Rob's YoY + brand.
