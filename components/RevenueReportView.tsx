@@ -1,4 +1,6 @@
-import { Fragment } from "react";
+"use client";
+
+import { Fragment, useState } from "react";
 import { isCountDependentRow } from "@/lib/revenue-report";
 import type {
   RevenueReport,
@@ -8,9 +10,14 @@ import type {
   DerivedRow,
 } from "@/lib/revenue-report";
 
-// Presentational — no fetching, no interactivity. Mirrors the metric mapping
-// in lib/report-xlsx.ts row-for-row so the /report page and the downloaded
-// .xlsx always agree (task-6-brief.md).
+// Interactive report explorer. All property/period data is fetched server-side
+// and passed in as `report`; this component only decides what to SHOW:
+//   • a left property nav rail (All Properties + each property),
+//   • "All Properties" → a compact, clickable leaderboard (no giant tables),
+//   • a single property → KPI tiles + an Actual / On-the-Books toggle that
+//     reveals the full detailed table for that one property.
+// The detailed tables (ActualTable / OnTheBooksTable) mirror the .xlsx export
+// row-for-row (lib/report-xlsx.ts), so the page and the download still agree.
 
 type MetricKind = "count" | "currency" | "pct";
 type MetricRow = {
@@ -61,6 +68,16 @@ function fmtCurrency(n: number): string {
   const s = `$${abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return n < 0 ? `(${s})` : s;
 }
+/** Compact currency for KPI tiles / leaderboard: $1.03M, $694k, $412. */
+function fmtCompactCurrency(n: number | null): string {
+  if (n == null) return "—";
+  const abs = Math.abs(n);
+  let s: string;
+  if (abs >= 1_000_000) s = `$${(abs / 1_000_000).toFixed(2)}M`;
+  else if (abs >= 1_000) s = `$${(abs / 1_000).toFixed(0)}k`;
+  else s = `$${abs.toFixed(0)}`;
+  return n < 0 ? `(${s})` : s;
+}
 function fmtPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
 }
@@ -70,10 +87,7 @@ function fmtMetric(kind: MetricKind, n: number | null): string {
   if (kind === "currency") return fmtCurrency(n);
   return fmtPct(n);
 }
-/** "—" placeholder for a count-dependent cell blanked by a partial block
- *  (Kyle's decision, partial-counts-brief.md) — distinct from an ordinary
- *  blank (missing LY history, or a non-KE property's adjusted-occ row),
- *  which stays a plain empty cell via fmtMetric(null). */
+/** "—" placeholder for a count-dependent cell blanked by a partial block. */
 const BLANKED = "—";
 
 /** Availability highlighting (mirrors the xlsx conditional formatting):
@@ -113,7 +127,7 @@ function ActualTable({ property }: { property: PropertyActual }) {
   const rows = rowsFor(anyAdjusted);
 
   return (
-    <div className="mb-8 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
       <table className="w-full min-w-[920px] border-collapse text-sm">
         <thead>
           <tr>
@@ -195,7 +209,7 @@ function OnTheBooksTable({ property }: { property: PropertyOnTheBooks }) {
   const rows = rowsFor(anyAdjusted);
 
   return (
-    <div className="mb-8 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr>
@@ -241,42 +255,286 @@ function OnTheBooksTable({ property }: { property: PropertyOnTheBooks }) {
   );
 }
 
-export default function RevenueReportView({ report }: { report: RevenueReport }) {
+// --- New navigation-driven shell --------------------------------------------
+
+/** Occupancy status color for the rail dot / bar (from yesterday % occupied). */
+function occDot(pOcc: number | null): string {
+  if (pOcc == null) return "bg-slate-300";
+  if (pOcc >= 0.85) return "bg-emerald-500";
+  if (pOcc >= 0.6) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+type RailItem = { code: string; name: string; occ: number | null };
+
+function Rail({
+  items,
+  selected,
+  onSelect,
+}: {
+  items: RailItem[];
+  selected: string;
+  onSelect: (code: string) => void;
+}) {
+  const base =
+    "flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors whitespace-nowrap";
+  const on = "bg-ink text-white";
+  const off = "text-slate-600 hover:bg-slate-100";
   return (
-    <div className="space-y-10">
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Actual — Yesterday / Month-to-date / Year-to-date
-        </h2>
-        {report.actual.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-            No configured properties reported.
-          </p>
-        ) : (
-          report.actual.map((p) => <ActualTable key={p.code} property={p} />)
-        )}
-      </section>
+    <nav
+      aria-label="Property navigation"
+      className="mb-4 flex gap-1.5 overflow-x-auto pb-2 lg:mb-0 lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:pb-0"
+    >
+      <button
+        type="button"
+        onClick={() => onSelect("all")}
+        className={`${base} font-semibold ${selected === "all" ? on : off}`}
+      >
+        All Properties
+      </button>
+      {items.map((p) => (
+        <button
+          key={p.code}
+          type="button"
+          onClick={() => onSelect(p.code)}
+          className={`${base} lg:justify-between ${selected === p.code ? on : off}`}
+        >
+          <span className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${occDot(p.occ)}`} />
+            {p.name}
+          </span>
+          <span className={selected === p.code ? "text-white/70" : "text-slate-400"}>
+            {p.occ == null ? "—" : fmtPct(p.occ)}
+          </span>
+        </button>
+      ))}
+    </nav>
+  );
+}
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          On-the-Books — next 7 days
-        </h2>
-        {report.onTheBooks.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-            No configured properties reported.
-          </p>
-        ) : (
-          report.onTheBooks.map((p) => <OnTheBooksTable key={p.code} property={p} />)
-        )}
-      </section>
+function Leaderboard({
+  items,
+  onSelect,
+}: {
+  items: (RailItem & { roomRevYtd: number | null; adr: number | null; revpar: number | null })[];
+  onSelect: (code: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+      <table className="w-full min-w-[640px] border-collapse text-sm">
+        <thead>
+          <tr className="bg-ink text-xs font-semibold uppercase tracking-wide text-white">
+            <th className="px-4 py-2.5 text-left">Property</th>
+            <th className="px-4 py-2.5 text-right">% Occ (yest)</th>
+            <th className="px-4 py-2.5 text-right">Room Rev (YTD)</th>
+            <th className="px-4 py-2.5 text-right">ADR (yest)</th>
+            <th className="px-4 py-2.5 text-right">RevPAR (yest)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((p) => (
+            <tr
+              key={p.code}
+              onClick={() => onSelect(p.code)}
+              className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-slate-50"
+            >
+              <td className="px-4 py-2.5">
+                <span className="flex items-center gap-2 font-medium text-slate-800">
+                  <span className={`inline-block h-2 w-2 rounded-full ${occDot(p.occ)}`} />
+                  {p.name}
+                </span>
+              </td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
+                {p.occ == null ? "—" : fmtPct(p.occ)}
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                {fmtCompactCurrency(p.roomRevYtd)}
+              </td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
+                {fmtCompactCurrency(p.adr)}
+              </td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
+                {fmtCompactCurrency(p.revpar)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-        <p className="mb-1 font-semibold text-slate-600">Availability legend</p>
-        <p>
-          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-red-200 align-middle" /> % Available ≤ 15% ·{" "}
-          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-orange-200 align-middle" /> ≤ 20% ·{" "}
-          <span className="font-semibold text-purple-700">% Available ≥ 40%</span>
+function KpiTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+    </div>
+  );
+}
+
+/** Portfolio roll-up for the "All Properties" overview. Occupancy / ADR / RevPAR
+ *  / OOO come from YESTERDAY (a real, complete day — not the partial MTD/YTD
+ *  count accumulation); Room Revenue is the exact YTD total. */
+function portfolioSummary(props: PropertyActual[]) {
+  let occ = 0,
+    inv = 0,
+    revYest = 0,
+    ooo = 0,
+    revYtd = 0,
+    reporting = 0;
+  for (const p of props) {
+    const y = p.yesterday.actual;
+    if (y.pOcc != null) reporting += 1;
+    if (y.occupied != null) occ += y.occupied;
+    if (y.inventory != null) inv += y.inventory;
+    if (y.roomRev != null) revYest += y.roomRev;
+    if (y.ooo != null) ooo += y.ooo;
+    if (p.ytd.actual.roomRev != null) revYtd += p.ytd.actual.roomRev;
+  }
+  return {
+    pOcc: inv > 0 ? occ / inv : null,
+    adr: occ > 0 ? revYest / occ : null,
+    revpar: inv > 0 ? revYest / inv : null,
+    ooo,
+    revYtd,
+    reporting,
+    total: props.length,
+  };
+}
+
+function PortfolioSummary({ props }: { props: PropertyActual[] }) {
+  const s = portfolioSummary(props);
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="rounded-xl bg-ink px-4 py-3 text-white shadow-sm">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-white/60">Portfolio Occ</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">{s.pOcc == null ? "—" : fmtPct(s.pOcc)}</p>
+        <p className="mt-0.5 text-xs text-white/50">
+          {s.reporting} of {s.total} · yesterday
         </p>
+      </div>
+      <KpiTile label="Room Rev" value={fmtCompactCurrency(s.revYtd)} sub="year-to-date" />
+      <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub="yesterday" />
+      <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub="yesterday" />
+      <KpiTile label="Rooms OOO" value={s.ooo.toLocaleString()} sub="yesterday" />
+    </div>
+  );
+}
+
+function PropertyDetail({
+  actual,
+  onTheBooks,
+  view,
+  onView,
+}: {
+  actual: PropertyActual;
+  onTheBooks: PropertyOnTheBooks | undefined;
+  view: "actual" | "onTheBooks";
+  onView: (v: "actual" | "onTheBooks") => void;
+}) {
+  const y = actual.yesterday.actual;
+  const ytd = actual.ytd.actual;
+  const seg = "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors";
+  const segOn = "bg-ink text-white";
+  const segOff = "text-slate-600 hover:bg-slate-100";
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KpiTile label="% Occupied" value={y.pOcc == null ? "—" : fmtPct(y.pOcc)} sub="yesterday" />
+        <KpiTile label="Room Revenue" value={fmtCompactCurrency(ytd.roomRev)} sub="year-to-date" />
+        <KpiTile label="ADR" value={fmtCompactCurrency(y.adrCombined)} sub="yesterday" />
+        <KpiTile label="RevPAR" value={fmtCompactCurrency(y.revpar)} sub="yesterday" />
+      </div>
+
+      <div className="inline-flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button type="button" onClick={() => onView("actual")} className={`${seg} ${view === "actual" ? segOn : segOff}`}>
+          Actual
+        </button>
+        <button
+          type="button"
+          onClick={() => onView("onTheBooks")}
+          className={`${seg} ${view === "onTheBooks" ? segOn : segOff}`}
+        >
+          On-the-Books
+        </button>
+      </div>
+
+      {view === "actual" ? (
+        <ActualTable property={actual} />
+      ) : onTheBooks ? (
+        <OnTheBooksTable property={onTheBooks} />
+      ) : (
+        <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+          No on-the-books data for this property.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+      <p className="mb-1 font-semibold text-slate-600">Availability legend</p>
+      <p>
+        <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-red-200 align-middle" /> % Available ≤ 15% ·{" "}
+        <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-orange-200 align-middle" /> ≤ 20% ·{" "}
+        <span className="font-semibold text-purple-700">% Available ≥ 40%</span>
+      </p>
+    </div>
+  );
+}
+
+export default function RevenueReportView({ report }: { report: RevenueReport }) {
+  const [selected, setSelected] = useState<string>("all");
+  const [view, setView] = useState<"actual" | "onTheBooks">("actual");
+
+  const railItems: RailItem[] = report.actual.map((p) => ({
+    code: p.code,
+    name: p.name,
+    occ: p.yesterday.actual.pOcc,
+  }));
+
+  const leaderboardItems = report.actual.map((p) => ({
+    code: p.code,
+    name: p.name,
+    occ: p.yesterday.actual.pOcc,
+    roomRevYtd: p.ytd.actual.roomRev,
+    adr: p.yesterday.actual.adrCombined,
+    revpar: p.yesterday.actual.revpar,
+  }));
+
+  const current = report.actual.find((p) => p.code === selected);
+  const currentOtb = report.onTheBooks.find((p) => p.code === selected);
+
+  if (report.actual.length === 0) {
+    return (
+      <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+        No configured properties reported.
+      </p>
+    );
+  }
+
+  return (
+    <div className="lg:flex lg:gap-6">
+      <Rail items={railItems} selected={selected} onSelect={setSelected} />
+      <div className="min-w-0 flex-1">
+        {selected === "all" || !current ? (
+          <>
+            <PortfolioSummary props={report.actual} />
+            <p className="mb-3 text-xs text-slate-500">
+              Click a property for its full Actual / On-the-Books detail. Occupancy, ADR and RevPAR
+              shown are yesterday&apos;s; Room Revenue is year-to-date (exact).
+            </p>
+            <Leaderboard items={leaderboardItems} onSelect={setSelected} />
+          </>
+        ) : (
+          <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
+        )}
+        <Legend />
       </div>
     </div>
   );
