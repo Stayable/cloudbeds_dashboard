@@ -545,12 +545,11 @@ function YoyChart({ items }: { items: YoyItem[] }) {
               />
               <div
                 title={`Last year ${fmtCompactCurrency(x.mtdLY)}`}
-                className="w-5 rounded-t bg-slate-300"
+                className="w-5 rounded-t bg-skyLight"
                 style={{ height: `${((x.mtdLY ?? 0) / max) * H}px` }}
               />
             </div>
             <span className="text-[10px] font-medium text-slate-600">{x.code}</span>
-            {x.flag && <span className="text-[9px] text-amber-600">{x.flag}</span>}
           </div>
         ))}
       </div>
@@ -559,7 +558,7 @@ function YoyChart({ items }: { items: YoyItem[] }) {
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-ink" /> This year
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300" /> Last year
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-skyLight" /> Last year
         </span>
       </div>
     </div>
