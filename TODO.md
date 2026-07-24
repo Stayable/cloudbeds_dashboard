@@ -2,6 +2,29 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Checkpoint — 07/25/26 (cont.).** Durable source-of-truth hardening + overhaul prompt.
+> All pushed (`629aff5` latest, branch claude/nifty-thompson-ts8zny).
+> - **[x] Snapshot store hardened** (`629aff5`) — Neon report_daily_snapshot is now
+>   the source of truth going forward:
+>   • **Capture-once freeze** (`bankDailySnapshot`): daily cron freezes a day once
+>     banked with real counts; fills only still-empty (count=0) stubs, never
+>     overwrites a real capture → drift-proof history.
+>   • **Gap detector** (`findSnapshotGaps`): flags active property×day with no REAL
+>     occupancy capture (missing row OR revenue-only stub). Route `GET
+>     /api/cron/gaps?days=30` (CRON_SECRET) + folded into daily revenue-report cron
+>     response (`gapsLast14d`). Verified vs Neon: 0 false positives, fires on stubs.
+> - **[x] Year-rollover answered:** data auto-fills forward (cron banks yesterday
+>   daily; 2027 this-year accrues, 2026 becomes LY automatically). No new build for
+>   accumulation/storage. Caveats: forward counts are CB (not Monica-frozen) — for
+>   exact LY, re-backfill from Monica's year-end file annually; cron reliability +
+>   key longevity matter (gap detector now catches misses).
+> - **[x] Full DASHBOARD OVERHAUL prompt** drafted for Claude design (whole app, not
+>   just /report) — scratchpad `dashboard-overhaul-prompt.md` (Stayable palette baked
+>   in). HELD for Kyle to run; adapt output back into app after.
+> - **[ ] VERIFY: Cloudbeds key expiry/renewal** — can't read from here; an expired
+>   key silently stops the cron → gaps. Confirm keys auto-renew or track expiry.
+> - **[x] Snowflake share audit** — 30 views, only 2 used (see prior entry / memory).
+>
 > **Checkpoint — 07/25/26.** Revenue-report accuracy + Rob's YoY + brand.
 > All code committed & pushed (`6954621` latest, branch claude/nifty-thompson-ts8zny).
 > - **[x] Rob's YoY revenue** shipped (`e23d63e`): /report overview MTD/YTD This
