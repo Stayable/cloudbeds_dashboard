@@ -2,6 +2,36 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Pickup — 07/24/26.** Post-deploy session: P1/P2 done, /report redesigned,
+> revenue methodology VALIDATED against Monica, one revenue fix identified.
+> - **[x] P1 `TEAMS_FLOW_URL`** set in Vercel + redeployed (Kyle).
+> - **[x] P2 revenue backfill** ran Jan→Jul, 8 props, **1,696 rows** (via
+>   `scripts/run-backfill.mjs`, reads `CRON_SECRET` from `.env.local`).
+> - **[x] P4 reconciliation vs Monica** — `outputs/RevenueReconciliation_Stayable_
+>   072426.xlsx`: YTD Room Revenue matches **within ~1%/property, +0.2% portfolio**.
+>   Transient/lease split differs 1–4% = her Yardi legacy blend on history (expected).
+> - **[x] Monica methodology CONFIRMED** (call `Revenue Report Automation.vtt` +
+>   direct Q&A): lease=Monthly+Weekly rate plan · **revenue = "rate and revenue"
+>   codes only** · ADR room-rate-only · OOO vs Other blocks · 7-day OTB · Yardi→CB
+>   at 2025. See memory `monica-revenue-methodology`.
+> - **[ ] REVENUE FIX (identified, not yet applied):** our pull
+>   (`getRoomRevenueByPlanDay`, lib/cloudbeds.ts) filters `transaction_type =
+>   "Room Rate"` ONLY, but a probe (`scripts/probe-transaction-types.mjs`, DP
+>   Jul 1–19) shows a **distinct "Room Revenue" type** ($2,205/19d, sporadic) that
+>   Monica INCLUDES and we OMIT → small consistent under-count (~0.14% DP).
+>   **Fix:** filter `transaction_type IN ("Room Rate","Room Revenue")` (keep
+>   excluding Items&Services/Tax/Cancellation/Fee/Adjustment/Payment), re-run
+>   backfill, re-reconcile. Split logic unaffected. **Awaiting Kyle go-ahead.**
+> - **[x] /report REDESIGNED & pushed** (`7e2a147`): nav rail (All + 8 props) →
+>   "All" shows portfolio KPI tiles + clickable leaderboard; per-property = KPI
+>   tiles + Actual/On-the-Books toggle + that one detailed table. No more 16
+>   stacked tables; Excel/PDF unchanged. Also shipped (`5a9d018`): global **Log
+>   Out** in top nav + route-transition **loading overlay**.
+> - **[ ] Verify on prod (Kyle):** new `/report` overview + drill-down; Log Out on
+>   every page; loading overlay on nav. Then optionally run the revenue fix above.
+> - **(held)** fuller Claude-design `/report` mock — prompt saved (scratchpad
+>   `report-redesign-prompt.md`).
+>
 > **Pickup — 07/23/26: SHIPPED & DEPLOYED to production** (`dpl_3WDWRT7k…`, commit
 > `d0d0f52`, READY, serving dashboard.rentstayable.com; all routes smoke-checked
 > 307→/login). Live now: revenue report → Teams (+ backfill route + partial-cell

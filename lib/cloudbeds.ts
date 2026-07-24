@@ -769,6 +769,12 @@ export type FinanceAggregates = {
   capped: boolean; // true if any day hit the 1500-row cap (totals may undercount)
 };
 
+// A Data Insights filter node: a leaf condition, or a nested and/or group.
+type DiFilter =
+  | { cdf: { column: string }; operator: string; value: string | string[] }
+  | { and: DiFilter[] }
+  | { or: DiFilter[] };
+
 async function diDataset1Grouped(
   apiKey: string,
   apiPropertyId: string,
@@ -777,9 +783,10 @@ async function diDataset1Grouped(
   start: string,
   end: string,
   // Additive, optional: extra AND-ed filters beyond the service_date range
-  // (e.g. transaction_type="Room Rate" for the revenue-report split). Existing
-  // callers (getFinanceAggregates) omit this and are unaffected.
-  extraFilters: { cdf: { column: string }; operator: string; value: string }[] = [],
+  // (e.g. a transaction_type OR-group for the revenue-report split). Existing
+  // callers (getFinanceAggregates) omit this and are unaffected. Accepts nested
+  // and/or groups (Data Insights supports OR groups; `in` is NOT supported → 400).
+  extraFilters: DiFilter[] = [],
 ): Promise<CloudbedsResult<Dataset3Grouped>> {
   const body = {
     property_ids: [Number(apiPropertyId)],
@@ -1119,17 +1126,26 @@ export function sumRevenueByClass(planAmounts: { plan: string; amount: number }[
   return { transient, lease };
 }
 
-/** Room-Rate revenue for ONE day, split transient/lease per `classifyForReport`.
- *  Dataset 1, `service_date` = day, `transaction_type = "Room Rate"` (excludes
- *  fees/tax/payments), grouped by `public_rate_plan`, sum `debit_amount` per
- *  bucket. Verified exact against Davenport 2026-07-19 ($492.05 / $2,706.13). */
+/** Room revenue for ONE day, split transient/lease per `classifyForReport`.
+ *  Dataset 1, `service_date` = day, transaction_type IN ("Room Rate",
+ *  "Room Revenue") — the two room-charge codes Monica sums as "rate and revenue"
+ *  (confirmed 07/24/26; excludes Items&Services/Tax/Cancellation/Fee/Adjustment/
+ *  Payment). Grouped by `public_rate_plan`, sum `debit_amount` per bucket.
+ *  "Room Revenue" is a distinct, sporadic type (manual postings) we previously
+ *  omitted — see scripts/probe-transaction-types.mjs and memory
+ *  monica-revenue-methodology. DI has no `in` operator (400), so use an OR group. */
 async function getRoomRevenueByPlanDay(
   apiKey: string,
   apiPropertyId: string,
   day: string,
 ): Promise<CloudbedsResult<{ transient: number; lease: number }>> {
   const res = await diDataset1Grouped(apiKey, apiPropertyId, "public_rate_plan", ["debit_amount"], day, day, [
-    { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
+    {
+      or: [
+        { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
+        { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Revenue" },
+      ],
+    },
   ]);
   if (!res.ok) return res;
   const rows = res.data.index.map((plan, i) => ({ plan, amount: res.data.records.debit_amount?.[i] ?? 0 }));
