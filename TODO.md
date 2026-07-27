@@ -2,6 +2,53 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Pickup — 07/27/26 (session 2). ELISE ENRICHMENT + /report POLISH SHIPPED.**
+> Commits `2556a62` (Elise data layer), `bf3eb60` (/ops §6–8 + Tour→Lease fix),
+> `954a6b0` (/report polish). All pushed; 170 tests pass; clean build verified.
+> - **[x] Monica's rulings (via Kyle 07/27): M1/M2/M3 all TRANSIENT.** Employee
+>   Weekly counted in transient nights AND revenue because it is paid. Our code
+>   already did this → classifier VALIDATED, no change. M4 (annual year-end file)
+>   explained; recommendation is to use OUR daily captures and skip the hand-off.
+> - **[x] Elise enrichment (11 metrics, PII-free).** `elise_metric_daily` +
+>   `fetchEliseEnrichment` + `/ops` §6 Leasing insights, §7 Voice AI, §8 AI
+>   performance. 35,503 rows, all 8 props, 2025-12-28→. Backfill:
+>   `node scripts/elise-enrichment-sync.mjs`.
+>   - **BLOCKED at source — only 15 of 30 shared views hold ANY rows.** RENEWALS,
+>     DEMAND_NOTICES, WORK_ORDERS, SOURCE_WORK_ORDERS, TURNS, INSPECTIONS,
+>     MAINTENANCE_ASSETS, PAYMENT_PLANS, PROMISES_TO_PAY, DELINQUENCY_SUMMARY,
+>     RESIDENT_SURVEYS, PROSPECT_TOUCHPOINTS, AMENITIES are all EMPTY → the
+>     Renewals / Evictions / Maintenance-Turns sections CANNOT be built from
+>     Elise. RESIDENTS holds only Future/Cancelled/Applicant (no current
+>     residents) → resident-movement dropped rather than shipped hollow.
+>     **OPEN: ask Elise whether these are unused or not syncing.**
+>   - No YoY on Elise data — the share starts 2026-01-13.
+> - **[x] /report polish (all 5 items).** Freshness stamp (green/amber, last
+>   captured day + properties + last write); per-property 30-day occupancy
+>   sparklines (leaderboard column + drill-down); YoY MTD/YTD toggle with
+>   per-property Δ badges; METHODOLOGY as ONE exported constant rendered by page
+>   + .xlsx + .pdf and referenced by the Teams card (parity pinned by 8 tests);
+>   Teams card gains a stale-data warning.
+> - **[x] Bugs fixed this session:** (a) `cancel_reason` over-counted 3x (reason
+>   is stamped on every later event — now scoped to `prospect_canceled`: 472 vs
+>   funnel 480); (b) **PRE-EXISTING, was live: Leasing showed "Tour → Lease
+>   148.4%"** — Elise records attendance for only 23.3% of booked tours, so
+>   leased/attended broke 100%. Now over tours BOOKED (34.6%) with the capture
+>   rate surfaced; (c) freshness stamp read "8 of 1" (denominator counted only
+>   key-configured properties) → now `propertiesExpected`.
+> - **OPEN / NEXT:**
+>   1. **Verify on prod** — `/ops` §6–8 render; `/report` freshness stamp reads
+>      "8 of 8", sparklines, YoY toggle, Methodology panel; check tomorrow's
+>      Teams card carries the methodology line.
+>   2. **Ask Elise about the 15 empty views** (above) — unblocks Renewals /
+>      Evictions / Maintenance.
+>   3. **Operational findings worth chasing:** 952 of 3,299 calls unanswered
+>      (last 30d); "unknown" is the largest cancellation reason (424 of 472).
+>   4. K3 security re-issue (all 8 CB keys without Guest scope) — HELD by Kyle,
+>      no leak, revisit when he has time.
+>   5. Deferred: LY *revenue* exact-match from Monica's files (~0.2% off).
+>   6. `Occupancy Report/` (869 files, ~2.0 GB) is gitignored — needs Git LFS if
+>      it should ever be versioned.
+>
 > **Pickup — 07/27/26. BOTH storage-verification items DONE.** Snapshot store is
 > healthy; the classifier audit found ONE material gap + several review items.
 > New tool shipped (`ff88917`): `getRatePlanInventory` + `GET
