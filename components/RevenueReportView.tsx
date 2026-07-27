@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { isCountDependentRow } from "@/lib/revenue-report";
+import { isCountDependentRow, METHODOLOGY } from "@/lib/revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -316,7 +316,12 @@ function Leaderboard({
   items,
   onSelect,
 }: {
-  items: (RailItem & { roomRevYtd: number | null; adr: number | null; revpar: number | null })[];
+  items: (RailItem & {
+    roomRevYtd: number | null;
+    adr: number | null;
+    revpar: number | null;
+    spark: { day: string; pOcc: number }[];
+  })[];
   onSelect: (code: string) => void;
 }) {
   return (
@@ -326,6 +331,7 @@ function Leaderboard({
           <tr className="bg-ink text-xs font-semibold uppercase tracking-wide text-white">
             <th className="px-4 py-2.5 text-left">Property</th>
             <th className="px-4 py-2.5 text-right">% Occ (yest)</th>
+            <th className="px-4 py-2.5 text-center">Occ trend (30d)</th>
             <th className="px-4 py-2.5 text-right">Room Rev (YTD)</th>
             <th className="px-4 py-2.5 text-right">ADR (yest)</th>
             <th className="px-4 py-2.5 text-right">RevPAR (yest)</th>
@@ -346,6 +352,9 @@ function Leaderboard({
               </td>
               <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
                 {p.occ == null ? "—" : fmtPct(p.occ)}
+              </td>
+              <td className="px-4 py-2.5 text-center">
+                <Sparkline points={p.spark} />
               </td>
               <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900">
                 {fmtCompactCurrency(p.roomRevYtd)}
@@ -442,6 +451,21 @@ function PropertyDetail({
 
   return (
     <div className="space-y-5">
+      {(actual.spark?.length ?? 0) >= 2 && (
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Occupancy trend</p>
+            <p className="text-xs text-slate-400">
+              last {actual.spark!.length} captured days · {fmtPct(actual.spark![0].pOcc)} →{" "}
+              {fmtPct(actual.spark!.at(-1)!.pOcc)}
+            </p>
+          </div>
+          <div className="ml-auto">
+            <Sparkline points={actual.spark!} width={220} height={40} />
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiTile label="% Occupied" value={y.pOcc == null ? "—" : fmtPct(y.pOcc)} sub="yesterday" />
         <KpiTile label="Room Revenue" value={fmtCompactCurrency(ytd.roomRev)} sub="year-to-date" />
@@ -470,6 +494,119 @@ function PropertyDetail({
         <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
           No on-the-books data for this property.
         </p>
+      )}
+    </div>
+  );
+}
+
+/** Inline SVG sparkline of trailing daily occupancy. Deliberately unlabelled —
+ *  it conveys shape, not values; the tables carry the numbers. Renders nothing
+ *  below 2 points so a single banked day doesn't imply a trend. */
+function Sparkline({
+  points,
+  width = 110,
+  height = 26,
+}: {
+  points: { day: string; pOcc: number }[];
+  width?: number;
+  height?: number;
+}) {
+  if (points.length < 2) return <span className="text-xs text-slate-300">—</span>;
+  const vals = points.map((p) => p.pOcc);
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  const span = hi - lo || 1;
+  const pad = 2;
+  const dx = (width - pad * 2) / (points.length - 1);
+  const y = (v: number) => pad + (height - pad * 2) * (1 - (v - lo) / span);
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${(pad + i * dx).toFixed(1)},${y(p.pOcc).toFixed(1)}`).join(" ");
+  const last = points.at(-1)!;
+  const first = points[0]!;
+  const rising = last.pOcc >= first.pOcc;
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="overflow-visible align-middle"
+      role="img"
+      aria-label={`Occupancy trend over the last ${points.length} captured days, ${fmtPct(first.pOcc)} to ${fmtPct(last.pOcc)}`}
+    >
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"
+        className={rising ? "text-emerald-500" : "text-red-400"} />
+      <circle cx={(pad + (points.length - 1) * dx).toFixed(1)} cy={y(last.pOcc).toFixed(1)} r="1.8"
+        className={rising ? "fill-emerald-600" : "fill-red-500"} />
+    </svg>
+  );
+}
+
+/** Is the store's latest capture the day this report is for? If not, say so
+ *  loudly — a stale cron otherwise reads as a genuinely quiet day. */
+function FreshnessStamp({ report }: { report: RevenueReport }) {
+  const f = report.freshness;
+  if (!f || !f.latestCapturedDate) return null;
+  const current = f.latestCapturedDate >= report.asOf;
+  const banked = f.lastBankedAt ? f.lastBankedAt.slice(0, 16).replace("T", " ") + " UTC" : "unknown";
+  return (
+    <div
+      className={
+        "mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-2.5 text-xs " +
+        (current
+          ? "border-slate-200 bg-slate-50 text-slate-600"
+          : "border-amber-300 bg-amber-50 text-amber-900")
+      }
+    >
+      <span className="flex items-center gap-1.5 font-semibold">
+        <span className={"inline-block h-2 w-2 rounded-full " + (current ? "bg-emerald-500" : "bg-amber-500")} />
+        {current ? "Data current" : "Data may be stale"}
+      </span>
+      <span>
+        Last captured day <span className="font-medium">{f.latestCapturedDate}</span> ({f.propertiesOnLatest} of{" "}
+        {f.propertiesExpected} properties)
+      </span>
+      <span className="text-slate-400">·</span>
+      <span>Snapshot last written {banked}</span>
+      {!current && (
+        <span className="font-medium">
+          — this report is for {report.asOf}; the daily capture has not landed yet.
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Monica-confirmed methodology, collapsed by default. Same wording as the
+ *  Excel/PDF exports and the Teams card (lib/revenue-report METHODOLOGY). */
+function MethodologyFooter() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span>
+          <span className="text-sm font-semibold text-slate-800">Methodology &amp; sources</span>
+          <span className="ml-2 text-xs text-slate-500">
+            Confirmed by Monica Oco (Revenue Management) · 2026-07-24, rate plans re-confirmed 07/27
+          </span>
+        </span>
+        <span className="shrink-0 text-xs font-semibold text-slate-500">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <div className="grid gap-4 border-t border-slate-100 px-4 py-4 text-xs text-slate-600 sm:grid-cols-2">
+          {METHODOLOGY.map((sec) => (
+            <div key={sec.heading}>
+              <p className="mb-1 font-semibold text-slate-700">{sec.heading}</p>
+              <ul className="list-disc space-y-1 pl-4">
+                {sec.points.map((pt) => (
+                  <li key={pt}>{pt}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -511,9 +648,14 @@ function DeltaBadge({ ty, ly }: { ty: number | null; ly: number | null }) {
   );
 }
 
-function YoyCard({ label, ty, ly }: { label: string; ty: number; ly: number }) {
+function YoyCard({ label, ty, ly, highlight }: { label: string; ty: number; ly: number; highlight?: boolean }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <div
+      className={
+        "rounded-xl border bg-white px-4 py-3 shadow-sm transition-colors " +
+        (highlight ? "border-accent ring-1 ring-accent/30" : "border-slate-200")
+      }
+    >
       <div className="flex items-baseline justify-between">
         <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
         <DeltaBadge ty={ty} ly={ly} />
@@ -526,30 +668,45 @@ function YoyCard({ label, ty, ly }: { label: string; ty: number; ly: number }) {
   );
 }
 
-type YoyItem = { code: string; name: string; mtdTY: number | null; mtdLY: number | null; flag: string | null };
+type YoyPeriod = "mtd" | "ytd";
+type YoyItem = {
+  code: string;
+  name: string;
+  mtdTY: number | null;
+  mtdLY: number | null;
+  ytdTY: number | null;
+  ytdLY: number | null;
+  flag: string | null;
+};
 
-function YoyChart({ items }: { items: YoyItem[] }) {
-  const max = Math.max(1, ...items.flatMap((x) => [x.mtdTY ?? 0, x.mtdLY ?? 0]));
+function YoyChart({ items, period }: { items: YoyItem[]; period: YoyPeriod }) {
+  const ty = (x: YoyItem) => (period === "mtd" ? x.mtdTY : x.ytdTY);
+  const ly = (x: YoyItem) => (period === "mtd" ? x.mtdLY : x.ytdLY);
+  const max = Math.max(1, ...items.flatMap((x) => [ty(x) ?? 0, ly(x) ?? 0]));
   const H = 130;
   return (
     <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="mb-3 text-xs text-slate-500">Month-to-date room revenue — this year vs last year</p>
-      <div className="flex items-end gap-5" style={{ minHeight: H + 20 }}>
+      <p className="mb-3 text-xs text-slate-500">
+        {period === "mtd" ? "Month-to-date" : "Year-to-date"} room revenue — this year vs last year
+      </p>
+      <div className="flex items-end gap-5" style={{ minHeight: H + 40 }}>
         {items.map((x) => (
           <div key={x.code} className="flex shrink-0 flex-col items-center gap-1">
+            <DeltaBadge ty={ty(x)} ly={ly(x)} />
             <div className="flex items-end gap-1" style={{ height: H }}>
               <div
-                title={`This year ${fmtCompactCurrency(x.mtdTY)}`}
+                title={`This year ${fmtCompactCurrency(ty(x))}`}
                 className="w-5 rounded-t bg-ink"
-                style={{ height: `${((x.mtdTY ?? 0) / max) * H}px` }}
+                style={{ height: `${((ty(x) ?? 0) / max) * H}px` }}
               />
               <div
-                title={`Last year ${fmtCompactCurrency(x.mtdLY)}`}
+                title={`Last year ${fmtCompactCurrency(ly(x))}`}
                 className="w-5 rounded-t bg-skyLight"
-                style={{ height: `${((x.mtdLY ?? 0) / max) * H}px` }}
+                style={{ height: `${((ly(x) ?? 0) / max) * H}px` }}
               />
             </div>
             <span className="text-[10px] font-medium text-slate-600">{x.code}</span>
+            {x.flag && <span className="text-[9px] text-slate-400">{x.flag}</span>}
           </div>
         ))}
       </div>
@@ -567,6 +724,7 @@ function YoyChart({ items }: { items: YoyItem[] }) {
 
 function YoyRevenue({ props }: { props: PropertyActual[] }) {
   const [show, setShow] = useState(true);
+  const [period, setPeriod] = useState<YoyPeriod>("mtd");
   const items: YoyItem[] = props
     .filter((p) => !YOY_EXCLUDE.has(p.code))
     .map((p) => ({
@@ -574,6 +732,8 @@ function YoyRevenue({ props }: { props: PropertyActual[] }) {
       name: p.name,
       mtdTY: p.mtd.actual.roomRev,
       mtdLY: p.mtd.lastYear?.roomRev ?? null,
+      ytdTY: p.ytd.actual.roomRev,
+      ytdLY: p.ytd.lastYear?.roomRev ?? null,
       flag: YOY_FLAG[p.code] ?? null,
     }));
 
@@ -599,25 +759,42 @@ function YoyRevenue({ props }: { props: PropertyActual[] }) {
 
   return (
     <div className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-900">Revenue vs. Last Year</h3>
-        <button
-          type="button"
-          onClick={() => setShow((v) => !v)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          {show ? "Hide chart" : "Show chart"}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+            {(["mtd", "ytd"] as YoyPeriod[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setPeriod(k)}
+                className={
+                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors " +
+                  (period === k ? "bg-ink text-white" : "text-slate-600 hover:bg-slate-100")
+                }
+              >
+                {k.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            {show ? "Hide chart" : "Show chart"}
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <YoyCard label="MTD Room Revenue" ty={mtd.ty} ly={mtd.ly} />
-        <YoyCard label="YTD Room Revenue" ty={ytd.ty} ly={ytd.ly} />
+        <YoyCard label="MTD Room Revenue" ty={mtd.ty} ly={mtd.ly} highlight={period === "mtd"} />
+        <YoyCard label="YTD Room Revenue" ty={ytd.ty} ly={ytd.ly} highlight={period === "ytd"} />
       </div>
       <p className="mt-2 text-xs text-slate-400">
         Room revenue, this year vs last year. Excludes Jacksonville North (not operated last year).
         Davenport opened Jun&nbsp;&rsquo;25 (partial last-year comparison).
       </p>
-      {show && <YoyChart items={items} />}
+      {show && <YoyChart items={items} period={period} />}
     </div>
   );
 }
@@ -639,6 +816,7 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
     roomRevYtd: p.ytd.actual.roomRev,
     adr: p.yesterday.actual.adrCombined,
     revpar: p.yesterday.actual.revpar,
+    spark: p.spark ?? [],
   }));
 
   const current = report.actual.find((p) => p.code === selected);
@@ -653,24 +831,28 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
   }
 
   return (
-    <div className="lg:flex lg:gap-6">
-      <Rail items={railItems} selected={selected} onSelect={setSelected} />
-      <div className="min-w-0 flex-1">
-        {selected === "all" || !current ? (
-          <>
-            <PortfolioSummary props={report.actual} />
-            <YoyRevenue props={report.actual} />
-            <p className="mb-3 text-xs text-slate-500">
-              Click a property for its full Actual / On-the-Books detail. Occupancy, ADR and RevPAR
-              shown are yesterday&apos;s; Room Revenue is year-to-date (exact).
-            </p>
-            <Leaderboard items={leaderboardItems} onSelect={setSelected} />
-          </>
-        ) : (
-          <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
-        )}
-        <Legend />
+    <>
+      <FreshnessStamp report={report} />
+      <div className="lg:flex lg:gap-6">
+        <Rail items={railItems} selected={selected} onSelect={setSelected} />
+        <div className="min-w-0 flex-1">
+          {selected === "all" || !current ? (
+            <>
+              <PortfolioSummary props={report.actual} />
+              <YoyRevenue props={report.actual} />
+              <p className="mb-3 text-xs text-slate-500">
+                Click a property for its full Actual / On-the-Books detail. Occupancy, ADR and RevPAR
+                shown are yesterday&apos;s; Room Revenue is year-to-date (exact).
+              </p>
+              <Leaderboard items={leaderboardItems} onSelect={setSelected} />
+            </>
+          ) : (
+            <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
+          )}
+          <Legend />
+          <MethodologyFooter />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

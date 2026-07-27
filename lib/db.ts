@@ -170,6 +170,72 @@ export async function replaceElisePipeline(
   );
 }
 
+// --- Report freshness + per-property daily series ---------------------------
+// Both read report_daily_snapshot (the source of truth for MTD/YTD). Freshness
+// answers "did the daily cron actually run?" without making the reader infer it
+// from a stale-looking number; the series drives the per-property sparklines.
+
+export type SnapshotFreshness = {
+  /** Most recent write to any snapshot row (ISO). Null when the table is empty. */
+  lastBankedAt: string | null;
+  /** Latest stay_date that carries REAL occupancy counts (not a revenue-only
+   *  stub or a future inventory row) — i.e. the last day actually captured. */
+  latestCapturedDate: string | null;
+  /** Properties with a real capture on `latestCapturedDate`. */
+  propertiesOnLatest: number;
+};
+
+export async function getSnapshotFreshness(): Promise<SnapshotFreshness> {
+  try {
+    const sql = db();
+    const [row] = (await sql`
+      with captured as (
+        select stay_date, property_code
+        from report_daily_snapshot
+        where transient_nights + lease_nights > 0
+      ), latest as (
+        select max(stay_date) as d from captured
+      )
+      select
+        (select max(updated_at) from report_daily_snapshot)::text as last_banked_at,
+        (select to_char(d, 'YYYY-MM-DD') from latest) as latest_captured,
+        (select count(*) from captured where stay_date = (select d from latest))::int as props
+    `) as { last_banked_at: string | null; latest_captured: string | null; props: number }[];
+    return {
+      lastBankedAt: row?.last_banked_at ?? null,
+      latestCapturedDate: row?.latest_captured ?? null,
+      propertiesOnLatest: Number(row?.props ?? 0),
+    };
+  } catch {
+    return { lastBankedAt: null, latestCapturedDate: null, propertiesOnLatest: 0 };
+  }
+}
+
+export type DailyOccPoint = { code: string; day: string; pOcc: number };
+
+/** Per-property daily occupancy over [from, to] for the sparklines. Only days
+ *  with a real capture are returned, so a gap renders as a gap rather than as
+ *  a misleading dip to zero. */
+export async function getDailyOccSeries(from: string, to: string): Promise<DailyOccPoint[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select property_code, to_char(stay_date, 'YYYY-MM-DD') as day,
+             (transient_nights + lease_nights + other_blocks)::float8 / nullif(inventory, 0) as p_occ
+      from report_daily_snapshot
+      where stay_date >= ${from} and stay_date <= ${to}
+        and transient_nights + lease_nights > 0
+        and inventory > 0
+      order by stay_date
+    `) as { property_code: string; day: string; p_occ: number | null }[];
+    return rows
+      .filter((r) => r.p_occ != null)
+      .map((r) => ({ code: r.property_code, day: r.day, pOcc: Number(r.p_occ) }));
+  } catch {
+    return [];
+  }
+}
+
 // --- EliseAI enrichment metrics (generic daily aggregate) -------------------
 // One table for every extra Elise dimension (lead source, channel, AI-booked,
 // after-hours, tour type, cancellation reason, voice answered/transfer,

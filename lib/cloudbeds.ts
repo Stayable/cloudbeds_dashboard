@@ -13,9 +13,11 @@ import { classifyRatePlan } from "@/lib/lease";
 import { dayCount, easternToday, monthStart, shiftYmd } from "@/lib/dates";
 import {
   bankDailySnapshot,
+  getDailyOccSeries,
   getEarliestCountsDate,
   getEarliestSnapshotDate,
   getReportSnapshots,
+  getSnapshotFreshness,
   upsertRevenueSnapshot,
   type ReportSnapshotRow,
 } from "@/lib/db";
@@ -1539,22 +1541,36 @@ export async function backfillRevenue(
  *  cron-banked count day. */
 export async function buildRevenueReport(asOf?: string): Promise<RevenueReport> {
   const day = asOf ?? shiftYmd(easternToday(), -1);
-  const [{ actual, onTheBooks, trackingSince }, countsSince] = await Promise.all([
+  // 30-day trailing window for the per-property sparklines.
+  const sparkFrom = shiftYmd(day, -29);
+  const [{ actual, onTheBooks, trackingSince }, countsSince, freshness, sparkPoints] = await Promise.all([
     getRevenueReportInputs(day),
     getEarliestCountsDate(null),
+    getSnapshotFreshness(),
+    getDailyOccSeries(sparkFrom, day),
   ]);
   const note =
     SOURCE_NOTE +
     " MTD/YTD Room Revenue and RevPAR reflect the full period (revenue is backfilled and exact); occupancy counts, % Occupancy and ADR accumulate from " +
     (countsSince ?? "the first cron run") +
     " and are partial until a full period is banked.";
+
+  const sparkByCode = new Map<string, { day: string; pOcc: number }[]>();
+  for (const p of sparkPoints) {
+    (sparkByCode.get(p.code) ?? sparkByCode.set(p.code, []).get(p.code)!).push({ day: p.day, pOcc: p.pOcc });
+  }
+
   return {
     asOf: day,
     generatedEastern: `${easternToday()} ET`,
-    actual,
+    actual: actual.map((p) => ({ ...p, spark: sparkByCode.get(p.code) ?? [] })),
     onTheBooks,
     trackingSince: trackingSince ?? undefined,
     sourceNote: note,
+    freshness: {
+      ...freshness,
+      propertiesExpected: PROPERTIES.filter((p) => p.active === true).length,
+    },
   };
 }
 

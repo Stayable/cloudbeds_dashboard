@@ -2,7 +2,7 @@
 // Consumes only lib/revenue-report.ts model types -- no network, no fs.
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { isCountDependentRow } from "./revenue-report";
+import { isCountDependentRow, METHODOLOGY } from "./revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -252,7 +252,7 @@ export function renderReportPdf(report: RevenueReport): Buffer {
   doc.text(noteLines, 20, cursorY);
   cursorY += noteLines.length * 10 + 8;
 
-  const trackingSince = (report as unknown as { trackingSince?: string }).trackingSince;
+  const { trackingSince, freshness } = report;
   if (trackingSince) {
     doc.text(
       `MTD/YTD accumulate from daily snapshots starting ${trackingSince}.`,
@@ -262,6 +262,18 @@ export function renderReportPdf(report: RevenueReport): Buffer {
     cursorY += 14;
   }
 
+  if (freshness?.latestCapturedDate) {
+    const current = freshness.latestCapturedDate >= report.asOf;
+    const stamp =
+      `Data freshness: last captured day ${freshness.latestCapturedDate} ` +
+      `(${freshness.propertiesOnLatest} of ${freshness.propertiesExpected} properties); ` +
+      `snapshot last written ${freshness.lastBankedAt ?? "unknown"}.` +
+      (current ? "" : ` NOTE: this report is for ${report.asOf}; the daily capture had not landed.`);
+    const stampLines = doc.splitTextToSize(stamp, 750);
+    doc.text(stampLines, 20, cursorY);
+    cursorY += stampLines.length * 10 + 8;
+  }
+
   doc.text("Availability legend:", 20, cursorY);
   cursorY += 12;
   doc.text("Orange fill: % Available <= 20%", 20, cursorY);
@@ -269,6 +281,32 @@ export function renderReportPdf(report: RevenueReport): Buffer {
   doc.text("Red fill: % Available <= 15%", 20, cursorY);
   cursorY += 12;
   doc.text("Purple text: % Available >= 40%", 20, cursorY);
+  cursorY += 22;
+
+  // Methodology — same wording as the page and the .xlsx (single source in
+  // lib/revenue-report METHODOLOGY), so the three never drift apart.
+  doc.setFontSize(10);
+  doc.text("Methodology (confirmed by Monica Oco, Revenue Management)", 20, cursorY);
+  cursorY += 16;
+  doc.setFontSize(8);
+  for (const sec of METHODOLOGY) {
+    if (cursorY > 520) {
+      doc.addPage();
+      cursorY = 30;
+    }
+    doc.text(sec.heading, 20, cursorY);
+    cursorY += 12;
+    for (const pt of sec.points) {
+      const lines = doc.splitTextToSize(`- ${pt}`, 730);
+      if (cursorY + lines.length * 10 > 560) {
+        doc.addPage();
+        cursorY = 30;
+      }
+      doc.text(lines, 30, cursorY);
+      cursorY += lines.length * 10 + 2;
+    }
+    cursorY += 6;
+  }
 
   return Buffer.from(doc.output("arraybuffer"));
 }

@@ -1,7 +1,7 @@
 // Excel renderer for the daily occupancy/revenue report (Monica's layout).
 // Consumes only lib/revenue-report.ts model types -- no network, no fs.
 import ExcelJS from "exceljs";
-import { isCountDependentRow } from "./revenue-report";
+import { isCountDependentRow, METHODOLOGY } from "./revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -404,11 +404,7 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
   wsNotes.getCell(nrow, 1).alignment = { wrapText: true, vertical: "top" };
   nrow += 2;
 
-  // `trackingSince` is not yet part of the merged RevenueReport type (planned
-  // for a later task); read it defensively so this renderer keeps working
-  // once it lands, without widening the model here.
-  const trackingSince = (report as unknown as { trackingSince?: string })
-    .trackingSince;
+  const { trackingSince, freshness } = report;
   if (trackingSince) {
     styledCell(
       wsNotes,
@@ -418,6 +414,40 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
       {}
     );
     nrow += 2;
+  }
+
+  // Freshness — same stamp the page shows, so a stale export is not mistaken
+  // for a quiet day once the file is off the dashboard and in an inbox.
+  if (freshness?.latestCapturedDate) {
+    const current = freshness.latestCapturedDate >= report.asOf;
+    styledCell(wsNotes, nrow, 1, "Data freshness:", { bold: true });
+    nrow++;
+    styledCell(
+      wsNotes,
+      nrow,
+      1,
+      `Last captured day ${freshness.latestCapturedDate} (${freshness.propertiesOnLatest} of ` +
+        `${freshness.propertiesExpected} properties). Snapshot last written ${freshness.lastBankedAt ?? "unknown"}.` +
+        (current ? "" : ` NOTE: this report is for ${report.asOf}; the daily capture had not landed.`),
+      current ? {} : { bold: true }
+    );
+    wsNotes.getCell(nrow, 1).alignment = { wrapText: true, vertical: "top" };
+    nrow += 2;
+  }
+
+  // Monica-confirmed methodology (lib/revenue-report METHODOLOGY) — identical
+  // wording on the page, in the PDF and in the Teams card.
+  styledCell(wsNotes, nrow, 1, "Methodology (confirmed by Monica Oco, Revenue Management)", { bold: true });
+  nrow += 1;
+  for (const sec of METHODOLOGY) {
+    styledCell(wsNotes, nrow, 1, sec.heading, { bold: true });
+    nrow++;
+    for (const pt of sec.points) {
+      styledCell(wsNotes, nrow, 1, `\u2022 ${pt}`, {});
+      wsNotes.getCell(nrow, 1).alignment = { wrapText: true, vertical: "top" };
+      nrow++;
+    }
+    nrow++;
   }
 
   styledCell(wsNotes, nrow, 1, "Availability legend:", { bold: true });

@@ -61,6 +61,16 @@ export function buildReportCard(report: RevenueReport, baseUrl: string): object 
   if (report.trackingSince) {
     footerParts.push(`MTD/YTD accumulate from ${report.trackingSince}`);
   }
+  footerParts.push(
+    "Methodology confirmed by Monica Oco (Revenue Management); see the Methodology & sources panel on /report",
+  );
+
+  // Freshness warning. A card that lands on a morning when the cron failed
+  // otherwise reads as a genuinely quiet night, so say it in the card itself
+  // rather than expecting anyone to open the dashboard to find out.
+  const stale =
+    report.freshness?.latestCapturedDate != null &&
+    report.freshness.latestCapturedDate < report.asOf;
 
   // Portfolio MTD occupancy % is only meaningful once every aggregate-eligible
   // property's MTD counts are a complete period — otherwise it blends real
@@ -92,6 +102,19 @@ export function buildReportCard(report: RevenueReport, baseUrl: string): object 
       isSubtle: true,
       wrap: true,
     },
+    ...(stale
+      ? [
+          {
+            type: "TextBlock",
+            text:
+              `WARNING: figures may be stale - the last captured day is ` +
+              `${report.freshness?.latestCapturedDate}, but this report is for ${report.asOf}.`,
+            color: "Warning",
+            weight: "Bolder",
+            wrap: true,
+          },
+        ]
+      : []),
     {
       type: "FactSet",
       facts,
