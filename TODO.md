@@ -17,19 +17,18 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   (Jul 27–31) that carry inventory+OTB revenue but no counts. Future rows are
 >   inert for MTD/YTD (`getRevenueReportInputs` reads stored days only through
 >   `asOf-1`, then adds a live today) and the cron will fill them as stubs.
-> - **[x] Rate-plan classifier audit (all 8, YTD 2026-01-01→07-27).** 57 distinct
->   plan strings; portfolio Room-Rate revenue $3,419,899.
->   - **REAL GAP → `Discounted Monthly Rate`: $56,467 YTD (1.7%), 6 properties
->     (JW/KE/KW/LL/OR/SA), banked as TRANSIENT by both classifiers.** It matches
->     no keyword in `classifyForReport` ("monthly lease"/"weekly lease"/"long
->     term") nor `lib/lease.ts` MONTHLY list — yet its sibling `Discounted Long
->     Term Rate` ($35,218) IS lease. **Needs Kyle/Monica ruling before any
->     change** (a fix also invalidates the 0.09%-vs-Monica reconciliation).
->   - **BIGGEST LEVER, believed correct as-is → `Discounted Weekly Rate`:
->     $458,300 YTD (13.4%), all 8 props, report=transient / mix=lease-weekly.**
->     This divergence is deliberate (Monica's confirmed rule) and is what makes
->     /report reconcile to 0.09%. Do NOT change without her sign-off.
->     Same class: `Employee Weekly Rate` $45,189 (1.3%).
+> - **[x] Rate-plan classifier audit (all 8, YTD 2026-01-01→07-27) — CLASSIFIER
+>   VALIDATED, NO CHANGE NEEDED.** 57 distinct plan strings; portfolio Room-Rate
+>   revenue $3,419,899. Three plans escalated to Monica; she ruled **all three
+>   TRANSIENT** (via Kyle 07/27), matching what the code already does:
+>   - `Discounted Monthly Rate` $56,467 (6 props) → **transient** ✓
+>   - `Discounted Weekly Rate` $458,300 (all 8) → **transient** ✓
+>   - `Employee Weekly Rate` $45,189 (7 props) → **transient**, counted in BOTH
+>     transient nights and transient revenue **because they are paid** ✓
+>   So `classifyForReport` is correct as written and the 0.09% reconciliation
+>   stands. Do NOT add monthly/weekly *rate* keywords. (The `lib/lease.ts`
+>   divergence — weekly-rate = lease-weekly — is intentional and applies only to
+>   the in-house lease-mix widget, never to the report or banked snapshots.)
 >   - **Multi-plan strings are nights-only.** Every comma-joined plan has $0
 >     revenue — dataset-1 carries the single plan at transaction time, dataset-3
 >     carries accumulated plan history. So revenue classification is clean;
