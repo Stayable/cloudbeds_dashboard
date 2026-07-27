@@ -170,6 +170,55 @@ export async function replaceElisePipeline(
   );
 }
 
+// --- EliseAI enrichment metrics (generic daily aggregate) -------------------
+// One table for every extra Elise dimension (lead source, channel, AI-booked,
+// after-hours, tour type, cancellation reason, voice answered/transfer,
+// handoff reason, task type) so adding a dimension needs no migration. Written
+// by the nightly sync from `fetchEliseEnrichment`. PII-free: counts, durations
+// and category labels only.
+
+export type EliseMetricRow = { code: string; day: string; metric: string; dimension: string; n: number; total: number };
+
+/** Enrichment rows for [from, to] (inclusive), optionally one metric only. */
+export async function getEliseMetrics(from: string, to: string, metric?: string): Promise<EliseMetricRow[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select code, to_char(day, 'YYYY-MM-DD') as day, metric, dimension, n, total
+      from elise_metric_daily
+      where day >= ${from} and day <= ${to}
+        and (${metric ?? null}::text is null or metric = ${metric ?? null})
+    `) as { code: string; day: string; metric: string; dimension: string; n: number; total: number }[];
+    return rows.map((r) => ({ ...r, n: Number(r.n), total: Number(r.total) }));
+  } catch {
+    return [];
+  }
+}
+
+/** Upsert enrichment rows (nightly sync). Chunked positional insert. */
+export async function upsertEliseMetrics(rows: EliseMetricRow[]): Promise<void> {
+  if (!rows.length) return;
+  const sql = db();
+  const CHUNK = 400;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const values: string[] = [];
+    const params: unknown[] = [];
+    chunk.forEach((r, j) => {
+      const b = j * 6;
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6})`);
+      params.push(r.code, r.day, r.metric, r.dimension, r.n, r.total);
+    });
+    await sql.query(
+      `insert into elise_metric_daily (code, day, metric, dimension, n, total)
+       values ${values.join(",")}
+       on conflict (code, day, metric, dimension)
+       do update set n = excluded.n, total = excluded.total`,
+      params,
+    );
+  }
+}
+
 // --- Report daily snapshot (banked figures for MTD/YTD rollups) -------------
 // PII-free per-day aggregates per property (CLAUDE.md §5.6). Written by a
 // later cron task; read by the revenue report's MTD/YTD rollups via

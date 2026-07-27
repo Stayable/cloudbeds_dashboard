@@ -94,6 +94,28 @@ await sql`
 `;
 console.log("elise_pipeline_snapshot table ready.");
 
+// elise_metric_daily: generic PII-free daily aggregate for every ENRICHMENT
+// dimension pulled from the Elise share (lead source, channel, AI-booked,
+// after-hours, tour type, cancellation reason, voice answered/transfer, handoff
+// reason, task type). One table rather than one-per-metric so a new dimension
+// needs no migration. `total` is an optional summed measure whose meaning is
+// per-metric (voice_answered = call seconds; task_type = resolved count; else 0).
+// Keyed on `code` (not building_id) — lib/snowflake.ts merges the duplicate
+// unlaunched buildings into their parent code before writing.
+await sql`
+  create table if not exists elise_metric_daily (
+    code       text not null,
+    day        date not null,
+    metric     text not null,
+    dimension  text not null,
+    n          integer not null default 0,
+    total      numeric not null default 0,
+    primary key (code, day, metric, dimension)
+  )
+`;
+await sql`create index if not exists elise_metric_daily_day_idx on elise_metric_daily (day, metric)`;
+console.log("elise_metric_daily table ready.");
+
 // report_daily_snapshot: PII-free daily banked figures per property (lib/db.ts
 // upsertReportSnapshot/getReportSnapshots), written by a later cron task.
 // MTD/YTD occupancy can't be reconstructed from Cloudbeds for past days, so we
