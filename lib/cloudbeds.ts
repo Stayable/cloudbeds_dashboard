@@ -1557,3 +1557,102 @@ export async function buildRevenueReport(asOf?: string): Promise<RevenueReport> 
     sourceNote: note,
   };
 }
+
+// --- Rate-plan inventory (classifier-completeness audit) --------------------
+//
+// Lease vs Transient is detected ENTIRELY from the rate-plan string (PII-free,
+// no Guest scope — CLAUDE.md §5.2). That makes the keyword lists a silent
+// accuracy risk: a genuine lease booked on a plan name nobody added to
+// `classifyForReport` (lib/revenue-report.ts) banks as TRANSIENT forever, and
+// the daily snapshot freezes it. This audit lists every distinct rate plan
+// actually in use per property with its volume and how BOTH classifiers bucket
+// it, so unlisted lease-like plans surface instead of hiding in the transient
+// bucket. Read-only; no writes, no PII.
+
+/** Lease-ish vocabulary — deliberately BROADER than either classifier. A plan
+ *  matching this but classified `transient` is a review candidate, NOT
+ *  automatically a bug: Monica's confirmed rule (memory
+ *  `monica-revenue-methodology`) treats weekly-RATE promos as transient on
+ *  purpose. Human judgement decides; this only narrows what to look at. */
+const LEASE_LIKE = /lease|month|week|long.?term|extend|resident|tenant|permanent|\bltr\b|\bml\b|\bwl\b|\d+\s*night/i;
+
+export type RatePlanUsage = {
+  plan: string;
+  /** Bucket used by the daily report + banked snapshots (lib/revenue-report). */
+  reportClass: "lease" | "transient";
+  /** Bucket used by the in-house lease-mix widget (lib/lease). */
+  mixClass: "lease-monthly" | "lease-weekly" | "transient";
+  /** Dataset-3 summed room_count over the range (relative volume, not rooms). */
+  roomNights: number;
+  /** Dataset-1 Room-Rate debit_amount over the range. */
+  roomRateRevenue: number;
+  /** Lease-like wording but the report classifies it transient — review. */
+  reviewCandidate: boolean;
+};
+
+export type PropertyRatePlans = {
+  code: string;
+  id: string;
+  name: string;
+  ok: boolean;
+  error?: string;
+  plans: RatePlanUsage[];
+};
+
+/** Distinct rate plans in use per property over [start, end], with volume and
+ *  both classifier verdicts. Properties run in parallel; a property without a
+ *  key or with a Cloudbeds error reports `ok:false` rather than aborting. */
+export async function getRatePlanInventory(start: string, end: string): Promise<PropertyRatePlans[]> {
+  return Promise.all(
+    PROPERTIES.map(async (property): Promise<PropertyRatePlans> => {
+      const base = { code: property.code, id: property.id, name: property.name };
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) {
+        return { ...base, ok: false, error: "no API key or apiPropertyId configured", plans: [] };
+      }
+
+      const [nights, revenue] = await Promise.all([
+        diDataset3Grouped(key, property.apiPropertyId, "public_rate_plan", ["room_count"], start, end),
+        diDataset1Grouped(key, property.apiPropertyId, "public_rate_plan", ["debit_amount"], start, end, [
+          { cdf: { column: "transaction_type" }, operator: "equals", value: "Room Rate" },
+        ]),
+      ]);
+      if (!nights.ok && !revenue.ok) {
+        return { ...base, ok: false, error: nights.error, plans: [] };
+      }
+
+      const merged = new Map<string, { roomNights: number; roomRateRevenue: number }>();
+      const add = (res: typeof nights, measure: string, field: "roomNights" | "roomRateRevenue") => {
+        if (!res.ok) return;
+        res.data.index.forEach((plan, i) => {
+          const row = merged.get(plan) ?? { roomNights: 0, roomRateRevenue: 0 };
+          row[field] += res.data.records[measure]?.[i] ?? 0;
+          merged.set(plan, row);
+        });
+      };
+      add(nights, "room_count", "roomNights");
+      add(revenue, "debit_amount", "roomRateRevenue");
+
+      const plans = [...merged.entries()]
+        .map(([plan, v]): RatePlanUsage => {
+          const reportClass = classifyForReport(plan);
+          return {
+            plan,
+            reportClass,
+            mixClass: classifyRatePlan(plan),
+            roomNights: v.roomNights,
+            roomRateRevenue: Math.round(v.roomRateRevenue * 100) / 100,
+            reviewCandidate: reportClass === "transient" && LEASE_LIKE.test(plan),
+          };
+        })
+        .sort((a, b) => b.roomRateRevenue - a.roomRateRevenue || b.roomNights - a.roomNights);
+
+      return {
+        ...base,
+        ok: true,
+        error: nights.ok ? (revenue.ok ? undefined : `revenue query failed: ${revenue.error}`) : `nights query failed: ${nights.error}`,
+        plans,
+      };
+    }),
+  );
+}
