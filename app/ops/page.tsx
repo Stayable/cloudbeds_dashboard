@@ -5,15 +5,18 @@ import EvictionsSection from "@/components/EvictionsSection";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
 import ReviewsSection from "@/components/ReviewsSection";
 import LeasingSection from "@/components/LeasingSection";
+import EliseInsightsSection from "@/components/EliseInsightsSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange, easternToday, shiftYmd } from "@/lib/dates";
 import { getPortfolio, getPortfolioInsights, getPortfolioOoo } from "@/lib/cloudbeds";
+import { PROPERTIES } from "@/config/properties";
 import { getEvictions, getOneStarReviews } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildReviewsView } from "@/lib/reviews";
 import { buildLeasingViews } from "@/lib/leasing";
-import { getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured } from "@/lib/db";
+import { buildInsightViews } from "@/lib/elise-insights";
+import { getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseMetrics } from "@/lib/db";
 
 // Operations Dashboard — role-based (not person-named) operational view. Gated to
 // the ops level (PIN in Neon dashboard_pins) OR exec/CEO. Sections: OOO rooms
@@ -27,6 +30,9 @@ const NAV: NavItem[] = [
   { id: "occupancy", label: "Occupancy", n: 3 },
   { id: "evictions", label: "Evictions", n: 4 },
   { id: "reviews", label: "1-Star Reviews", n: 5 },
+  { id: "leasing-insights", label: "Leasing insights", n: 6 },
+  { id: "voice", label: "Voice AI", n: 7 },
+  { id: "ai-performance", label: "AI performance", n: 8 },
 ];
 
 function SectionHeading({ n, title, sub }: { n: number; title: string; sub: string }) {
@@ -52,21 +58,36 @@ export default async function OpsPage({
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
   const asOf = easternToday();
 
-  const [portfolio, insights, ooo, evictions, reviewsPayload, savedWindow, eliseFunnel, elisePipeline, eliseReady] =
-    await Promise.all([
-      getPortfolio(),
-      getPortfolioInsights(start, end),
-      getPortfolioOoo(asOf),
-      getEvictions(),
-      getOneStarReviews(),
-      getSetting("ops_reviews_window"),
-      getEliseFunnel(start, end),
-      getElisePipeline(),
-      eliseFunnelConfigured(),
-    ]);
+  const [
+    portfolio,
+    insights,
+    ooo,
+    evictions,
+    reviewsPayload,
+    savedWindow,
+    eliseFunnel,
+    elisePipeline,
+    eliseReady,
+    eliseMetrics,
+  ] = await Promise.all([
+    getPortfolio(),
+    getPortfolioInsights(start, end),
+    getPortfolioOoo(asOf),
+    getEvictions(),
+    getOneStarReviews(),
+    getSetting("ops_reviews_window"),
+    getEliseFunnel(start, end),
+    getElisePipeline(),
+    eliseFunnelConfigured(),
+    getEliseMetrics(start, end),
+  ]);
 
   const properties = buildOccProperties(portfolio, insights);
   const leasingViews = buildLeasingViews(eliseFunnel, elisePipeline);
+  const insightViews = buildInsightViews(
+    eliseMetrics,
+    (code) => PROPERTIES.find((p) => p.code === code)?.name ?? code,
+  );
 
   // 1-star reviews: locked date window from Neon (shared); default to the last
   // 30 days (Eastern) until a window is explicitly saved.
@@ -119,7 +140,7 @@ export default async function OpsPage({
         </div>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Operations Dashboard</h1>
         <p className="mt-1 text-sm text-white/70">
-          OOO rooms, leasing, occupancy, evictions, and reviews across the portfolio.
+          OOO rooms, leasing, occupancy, evictions, reviews, and EliseAI insights across the portfolio.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-widest text-white/60">Export:</span>
@@ -213,9 +234,46 @@ export default async function OpsPage({
             />
           </section>
 
+          <section id="leasing-insights" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+            <SectionHeading
+              n={6}
+              title="Leasing insights"
+              sub={`Lead source · channel · AI-booked · cancellations · EliseAI · ${rangeLabel}`}
+            />
+            <div className="mb-4">
+              <PeriodControls preset={preset} start={start} end={end} />
+            </div>
+            <EliseInsightsSection section="leasing" views={insightViews} from={start} to={end} asOf={end} />
+          </section>
+
+          <section id="voice" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+            <SectionHeading
+              n={7}
+              title="Voice AI"
+              sub={`Call volume · who answered · after hours · transfers · ${rangeLabel}`}
+            />
+            <div className="mb-4">
+              <PeriodControls preset={preset} start={start} end={end} />
+            </div>
+            <EliseInsightsSection section="voice" views={insightViews} from={start} to={end} asOf={end} />
+          </section>
+
+          <section id="ai-performance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+            <SectionHeading
+              n={8}
+              title="AI performance"
+              sub={`AI→human handoffs and task resolution · ${rangeLabel}`}
+            />
+            <div className="mb-4">
+              <PeriodControls preset={preset} start={start} end={end} />
+            </div>
+            <EliseInsightsSection section="ai" views={insightViews} from={start} to={end} asOf={end} />
+          </section>
+
           <p className="mb-6 text-xs text-slate-400">
             Aggregated metrics only · no guest PII · read-only · cached up to 10 min. Only
-            properties with a configured Cloudbeds key report.
+            properties with a configured Cloudbeds key report. Elise-sourced sections (2, 6–8) are
+            aggregated inside Snowflake and synced nightly — no lead or resident PII reaches this app.
           </p>
 
           <ChangePin />

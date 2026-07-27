@@ -26,6 +26,7 @@ describe("renderLeasingPdf", () => {
         leadToTour: 40,
         tourToLease: 33.3,
         leadToLease: 10,
+        tourAttendanceRecorded: null,
         pipeline: [
           { status: "Inquiry", n: 60 },
           { status: "Applicant", n: 20 },
@@ -41,6 +42,7 @@ describe("renderLeasingPdf", () => {
         leadToTour: 41.7,
         tourToLease: 40,
         leadToLease: 13.3,
+        tourAttendanceRecorded: null,
         pipeline: [
           { status: "Inquiry", n: 35 },
           { status: "Applicant", n: 12 },
@@ -55,6 +57,7 @@ describe("renderLeasingPdf", () => {
         leadToTour: 37.5,
         tourToLease: 20,
         leadToLease: 5,
+        tourAttendanceRecorded: null,
         pipeline: [
           { status: "Inquiry", n: 25 },
           { status: "Applicant", n: 8 },

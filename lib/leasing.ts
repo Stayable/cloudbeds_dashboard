@@ -32,8 +32,15 @@ export type LeasingView = {
   stages: Stage[]; // ordered funnel stages with counts
   cancelled: number; // prospect_canceled in the window
   leadToTour: number | null; // tour_booked / leads (%)
-  tourToLease: number | null; // lease_completed / tour_attended (%)
+  /** lease_completed / tour_BOOKED (%). Deliberately NOT over tour_attended:
+   *  Elise under-records attendance (last-30 portfolio: 399 booked, 93
+   *  attended, 138 leased), so a rate over attended exceeded 100% — 148.4% was
+   *  rendering live. Booked is the reliable denominator. */
+  tourToLease: number | null;
   leadToLease: number | null; // lease_completed / leads (%)
+  /** tour_attended / tour_booked (%) — exposes how much attendance data is
+   *  actually captured, so the gap is visible instead of distorting a metric. */
+  tourAttendanceRecorded: number | null;
   pipeline: PipelineStatus[]; // current status snapshot
 };
 
@@ -70,8 +77,9 @@ function viewFrom(key: string, label: string, acc: Acc): LeasingView {
     stages,
     cancelled: acc.counts.get(CANCELLED_EVENT) ?? 0,
     leadToTour: pct(toursBooked, leads),
-    tourToLease: pct(leased, toursAttended),
+    tourToLease: pct(leased, toursBooked),
     leadToLease: pct(leased, leads),
+    tourAttendanceRecorded: pct(toursAttended, toursBooked),
     pipeline,
   };
 }

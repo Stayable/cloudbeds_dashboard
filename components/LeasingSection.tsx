@@ -143,6 +143,13 @@ export default function LeasingSection({
       <p className="text-xs text-slate-500">
         Activity from <span className="font-medium text-slate-700">{from}</span> to{" "}
         <span className="font-medium text-slate-700">{to}</span> · windowed by event date.
+        {view.tourAttendanceRecorded != null && view.tourAttendanceRecorded < 90 && (
+          <>
+            {" "}Elise recorded attendance for only{" "}
+            <span className="font-medium text-slate-700">{view.tourAttendanceRecorded}%</span> of booked
+            tours, so Tour → Lease is measured against tours <em>booked</em>.
+          </>
+        )}
       </p>
 
       {/* Conversion + volume tiles */}
@@ -150,7 +157,7 @@ export default function LeasingSection({
         <Tile label="Leads" value={intFmt(leads)} sub="new prospects" />
         <Tile label="Leased" value={intFmt(leased)} sub="signed in window" tone={leased > 0 ? "good" : undefined} />
         <Tile label="Lead → Tour" value={rate(view.leadToTour)} sub="booked a tour" />
-        <Tile label="Tour → Lease" value={rate(view.tourToLease)} sub="attended → leased" />
+        <Tile label="Tour → Lease" value={rate(view.tourToLease)} sub="booked → leased" />
         <Tile label="Cancelled" value={intFmt(view.cancelled)} sub="prospects canceled" tone={view.cancelled > 0 ? "bad" : undefined} />
       </div>
 

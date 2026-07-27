@@ -136,3 +136,90 @@ export function dailySeries(
   }
   return [...byDay.entries()].map(([day, n]) => ({ day, n })).sort((a, b) => a.day.localeCompare(b.day));
 }
+
+/** Total events for one metric, optionally scoped to a property. */
+export function metricTotal(rows: EliseMetricRow[], metric: string, opts?: { code?: string }): number {
+  let n = 0;
+  for (const r of rows) {
+    if (r.metric !== metric) continue;
+    if (opts?.code && r.code !== opts.code) continue;
+    n += r.n;
+  }
+  return n;
+}
+
+/** Everything the three enrichment sections render, for ONE scope (portfolio or
+ *  a single property). Computed server-side and passed as plain data so the
+ *  client component only owns the property toggle — same shape of contract as
+ *  `LeasingView` in lib/leasing.ts. */
+export type InsightView = {
+  key: string; // "ALL" | property code
+  label: string;
+  // Leasing enrichment
+  leadSources: Slice[];
+  channels: Slice[];
+  tourTypes: Slice[];
+  cancelReasons: Slice[];
+  cancelTotal: number;
+  aiBookedPct: number | null;
+  afterHoursPct: number | null;
+  toursClassified: number;
+  // Voice AI
+  voiceCalls: number;
+  voiceAnswered: Slice[];
+  voiceAvgSec: number | null;
+  voiceAfterHoursPct: number | null;
+  voiceTransferPct: number | null;
+  voiceTransferReasons: Slice[];
+  // AI performance
+  handoffs: number;
+  handoffReasons: Slice[];
+  tasks: number;
+  taskResolutionPct: number | null;
+  taskTypes: Slice[];
+};
+
+function viewFor(rows: EliseMetricRow[], key: string, label: string): InsightView {
+  const scope = key === "ALL" ? undefined : { code: key };
+  const voiceCalls = metricTotal(rows, "voice_answered", scope);
+  const transfers = metricTotal(rows, "voice_transfer", scope);
+  return {
+    key,
+    label,
+    leadSources: breakdown(rows, "lead_source", { ...scope, limit: 7 }).slices,
+    channels: breakdown(rows, "channel", scope).slices,
+    tourTypes: breakdown(rows, "tour_type", scope).slices,
+    cancelReasons: breakdown(rows, "cancel_reason", { ...scope, limit: 8 }).slices,
+    cancelTotal: metricTotal(rows, "cancel_reason", scope),
+    aiBookedPct: shareOf(rows, "ai_booked", "ai", scope),
+    afterHoursPct: shareOf(rows, "after_hours", "after_hours", scope),
+    toursClassified: metricTotal(rows, "ai_booked", scope),
+    voiceCalls,
+    voiceAnswered: breakdown(rows, "voice_answered", scope).slices,
+    voiceAvgSec: avgCallSeconds(rows, scope),
+    voiceAfterHoursPct: shareOf(rows, "voice_after_hours", "after_hours", scope),
+    // Only transfers that carry a reason are tagged, so this is a floor on the
+    // true transfer rate — labelled as such in the UI.
+    voiceTransferPct: voiceCalls ? transfers / voiceCalls : null,
+    voiceTransferReasons: breakdown(rows, "voice_transfer", { ...scope, limit: 8 }).slices,
+    handoffs: metricTotal(rows, "handoff_reason", scope),
+    handoffReasons: breakdown(rows, "handoff_reason", { ...scope, limit: 8 }).slices,
+    tasks: metricTotal(rows, "task_type", scope),
+    taskResolutionPct: taskResolutionRate(rows, scope),
+    taskTypes: breakdown(rows, "task_type", { ...scope, limit: 8 }).slices,
+  };
+}
+
+/** Build the "All properties" view plus one per property that actually has
+ *  rows in the window. Properties with no Elise activity are omitted rather
+ *  than shown as empty tabs. */
+export function buildInsightViews(
+  rows: EliseMetricRow[],
+  labelFor: (code: string) => string,
+): InsightView[] {
+  const codes = [...new Set(rows.map((r) => r.code))].sort();
+  return [
+    viewFor(rows, "ALL", "All properties"),
+    ...codes.map((code) => viewFor(rows, code, labelFor(code))),
+  ];
+}

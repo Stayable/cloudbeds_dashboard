@@ -175,13 +175,17 @@ export async function fetchEliseEnrichment(): Promise<{ rows: MetricRow[]; skipp
             GROUP BY 1, 2, 3`,
     },
     {
-      // Why prospects cancel — the "cancellation reasons" ask.
+      // Why prospects cancel — the "cancellation reasons" ask. MUST be scoped to
+      // prospect_canceled events: the reason is stamped on every later event row
+      // for the same prospect, so an unscoped count runs ~3x the funnel's
+      // Cancelled figure and the two sections visibly disagree.
       metric: "cancel_reason",
       sql: `SELECT BUILDING_ID, EVENT_DATETIME::DATE AS DAY,
                    CANCELLATION_REASON AS DIM, COUNT(*) AS N, 0 AS TOTAL
             FROM RISE8_DATA.DA.PROSPECT_EVENTS_RISE8
             WHERE BUILDING_ID IS NOT NULL AND EVENT_DATETIME IS NOT NULL
               AND CANCELLATION_REASON IS NOT NULL
+              AND EVENT_TYPE = 'prospect_canceled'
             GROUP BY 1, 2, 3`,
     },
     {

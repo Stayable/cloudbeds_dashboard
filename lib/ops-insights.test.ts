@@ -104,6 +104,7 @@ function leasingView(overrides: Partial<LeasingView>): LeasingView {
     cancelled: 0,
     leadToTour: null,
     tourToLease: null,
+    tourAttendanceRecorded: null,
     leadToLease: null,
     pipeline: [],
     ...overrides,

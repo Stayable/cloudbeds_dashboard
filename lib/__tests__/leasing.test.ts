@@ -70,11 +70,28 @@ describe("buildLeasingViews", () => {
     const views = buildLeasingViews(funnel, pipeline);
     const dp = views.find((v) => v.key === "DP")!;
     expect(dp.leadToTour).toBe(20); // 20/100
-    expect(dp.tourToLease).toBe(40); // 4/10 attended
+    expect(dp.tourToLease).toBe(20); // 4 leased / 20 BOOKED (not attended)
     expect(dp.leadToLease).toBe(4); // 4/100
+    expect(dp.tourAttendanceRecorded).toBe(50); // 10 attended / 20 booked
     const ll = views.find((v) => v.key === "LL")!;
     expect(ll.leadToTour).toBe(0); // 0/200
-    expect(ll.tourToLease).toBeNull(); // 0 attended -> null
+    expect(ll.tourToLease).toBeNull(); // 0 booked -> null
+    expect(ll.tourAttendanceRecorded).toBeNull();
+  });
+
+  it("never reports a Tour→Lease rate above 100% when attendance is under-recorded", () => {
+    // Elise under-records tour_attended: real portfolio last-30 was 399 booked /
+    // 93 attended / 138 leased, which over attended read 148.4%.
+    const rows = [
+      { code: "DP", day: "2026-07-01", eventType: "prospect", n: 2128 },
+      { code: "DP", day: "2026-07-01", eventType: "tour_booked", n: 399 },
+      { code: "DP", day: "2026-07-01", eventType: "tour_attended", n: 93 },
+      { code: "DP", day: "2026-07-01", eventType: "lease_completed", n: 138 },
+    ];
+    const dp = buildLeasingViews(rows, []).find((v) => v.key === "DP")!;
+    expect(dp.tourToLease).toBeLessThanOrEqual(100);
+    expect(dp.tourToLease).toBeCloseTo(34.6, 1);
+    expect(dp.tourAttendanceRecorded).toBeCloseTo(23.3, 1);
   });
 
   it("counts cancellations per property and in ALL", () => {
