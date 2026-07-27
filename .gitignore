@@ -26,3 +26,8 @@ next-env.d.ts
 /*.pdf
 /*.png
 outputs/EliseDataAccess_Email_070226.md
+
+# Monica's raw daily occupancy workbooks — 869 files / ~2.0 GB of source .xlsx
+# snapshots kept locally for reconciliation. Far too large for git; the derived
+# outputs (reconciliation + methodology in outputs/) are versioned instead.
+/Occupancy Report/
