@@ -2,6 +2,46 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+> **Pickup — 07/27/26. BOTH storage-verification items DONE.** Snapshot store is
+> healthy; the classifier audit found ONE material gap + several review items.
+> New tool shipped (`ff88917`): `getRatePlanInventory` + `GET
+> /api/cron/rate-plans?start=&end=` (CRON_SECRET, read-only, not scheduled).
+>
+> - **[x] Snapshot health — CLEAN.** Neon `report_daily_snapshot`: 4,616 rows,
+>   8/8 props, 2025-01-01 → 2026-07-31 (577 rows each, complete daily).
+>   **Gap detector `?days=30` → totalMissing: 0.** Last 14 days: all 8 props
+>   non-zero on transient / lease / OOO / revenue every day. Daily cron ran
+>   07/25, 07/26, 07/27 at 10:01 UTC, 8 rows each (yesterday); 07/24 was the
+>   4,592-row backfill. All zero-count days are explained: DP 2025 Jan–May
+>   (pre-CB), JN 2025-05→2026-03 (the ~0-occ property), and 5 FUTURE days
+>   (Jul 27–31) that carry inventory+OTB revenue but no counts. Future rows are
+>   inert for MTD/YTD (`getRevenueReportInputs` reads stored days only through
+>   `asOf-1`, then adds a live today) and the cron will fill them as stubs.
+> - **[x] Rate-plan classifier audit (all 8, YTD 2026-01-01→07-27).** 57 distinct
+>   plan strings; portfolio Room-Rate revenue $3,419,899.
+>   - **REAL GAP → `Discounted Monthly Rate`: $56,467 YTD (1.7%), 6 properties
+>     (JW/KE/KW/LL/OR/SA), banked as TRANSIENT by both classifiers.** It matches
+>     no keyword in `classifyForReport` ("monthly lease"/"weekly lease"/"long
+>     term") nor `lib/lease.ts` MONTHLY list — yet its sibling `Discounted Long
+>     Term Rate` ($35,218) IS lease. **Needs Kyle/Monica ruling before any
+>     change** (a fix also invalidates the 0.09%-vs-Monica reconciliation).
+>   - **BIGGEST LEVER, believed correct as-is → `Discounted Weekly Rate`:
+>     $458,300 YTD (13.4%), all 8 props, report=transient / mix=lease-weekly.**
+>     This divergence is deliberate (Monica's confirmed rule) and is what makes
+>     /report reconcile to 0.09%. Do NOT change without her sign-off.
+>     Same class: `Employee Weekly Rate` $45,189 (1.3%).
+>   - **Multi-plan strings are nights-only.** Every comma-joined plan has $0
+>     revenue — dataset-1 carries the single plan at transaction time, dataset-3
+>     carries accumulated plan history. So revenue classification is clean;
+>     only NIGHTS are exposed to the comma-join/precedence trap.
+>   - **Data hygiene (Cloudbeds-side, cosmetic):** 3 whitespace variants of
+>     "Book Direct and Save - Refundable (24-Hour Cancellation)", 2 of
+>     "Refundable (24-Hour Cancellation)" (one trailing TAB), a plan literally
+>     named `-` ($22, JN+KE), and `Special Weekly/Daily Rate due to Wildfire` (JW).
+> - **(carry) Annual exact-LY:** forward captures are CB-derived (capture-once
+>   freeze), not Monica-frozen — for an EXACT prior year, re-backfill from her
+>   year-end file each January (`backfill-counts-from-monica.mjs`).
+>
 > **Checkpoint — 07/25/26 (cont.).** Durable source-of-truth hardening + overhaul prompt.
 > All pushed (`629aff5` latest, branch claude/nifty-thompson-ts8zny).
 > - **[x] Snapshot store hardened** (`629aff5`) — Neon report_daily_snapshot is now
