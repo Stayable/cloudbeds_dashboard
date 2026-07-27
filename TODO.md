@@ -2,9 +2,31 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
-> **Pickup — 07/27/26 (session 2). ELISE ENRICHMENT + /report POLISH SHIPPED.**
-> Commits `2556a62` (Elise data layer), `bf3eb60` (/ops §6–8 + Tour→Lease fix),
-> `954a6b0` (/report polish). All pushed; 170 tests pass; clean build verified.
+> **Pickup — 07/27/26 (session 2). ELISE ENRICHMENT + /report POLISH SHIPPED;
+> DESIGN PROMPT SENT.** Commits `2556a62` (Elise data layer), `bf3eb60` (/ops §6–8
+> + Tour→Lease fix), `954a6b0` (/report polish), `2dc46d3` + `1aa3142` (merged
+> design prompt). All pushed, working tree CLEAN; 170 tests pass; clean build
+> verified locally against live data.
+>
+> **▶ START HERE NEXT SESSION:**
+> 1. **Kyle SENT the merged design prompt to Claude design (07/27).** When the
+>    output comes back, adapt it into the app. Prompt lives at
+>    `docs/prompts/dashboard-design-prompt.md` (single canonical prompt — the old
+>    dashboard-overhaul + report-redesign files were merged and removed;
+>    ASCII-only fallback at `dashboard-design-prompt-ascii.txt`).
+> 2. **Verify on prod** — `/ops` §6–8 render; `/report` freshness stamp reads
+>    "8 of 8", sparklines, YoY MTD/YTD toggle, Methodology panel; confirm the next
+>    daily Teams card carries the methodology line.
+> 3. **Ask Elise about the 15 empty views** (list below) — the only thing blocking
+>    Renewals / Evictions / Maintenance-Turns.
+> 4. **Two operational findings for Ops/Leasing to chase:** 952 of 3,299 calls
+>    unanswered (last 30d); "unknown" is the largest cancellation reason (424/472).
+>
+> **Gotcha worth remembering:** `cat file | clip` CORRUPTS non-ASCII (UTF-8 →
+> `┬╖`). Use PowerShell `Get-Content -Raw -Encoding UTF8 | Set-Clipboard` and
+> verify. Also: `pkill -f "next start"` does NOT reliably kill the local server on
+> Windows — a stale process kept serving an old build and made a smoke test report
+> stale numbers. Use `Get-NetTCPConnection -LocalPort 3000` + `Stop-Process`.
 > - **[x] Monica's rulings (via Kyle 07/27): M1/M2/M3 all TRANSIENT.** Employee
 >   Weekly counted in transient nights AND revenue because it is paid. Our code
 >   already did this → classifier VALIDATED, no change. M4 (annual year-end file)
@@ -35,19 +57,20 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   leased/attended broke 100%. Now over tours BOOKED (34.6%) with the capture
 >   rate surfaced; (c) freshness stamp read "8 of 1" (denominator counted only
 >   key-configured properties) → now `propertiesExpected`.
-> - **OPEN / NEXT:**
->   1. **Verify on prod** — `/ops` §6–8 render; `/report` freshness stamp reads
->      "8 of 8", sparklines, YoY toggle, Methodology panel; check tomorrow's
->      Teams card carries the methodology line.
->   2. **Ask Elise about the 15 empty views** (above) — unblocks Renewals /
->      Evictions / Maintenance.
->   3. **Operational findings worth chasing:** 952 of 3,299 calls unanswered
->      (last 30d); "unknown" is the largest cancellation reason (424 of 472).
->   4. K3 security re-issue (all 8 CB keys without Guest scope) — HELD by Kyle,
->      no leak, revisit when he has time.
->   5. Deferred: LY *revenue* exact-match from Monica's files (~0.2% off).
->   6. `Occupancy Report/` (869 files, ~2.0 GB) is gitignored — needs Git LFS if
->      it should ever be versioned.
+> - **[x] Design prompts MERGED to one** (`2dc46d3`): `docs/prompts/dashboard-
+>   design-prompt.md`, refreshed for /ops §6–8 + the new /report elements, palette
+>   conflict resolved to brand navy #041E42. ASCII fallback `1aa3142`. SENT by Kyle.
+> - **DEFERRED / HELD (not blocking):**
+>   - K3 security re-issue (all 8 CB keys without Guest scope) — HELD by Kyle;
+>     no leak (app never calls guest endpoints), revisit when he has time.
+>   - LY *revenue* exact-match from Monica's files (~0.2% off) — optional.
+>   - **M4 CLOSED as "use our captures":** forward LY comes from our own daily
+>     capture-once snapshots, not Monica's year-end file. Recommendation given and
+>     accepted in principle; re-import her file only if a real mismatch appears.
+>   - `Occupancy Report/` (869 files, ~2.0 GB) is gitignored — needs Git LFS if it
+>     should ever be versioned.
+>   - Pre-existing typecheck error in `lib/ops-pdf-ooo.test.ts` (missing
+>     DashboardData fields in a fixture) — untouched, tests still pass.
 >
 > **Pickup — 07/27/26. BOTH storage-verification items DONE.** Snapshot store is
 > healthy; the classifier audit found ONE material gap + several review items.
