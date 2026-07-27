@@ -1,0 +1,176 @@
+# Claude-design prompt — Stayable Operating Dashboard (full design overhaul)
+
+Design a cohesive, premium, **executive-grade design system and high-fidelity
+mockups** for an internal hotel-operations dashboard. This is a full visual
+overhaul of an existing, working Next.js + Tailwind app (deployed on Vercel) for
+**RISE8 Companies / Stayable** — a Florida extended-stay hotel brand with 8
+properties. Audience: the CEO, VP Ops, revenue manager, and property teams. It is
+internal, view-only, PIN-gated, and shows **aggregate metrics only (no guest
+PII)**.
+
+Keep the information architecture and the data — **redesign the look, feel, and
+component system**: typography, spacing, grid, color usage, cards, tables,
+charts, states, and a unified navigation shell. Aim for calm,
+dense-but-readable, "investment-banking clean" (Goldman / Bloomberg-terminal
+restraint) elevated with polish — not flashy, not templated.
+
+Deliver **one** polished, opinionated design direction — not several rough
+options.
+
+---
+
+## Brand palette (Stayable — use these, from rentstayable.com)
+
+- **Deep navy `#041E42`** — primary / headers / dark chrome
+- **Bright blue `#0091F5`** — accent / primary actions / active state / "this year"
+- **Light sky `#91D1FA`** — secondary accent / "last year" / soft fills
+- **Gold `#FDDA24`** — sparing highlight / callouts
+- Neutrals: a clean gray scale for surfaces, borders, secondary text
+- Status (keep semantic): green = healthy, amber = watch, red = low / critical
+- Design **light and dark themes**
+
+## Type & numbers
+
+- Professional sans (system UI / Inter-class).
+- **Tabular-lining numerals everywhere**, numbers right-aligned.
+- Currency `$#,##0` (compact `$704k` for tiles); percentages `0.0%`.
+- Comfortable row height; dense but never cramped.
+
+---
+
+## Surfaces to design (one cohesive system across all)
+
+### 1. Login
+Minimal PIN entry, branded, single input, clean.
+
+### 2. Global shell
+Persistent top nav (Stayable wordmark + role-aware page links + Log Out), an
+optional left section-nav sidebar, a **per-property / All toggle**, and **period
+controls** (Yesterday / Last 7 / Last 30 / This month / custom range). These
+repeat on every page — design them once, beautifully. Include a route-transition
+loading treatment.
+
+### 3. Home — portfolio occupancy
+A hero "arrivals today" + portfolio occupancy %, a per-property occupancy
+strip/leaderboard, a detail view, and a **Zones** view: rooms grouped by
+building, each room a chip colored by live status (occupied / vacant /
+out-of-order) with a legend and per-zone counts.
+
+### 4. Occupancy & Revenue Report — the hardest screen, design it carefully
+
+**The problem to solve.** The page must serve a CEO who wants the shape in five
+seconds *and* a revenue manager who wants every cell. The old version dumped, for
+all 8 properties at once, two dense tables each — an "Actual" grid of 18 metric
+rows × 9 columns (Yesterday / MTD / YTD, each split Actual / Last-Year /
+Variance) plus an "On-the-Books" grid of 18 rows × 7 day-columns. That is ~16
+large tables stacked vertically: it mirrors an internal Excel report cell-for-cell
+and is overwhelming to scan.
+
+**Design principles for this screen:**
+1. **Portfolio-first, drill-down second.** The landing state is a scannable
+   overview, never every property's full grid. Detail appears on demand.
+2. **Fewer numbers visible at once.** Lead with a small set of headline KPI tiles;
+   push the full metric grid behind tabs or disclosure.
+3. **Make secondary figures quieter.** Last-Year and Variance should be muted, or
+   collapsed into a single colored delta chip (▲ green / ▼ red) rather than two
+   extra columns.
+4. The full detail must be **reachable but never all on screen at once.**
+
+**Layout to design:**
+
+- **Left property rail** — "All Properties" pinned on top, then the 8 properties.
+  Each row: property name + occupancy % and a thin occupancy bar or status dot
+  (green healthy / amber watch / red low availability). Active item highlighted.
+  Sticky on desktop; collapses to a horizontal scroller or dropdown on mobile.
+- **Dark header band** — title, "As of <date>", and Excel / PDF download buttons
+  (keep these — the dense grid still ships in the file).
+- **A data-freshness stamp** directly under the header: a green "Data current" or
+  amber "Data may be stale" state showing the last captured day, how many of 8
+  properties captured it, and when the store was last written. This must read as
+  a calm status line when healthy and as a genuine warning when stale.
+- **"All Properties" selected:** a portfolio KPI row (Portfolio Occupancy %, Room
+  Revenue YTD, ADR, RevPAR, Rooms OOO), then a **Revenue vs. Last Year** block —
+  MTD and YTD cards each with This-Year / Last-Year / Δ%, an **MTD ⇄ YTD segmented
+  toggle** that switches a this-year-vs-last-year **grouped bar chart** (deep navy
+  vs light sky), with a per-property Δ badge above each bar pair and room for a
+  small footnote flag under a bar (e.g. "opened Jun '25"). Then a **compact
+  clickable leaderboard** — one row per property with headline KPIs, an occupancy
+  bar, and a **30-day occupancy sparkline** (green/red by direction). No 18-row
+  tables at this level.
+- **One property selected:** a KPI tile row for that property with ▲/▼ deltas, a
+  wider occupancy sparkline with its date range, then a **period switcher
+  (Yesterday · MTD · YTD · On-the-Books)** revealing the detailed metric grid for
+  one period at a time. Group those metrics into visually separated blocks —
+  **Occupancy & Rooms** (counts), **Revenue** (currency), **Rates** (ADR /
+  RevPAR) — as cards or ruled sections, not one undifferentiated 18-row run.
+- **A collapsible "Methodology & sources" footer** — a two-column list of short
+  bulleted rules (source & scope, revenue definition, lease vs transient, ADR &
+  RevPAR, out-of-order vs other blocks, periods, accuracy caveats), attributed
+  and dated. Closed by default, quiet when open.
+- Some cells legitimately render as "—" (a metric that isn't meaningful yet).
+  Design that empty state so it reads as intentional, not broken.
+
+**Report data available** (per property, per period, and per on-the-books day):
+Occupied (split Transient / Lease), Other blocks, Out-of-Order, Available,
+Inventory, % Occupied, % Out-of-Order, % Available, Room Revenue (split Transient
+/ Lease), ADR Combined / Transient / Lease, RevPAR. Each Actual period may also
+carry Last-Year and Variance. One property has an extra "% Occupied Adjusted
+(less 20 rms)" row. Availability cues in use, keep them subtle: low availability
+= warm amber/red emphasis, very high = a quiet highlight.
+
+### 5. Operations — eight sections, sectioned and scannable
+Left section-nav, per-property / All toggle on each section:
+1. **Out-of-Order rooms** — property cards → reasons → room list
+2. **Leasing funnel** — Leads → Engaged → Tours → Apps → Leased, with conversion
+   tiles and a horizontal funnel
+3. **Occupancy**
+4. **Evictions** — counts only
+5. **1-Star Reviews** — count, manager-responded, and a prior-vs-current trend
+   bar chart
+6. **Leasing insights** — lead source, contact channel, AI-booked share,
+   after-hours share, cancellation reasons, tour type
+7. **Voice AI** — call volume, who answered (AI vs leasing office vs unanswered),
+   average call length, after-hours share, transfer reasons
+8. **AI performance** — AI→human handoff reasons, task volume and resolution rate
+
+Sections 6–8 share one repeated pattern worth designing once and beautifully:
+**KPI tile row → two-column ranked horizontal bar breakdowns → per-property
+summary table with export.** Each breakdown is a ranked list of labelled bars
+with count and percentage, and a long tail collapsed into "Other".
+
+### 6. Per-role dashboards
+VP Ops, Revenue, Ops Support, CEO — sectioned metric dashboards tailored per
+person; same components, different metric sets.
+
+### 7. Leasing (vendor-isolated)
+A standalone leasing funnel page.
+
+---
+
+## Component library to define
+
+KPI / stat tile · **trend sparkline** · big-number card with Δ badge (▲▼) ·
+**ranked horizontal bar breakdown** · dense data table (sticky header,
+right-aligned tabular figures) · grouped bar chart · line/area trend · funnel ·
+status pill / dot · segmented toggle & tabs · nav bar + section sidebar ·
+date/period control · property switcher · export buttons · **freshness status
+band** · collapsible disclosure panel · empty / loading (skeleton) / error states
+· section header pattern.
+
+## Constraints
+
+- **Aggregate metrics only — no guest names or PII anywhere.** Read-only.
+- Fully **responsive**: desktop-dense → clean mobile stacks. Wide tables and
+  charts scroll inside their own container; the page never scrolls sideways.
+- Keep the Excel / PDF downloads (they retain the full dense grid).
+- Keep the data model and page structure — this is a **visual / UX** overhaul.
+
+## Output
+
+A cohesive design system (color, type scale, spacing, component specs) plus
+high-fidelity, responsive **React + Tailwind** mockups of the key screens — Home,
+Report (both the All-Properties and single-property states), and Operations
+(including one of sections 6–8) — with realistic placeholder numbers, that can be
+adapted back into the Next.js app.
+
+Prioritize a calm, premium, exec-ready feel with excellent information density.
