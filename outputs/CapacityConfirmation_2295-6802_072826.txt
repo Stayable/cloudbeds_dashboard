@@ -1,0 +1,44 @@
+ROOM COUNT CONFIRMATION - Kissimmee East (2295) and Jacksonville West (6802)
+
+Need a confirmation from the team: how many rentable rooms do these two
+properties actually have?
+
+  Kissimmee East (2295):     167 or 168?
+  Jacksonville West (6802):  133 or 134?
+
+Cloudbeds gives two different answers at these two properties. Its summary
+figure is one higher than its own room list. Six of our eight properties have
+no such disagreement.
+
+Property             ID       CB summary   CB room list   Monica's file   Diff
+-------------------  -------  -----------  -------------  --------------  ----
+Kissimmee East       2295         168           167            167         +1
+Jacksonville West    6802         134           133            133         +1
+Davenport            44199        153           153            153          -
+Lakeland             4645         157           157            157          -
+Kissimmee West       5399         160           160            160          -
+Jacksonville North   812          127           127            127          -
+St. Augustine        2535         140           140            140          -
+Orlando OBT          8700         135           135            135          -
+
+Supporting detail: at both properties the per-room-type inventory ALSO totals
+the lower number (KE = 167 across 12 room types; JW = 133 across 14 room
+types). So no room type and no individual room record accounts for the extra
+unit - it appears only in Cloudbeds' summary number. Full room-type breakdowns
+available on request.
+
+WHAT EACH ANSWER MEANS
+
+  If 167 and 133 are correct:
+    This is a Cloudbeds reporting defect. Nothing to fix at the property. We
+    have already moved our reporting onto the room-list figure, which is what
+    brought portfolio inventory into exact agreement with Monica's numbers on
+    all 8 properties.
+
+  If 168 and 134 are correct:
+    A real room is missing from Cloudbeds' room list at each property and needs
+    to be added there. It would also mean re-opening the inventory
+    reconciliation we just closed with Monica.
+
+Audited 07/28/26 against live Cloudbeds data, all 8 properties in one session,
+read-only.

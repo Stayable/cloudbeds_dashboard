@@ -75,9 +75,27 @@ KE question and exposed a second, related defect.
   — that would be adopting her figure where it can't be independently verified.
 
 **▶ Open items:**
-1. **[~] Raise the capacity bug with Cloudbeds — WRITE-UP DRAFTED, NOT YET SENT:**
-   `outputs/CloudbedsCapacityDefect_2295-6802_072826.md`. Kyle to send. It carries
-   three findings, all re-verified live 07/28/26:
+1. **[~] Raise the capacity bug with Cloudbeds — WRITE-UP READY, NOT YET SENT:**
+   `outputs/CloudbedsCapacityDefect_2295-6802_072826.md`. Kyle to send.
+   **MONICA CONFIRMED THE CAUSE 07/28/26** (via Kyle) and it closes the one loose
+   end in the analysis:
+   - **Trigger = a room-type adjustment** (here, a room-type change on transient
+     rooms). "pag nag adjust ng room type, naggaganyan si CB."
+   - **It normally self-heals overnight** — "by tomorrow naayos yung number."
+   - **KE is the stuck exception:** corrected at her request and it reverts —
+     "kahit ipina pa adjust ko, bumabalik… tumatambay sa 168."
+   - **This explains the LL anomaly I could not account for.** LL showed a ÷158
+     DI denominator on 5 of 10 days while `capacity` read 157 correctly. Not a
+     separate defect — LL had simply healed before I read `capacity`. So **every
+     property is exposed for some window after a room-type edit**, and KE/JW are
+     not special; KE is just the one that never clears.
+   - Real counts are therefore **167 (KE)** and **133 (JW)** — which is what the
+     code already uses, so no code change follows from her answer.
+   - **The sharper worry now:** if DI stores a per-day inventory snapshot, stale
+     inflated denominators persist in HISTORY even after the live figure heals.
+     That is Question 3 in the write-up.
+
+   The three findings behind it, all re-verified live 07/28/26:
    - `getDashboard.capacity` is +1 at KE (168 vs 167) and JW (134 vs 133); the
      other six match exactly.
    - **The phantom room exists ONLY in the aggregate.** `getRoomTypes` Σ

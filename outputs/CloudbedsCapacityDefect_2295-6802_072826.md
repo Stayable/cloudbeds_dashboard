@@ -18,8 +18,13 @@ At two of our eight properties, `GET /getDashboard` returns a `capacity` value
 room-level endpoints agree with each other and disagree with `capacity`.
 
 The same one-room inflation also appears in **Data Insights occupancy
-percentages** — including at a property whose `capacity` field is correct — which
-suggests the inflated figure is not confined to the `getDashboard` aggregate.
+percentages** — including at a property whose `capacity` field reads correctly —
+so it is not confined to the `getDashboard` aggregate.
+
+**The trigger is a room-type adjustment** (Finding 4). The inflation normally
+clears by the next day on its own, which is why it has gone unnoticed. **At
+Kissimmee East (2295) it does not clear** — it has been corrected at our revenue
+manager's request and reverts to 168.
 
 We have routed around this in our own reporting (we now take inventory from the
 room list). We are reporting it because any other consumer of `capacity` would be
@@ -85,27 +90,52 @@ Worked examples (exact to the precision returned):
 - JW 2026-07-24: `87.21804511278195%` → × 133 = **116.0000**; × 134 = 116.8722
 - LL 2026-07-20: `79.74683544303798%` → × 158 = **126.0000**; × 157 = 125.2025
 
-Two observations we would like explained:
+Two observations, both of which Finding 4 below now accounts for:
 
 1. **The DI denominator varies day to day** at the same property (JW alternates
-   between 133 and 134; LL between 157 and 158 inside a ten-day window). If this
-   is by design — e.g. a per-day inventory snapshot, or capacity net of blocks —
-   please confirm, and confirm which definition, so we can reconcile against it.
+   between 133 and 134; LL between 157 and 158 inside a ten-day window).
 2. **LL shows a 158 denominator even though its `capacity` correctly reads 157.**
-   Lakeland was our control property for Findings 1 and 2. That an inflated
-   denominator appears there too suggests the +1 is not solely a `getDashboard`
-   defect, and that Kissimmee East and Jacksonville West may be the two
-   properties where it is *persistent* rather than the only two affected.
+   Lakeland was our control property for Findings 1 and 2, so the inflation is
+   not confined to the two properties where `capacity` is currently wrong.
 
-We cannot rule out an alternative reading of Finding 3 — that DI is denominating
-on something legitimate that happens to differ from the room count. We are
-reporting the arithmetic, not asserting the cause.
+## 5. Finding 4 — the trigger is a room-type adjustment, and it usually self-heals
+
+Our revenue manager, who maintains room types and rate plans in Cloudbeds
+directly, identifies the cause from the property side:
+
+- **The inflation appears after a room type is adjusted.** In this instance the
+  change was to the room type used for transient rooms.
+- **It normally corrects itself by the following day** without intervention.
+- **Kissimmee East is the exception.** It has been adjusted at her request and
+  **reverts to 168**, where it has remained.
+
+This explains the pattern in Finding 3 exactly, and we consider it the most
+useful part of this report:
+
+| Observation | Explanation |
+|---|---|
+| KE reads ÷168 on 10 of 10 days | the stuck case — never healed |
+| JW alternates ÷134 / ÷133 | inflation appearing after edits and clearing overnight |
+| LL reads ÷158 on 5 of 10 days despite `capacity` = 157 today | same transient inflation; already healed by the time `capacity` was read |
+
+Two consequences worth drawing out:
+
+1. **Every property is exposed, not just the two where `capacity` is wrong
+   today.** Lakeland was our control and it shows the same inflated DI
+   denominator on half the days sampled. Any property is affected for some
+   window after a room-type edit.
+2. **Because it self-heals, it is largely invisible.** A report pulled the day
+   after an edit looks correct, so the error surfaces only in historical
+   day-level data — which is exactly where it does the most damage, since those
+   figures are what get compared period over period.
 
 ---
 
-## 5. Reproduction
+## 6. Reproduction
 
-Read-only, per-property scoped key, no guest scopes required:
+Read-only, per-property scoped key, no guest scopes required. **Kissimmee East
+(2295) is the reliable case** — it is currently stuck, so it reproduces on
+demand rather than only in the window after a room-type edit.
 
 1. `GET /getDashboard` → note `capacity`.
 2. `GET /getRooms?pageNumber=N&pageSize=100`, paging until a short page — count
@@ -119,22 +149,31 @@ Read-only, per-property scoped key, no guest scopes required:
 Steps 2 and 3 agree with each other at every property. Step 1 disagrees with both
 at 2295 and 6802.
 
+To reproduce the transient form at a healthy property: adjust a room type, then
+run steps 1 and 4 the same day and again the following day.
+
 ---
 
-## 6. Questions
+## 7. Questions
 
-1. What is the source of `getDashboard.capacity`, and why does it exceed both the
-   room list and the room-type totals at 2295 and 6802?
-2. Is there a room record at those properties in a state that excludes it from
-   `/getRooms` and `/getRoomTypes` but includes it in `capacity` (e.g. soft-deleted,
-   archived, or pending)? If so, can it be cleared at the property level?
-3. What exactly is the denominator behind the Data Insights `occupancy` column,
-   and is it expected to vary by stay date within a single property?
+1. **Why does adjusting a room type inflate `capacity` at all?** The room list
+   and the per-room-type totals stay correct throughout, so the aggregate appears
+   to be recomputed from something that double-counts a unit mid-edit.
+2. **Why does Kissimmee East (2295) not self-heal?** It has been corrected at our
+   revenue manager's request and reverts to 168. What state is it stuck in, and
+   can it be cleared server-side? This is our most pressing item.
+3. **What exactly is the denominator behind the Data Insights `occupancy`
+   column?** It varies by stay date within a single property, and it carried the
+   inflated value at Lakeland (4645) on days when `capacity` itself read
+   correctly. If DI stores a per-day inventory snapshot, then **stale inflated
+   denominators persist in historical data even after the live figure heals** —
+   please confirm whether those snapshots are recomputed.
 4. Is `capacity` used as the occupancy denominator anywhere else in the platform —
-   in particular in the Cloudbeds-native dashboards and reports our property
-   managers read? If so, those figures carry the same one-room error.
+   in particular the Cloudbeds-native dashboards and reports our property managers
+   read? If so those figures carry the same error, silently, for some window after
+   every room-type edit.
 
-## 7. Our current position
+## 8. Our current position
 
 We have moved our own reporting off `capacity` and onto the room list, so our
 occupancy and inventory figures now reconcile with the properties' own records
@@ -143,7 +182,12 @@ we read the room list at query time, so a genuine inventory change flows through
 
 The remaining exposure on our side is any figure we take from Data Insights
 occupancy, since we cannot correct a percentage whose denominator we do not
-control. Question 3 above is therefore the one that matters most to us.
+control — and per Finding 4 that exposure is not limited to the two properties in
+this report's title. Question 3 is therefore the one that matters most to us.
+
+We are not asking for a workaround. We have one. We are asking why the aggregate
+diverges from the room data it is supposedly derived from, and why 2295 will not
+clear.
 
 ---
 
