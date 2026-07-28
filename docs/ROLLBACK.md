@@ -25,11 +25,18 @@ production release.
 
 | | Deployment | Commit |
 |---|---|---|
-| **Current (this release)** | `dpl_FFKn1d67Yf4J9iUKrgQopDJk7jYc` | `028c3f1` |
-| **Roll back to this** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
+| **Current (inventory release, 07/28/26)** | `dpl_8yarC3AZCpKE94HSF3CFSQ1Bq2t1` | `7851786` |
+| **Roll back one step** (redesign + accuracy, signed off) | `dpl_8p9GuzXH9cF75XLU5smo5FoLAgzt` | `0c61d0e` |
+| **Roll back to pre-redesign** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
 
-Rollback target inspector:
-https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/92vmRYYZhidi6xdQ9fkg79L28sYa
+One step back is the right target for an inventory-release problem: `0c61d0e` is
+the redesign + accuracy build, visually signed off, and differs from the current
+release only in taking room counts from `getDashboard.capacity` instead of the
+room list. Going all the way to `4e1eb0b` also unwinds the redesign.
+
+Rollback target inspectors:
+- one step — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/8p9GuzXH9cF75XLU5smo5FoLAgzt
+- pre-redesign — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/92vmRYYZhidi6xdQ9fkg79L28sYa
 
 ---
 
