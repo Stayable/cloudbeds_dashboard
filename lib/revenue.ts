@@ -34,8 +34,14 @@ export function buildRevenueSummary(
   insights: PropertyInsights[],
   days: number,
 ): RevenueSummary {
+  // Room counts weight the portfolio ADR/RevPAR averages, so they come from the
+  // room list rather than getDashboard.capacity, which over-reports at some
+  // properties (see getPhysicalRoomCount).
   const capByCode = new Map(
-    portfolio.map((pd) => [pd.property.code, pd.result?.ok ? pd.result.data.capacity : 0]),
+    portfolio.map((pd) => [
+      pd.property.code,
+      pd.physicalRooms?.count || (pd.result?.ok ? pd.result.data.capacity : 0),
+    ]),
   );
 
   const rows: RevenueRow[] = insights.map((ins) => {

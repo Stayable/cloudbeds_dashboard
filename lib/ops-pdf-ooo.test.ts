@@ -19,6 +19,10 @@ function dashboard(capacity: number): PropertyDashboard["result"] {
   return {
     ok: true,
     data: {
+      property_now: "2026-07-21 09:00:00",
+      timezone: "America/New_York",
+      gmt_offset_hours: -4,
+      roomsOccupied: 80,
       percentageOccupied: 80,
       arrivals: "5",
       departures: "3",
@@ -88,9 +92,9 @@ describe("renderOooPdf", () => {
       },
     ];
     const portfolio: PropertyDashboard[] = [
-      { property: property({ id: "4645", code: "AA", name: "Alpha" }), configured: true, result: dashboard(50) },
-      { property: property({ id: "2295", code: "BB", name: "Bravo" }), configured: true, result: dashboard(80) },
-      { property: property({ id: "812", code: "CC", name: "Charlie" }), configured: false, result: null },
+      { property: property({ id: "4645", code: "AA", name: "Alpha" }), configured: true, result: dashboard(50), physicalRooms: { count: 50, source: "getRooms" } },
+      { property: property({ id: "2295", code: "BB", name: "Bravo" }), configured: true, result: dashboard(80), physicalRooms: { count: 80, source: "getRooms" } },
+      { property: property({ id: "812", code: "CC", name: "Charlie" }), configured: false, result: null, physicalRooms: null },
     ];
 
     const buf = renderOooPdf(ooo, portfolio, "2026-07-21");

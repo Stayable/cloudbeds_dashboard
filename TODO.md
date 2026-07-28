@@ -74,11 +74,24 @@ KE question and exposed a second, related defect.
   re-queried value rather than the original capture. Not back-filled from her PDF
   — that would be adopting her figure where it can't be independently verified.
 
-**▶ Open items — none of these are code-side:**
-1. **[?] Raise the capacity bug with Cloudbeds.** `getDashboard.capacity`
-   over-reports by 1 at KE and JW. We route around it now, but it is their
-   defect and may affect other consumers (the home/occupancy views still read
-   capacity — see item 6).
+**▶ Open items:**
+1. **[~] Raise the capacity bug with Cloudbeds — WRITE-UP DRAFTED, NOT YET SENT:**
+   `outputs/CloudbedsCapacityDefect_2295-6802_072826.md`. Kyle to send. It carries
+   three findings, all re-verified live 07/28/26:
+   - `getDashboard.capacity` is +1 at KE (168 vs 167) and JW (134 vs 133); the
+     other six match exactly.
+   - **The phantom room exists ONLY in the aggregate.** `getRoomTypes` Σ
+     `roomTypeUnits` = 167/133 and `/getRooms` grouped by type = 167/133 — two
+     independent room-level counts, both disagreeing with `capacity`. So it is
+     not "a real room the property doesn't sell"; that reading is now ruled out.
+   - **NEW, and the reason this is bigger than KE+JW:** Data Insights occupancy
+     (dataset 7) carries the same inflation. Testing which denominator makes
+     `occupancy% × d` a whole number over 07-18→07-27: KE is `÷168` on **10 of
+     10** days; JW mixes `÷134` (7d) and `÷133` (3d); and **LL — our control,
+     whose `capacity` is correctly 157 — comes out `÷158` on 5 of 10 days**
+     (e.g. 79.74683544303798% = 126/158 exactly). So the DI denominator is
+     per-day, and it exceeds the room list at a property whose capacity field is
+     fine. Question 3 in the write-up is the one that matters to us.
 2. **[?] JN renovation rooms are STILL not blocked in Cloudbeds.** The audit found
    **zero** `out_of_service` blocks at JN, so the 107 is entirely our config
    override. Get them blocked, confirm the sellable count of **20** (inferred
@@ -92,16 +105,30 @@ KE question and exposed a second, related defect.
 5. **[ ] Residual ±1s:** JW transient nights 30 vs 29 and SA lease nights 104 vs
    103 on 7/26; 7/25 DP gives 13 transient where she reports 12. Sub-1% and may
    be on her side. Re-check after a few nights of restatement.
-6. **[ ] Home / occupancy views still use `getDashboard.capacity`**
-   (`lib/occupancy.ts`), so KE and JW occupancy there is computed on a
-   denominator 1 too large and now disagrees with `/report`. Deliberately left
-   out of scope — wider blast radius, needs its own verification pass.
+6. **[x] Room COUNTS across the app now come from the room list.** `getPortfolio`
+   pairs each dashboard with `physicalRooms` (`getPhysicalRoomCount`, now
+   exported), and every consumer that a person reads as a room count was switched
+   over: `lib/occupancy.ts` (home + `/exec` occupancy explorer, incl. the
+   portfolio weighting and KE's effective-capacity re-basing), `app/page.tsx`
+   TOTAL INVENTORY + in-house %, `lib/revenue.ts` ADR/RevPAR weights,
+   `lib/ops-pdf-ooo.ts`. Falls back to `capacity` and keeps a non-zero dashboard
+   figure if the room list is unreachable. 3 new tests in `lib/occupancy.test.ts`.
+   - **[!] This does NOT make home occupancy match `/report`, and it was wrong to
+     imply it would.** Those views' occupancy *percentages* come from Data
+     Insights pre-computed (`rawOcc`), not from our denominator — so they inherit
+     DI's per-day denominator (item 1, finding 3). What the fix corrects is every
+     displayed room count, the portfolio weighting, and KE's adjusted line.
+   - **[?] OPEN DECISION:** to make those views agree with `/report`, we would
+     have to stop using DI occupancy on them and compute nights ÷ inventory the
+     way `/report` does. That is a real change (DI also feeds ADR/RevPAR there),
+     so it is Kyle's call, not a silent refactor.
 7. **[ ] On-the-books 7-day grid never validated** against her figures — future
    days post no transactions, so it still uses the dataset-3 path.
-8. **[ ] PRE-EXISTING:** `lib/ops-pdf-ooo.test.ts` has a type error (a
-   `DashboardData` fixture missing `property_now`, `timezone`,
-   `gmt_offset_hours`, `roomsOccupied`). Predates this work; `npx tsc --noEmit`
-   is not clean until it is fixed. Tests themselves pass (205/205).
+8. **[x] `npx tsc --noEmit` is CLEAN** (exit 0) for the first time in several
+   sessions. The long-standing `lib/ops-pdf-ooo.test.ts` fixture error is fixed
+   (the 4 missing `DashboardData` fields added) — it had to be, because the
+   `physicalRooms` field surfaced three more errors in the same file. 208/208
+   tests pass; `next build` green.
 
 **▶ First thing next session:** watch the two crons fire on their own — 10:00 UTC
 flash, 11:30 UTC restate. On the restate response check `daysMoved` /
@@ -114,11 +141,9 @@ pass on the redesign is STILL outstanding — it shipped without it.
 > Production = `c5237b6` on `dashboard.rentstayable.com`.
 >
 > **▶ START HERE NEXT SESSION:**
-> 1. **[!] The redesign shipped WITHOUT the visual light/dark pass.** It was
->    committed and deployed on Kyle's "do everything" instruction, so the review
->    is still owed: log in, toggle Dark/Light in the top bar, and check the wide
->    tables (/report OTB, /ops by-property) don't scroll the page body. Rollback
->    is one click — `docs/ROLLBACK.md`.
+> 1. **[x] Visual light/dark pass — DONE, PASSED (Kyle, 07/28/26).** Reviewed on
+>    the deployed build; both themes read correctly. This was the last open gap on
+>    the redesign, so `c5237b6` is now fully signed off.
 > 2. **Watch the crons fire unattended** — 10:00 UTC flash, 11:30 UTC restate
 >    (both in `vercel.json`). See the session-3b block below for what to check.
 > 3. Carry-overs still open from session 2: verify `/ops` §6–8 + `/report` on prod;

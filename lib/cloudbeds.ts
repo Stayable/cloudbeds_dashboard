@@ -159,15 +159,25 @@ export type PropertyDashboard = {
   property: Property;
   configured: boolean; // a key is set for this property
   result: CloudbedsResult<DashboardData> | null;
+  /** Real room inventory, from the room list rather than the dashboard
+   *  aggregate — see getPhysicalRoomCount for why they disagree. Null when no
+   *  key is configured. Consumers should prefer this over `result.data.capacity`
+   *  for anything a person reads as a room count. */
+  physicalRooms: PhysicalRoomCount | null;
 };
 
-/** Fetch every configured property's dashboard in parallel. */
+/** Fetch every configured property's dashboard in parallel, each paired with its
+ *  real room count (the dashboard aggregate over-reports at some properties). */
 export async function getPortfolio(): Promise<PropertyDashboard[]> {
   return Promise.all(
     PROPERTIES.map(async (property): Promise<PropertyDashboard> => {
       const key = readKey(property.code);
-      if (!key) return { property, configured: false, result: null };
-      return { property, configured: true, result: await getDashboard(key) };
+      if (!key) return { property, configured: false, result: null, physicalRooms: null };
+      const [result, physicalRooms] = await Promise.all([
+        getDashboard(key),
+        getPhysicalRoomCount(key),
+      ]);
+      return { property, configured: true, result, physicalRooms };
     }),
   );
 }
@@ -257,9 +267,14 @@ async function getRoomNameMap(apiKey: string): Promise<{ map: Map<string, OooRoo
  *  Falls back to `getDashboard.capacity` when the room list is unavailable (a
  *  key lacking the Room scope), reporting which source was used so a caller can
  *  log the degradation rather than silently banking the wrong denominator. */
-async function getPhysicalRoomCount(
+export type PhysicalRoomCount = {
+  count: number;
+  source: "getRooms" | "getDashboard" | "none";
+};
+
+export async function getPhysicalRoomCount(
   apiKey: string,
-): Promise<{ count: number; source: "getRooms" | "getDashboard" | "none" }> {
+): Promise<PhysicalRoomCount> {
   const rooms = await getRoomNameMap(apiKey);
   if (rooms.loaded && rooms.map.size > 0) return { count: rooms.map.size, source: "getRooms" };
   const dashboard = await getDashboard(apiKey);

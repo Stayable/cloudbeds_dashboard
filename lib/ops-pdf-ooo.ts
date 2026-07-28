@@ -67,7 +67,9 @@ export function renderOooPdf(
   // successful dashboard read.
   const capacityByCode = new Map<string, number>();
   for (const pd of portfolio) {
-    if (pd.configured && pd.result?.ok) capacityByCode.set(pd.property.code, pd.result.data.capacity);
+    // Room list over getDashboard.capacity — see getPhysicalRoomCount.
+    if (pd.configured && pd.result?.ok)
+      capacityByCode.set(pd.property.code, pd.physicalRooms?.count || pd.result.data.capacity);
   }
 
   let totalOoo = 0;

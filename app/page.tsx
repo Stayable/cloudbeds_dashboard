@@ -85,7 +85,9 @@ export default async function DashboardPage({
         ooo: acc.ooo + (d.roomBlocks?.out_of_service || 0),
         otherBlocks: acc.otherBlocks + (d.roomBlocks?.blocked_dates || 0),
         bookings: acc.bookings + (d.bookings || 0),
-        capacity: acc.capacity + (d.capacity || 0),
+        // Real room count, not d.capacity — the dashboard aggregate over-reports
+        // at some properties (see getPhysicalRoomCount).
+        capacity: acc.capacity + (pd.physicalRooms?.count || d.capacity || 0),
         props: acc.props + 1,
       };
     },
