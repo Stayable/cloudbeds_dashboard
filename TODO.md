@@ -37,38 +37,90 @@ within +0.06%.
 - **[x] Reconciliation workbook** → `outputs/RevenueVariance_Stayable_072826.xlsx`
   (Variance tab + Findings & status tab).
 
-**▶ Open items from this work:**
-1. **[?] KE 167 vs 168 rooms** — unresolved, 1 room every day all year. Run
-   `node scripts/audit-room-counts.mjs` where all 8 keys exist (it needs a key
-   per property; only DP is in local `.env.local`). If Cloudbeds lists 168, find
-   the extra room and fix it at source rather than hardcoding 167.
-2. **[ ] Restate the other 7 properties.** Only Davenport could be restated
-   locally. Deploy, then hit `/api/cron/restate?days=31` so 7/24–7/26 counts are
-   re-derived for LL/JW/KE/KW/OR/SA/JN.
-3. **[?] JN sellable room count (20) is INFERRED** from her OOO of 107 — confirm
-   with the property, and delete the override once the rooms are blocked in
-   Cloudbeds.
-4. **[?] $125,911.92 of JN room revenue** sits on May–Nov 2025 days with zero
-   occupancy. Her report excludes it entirely; we kept it with zero inventory so
-   the difference stays visible. Needs a business ruling.
-5. **[ ] KE transient/lease split** — YTD −15.9% transient / +3.8% lease with the
-   total agreeing to 0.3% looks like dollars moving between buckets, not capture
-   timing. Probe with the KE key over ~5 past dates.
-6. **[ ] On-the-books 7-day grid never validated** against her figures — future
-   days post no transactions, so it still uses the dataset-3 path.
+### Later the same session — keys rotated, two more defects found and fixed
 
-> **Pickup — 07/28/26 (session 3). DESIGN REDESIGN APPLIED APP-WIDE — BUILT &
-> VERIFIED LOCALLY, ⚠️ NOT COMMITTED, NOT DEPLOYED.** The Claude-design output came
-> back and is now implemented across every surface. Working tree is **DIRTY**
-> (34 modified + 4 new files, +1713/−1283) on `claude/nifty-thompson-ts8zny`.
+Kyle rotated **all 8** Cloudbeds keys (DP included), added them to Vercel and to
+`.env.local`, and redeployed. Having all 8 locally for the first time closed the
+KE question and exposed a second, related defect.
+
+- **[x] All 8 keys verified.** `node scripts/audit-keys.mjs` → 8 OK / 0 error,
+  each resolving the right `apiPropertyId`. Scopes confirmed working by a full
+  restatement run (0 failures), not just by auth.
+- **[x] KE 167 vs 168 RESOLVED — Monica was right, `getDashboard` is wrong.**
+  `/getRooms` agrees with her on all 8 properties; `getDashboard.capacity`
+  over-reports by exactly 1 at **KE (168 vs 167)** and at **JW (134 vs 133)**,
+  with Lakeland as a clean control (157/157). Per-room-type counts sum to the
+  `/getRooms` figure at both, so the extra room exists only in the aggregate.
+  Inventory now comes from the room list (`getPhysicalRoomCount`, falls back to
+  capacity and logs if the Room scope is missing). **This also found the JW
+  defect, which nobody had spotted** because JW's banked history came from her
+  workbook and was already right.
+- **[x] Restated all 8 properties** (trailing 8 days, 64 rows, 0 failures).
+  Portfolio YTD occupancy **79.74% vs her 79.75%**; MTD −0.03pp; **inventory now
+  exact on every property, every period**; transient nights match on 7 of 8,
+  lease nights on 7 of 8.
+- **[x] Room blocks are no longer restated** (new finding, `restateSnapshot`).
+  Re-querying them DEGRADED the figures: LL's 7/26 out-of-order fell 6→4 and JW's
+  6→5, both away from her published numbers that our own 06:00 flash had matched
+  exactly. `/getRoomBlocks` has no as-of view, so a tidied-up expired block just
+  disappears. Blocks now freeze at first capture while revenue and nights keep
+  restating; `other_blocks` is split so its comp half still settles. Verified by
+  a second restatement leaving block figures untouched.
+- **[x] Deployed.** `c5237b6` READY on `dashboard.rentstayable.com`. Rollback
+  runbook + deployment IDs in `docs/ROLLBACK.md`; known-good tag
+  `pre-redesign-072826`.
+- **[!] COST OF THAT ORDER OF OPERATIONS:** the block-freeze landed AFTER the
+  first restatement pass, so 7/20–7/27 out-of-order at LL and JW now carries the
+  re-queried value rather than the original capture. Not back-filled from her PDF
+  — that would be adopting her figure where it can't be independently verified.
+
+**▶ Open items — none of these are code-side:**
+1. **[?] Raise the capacity bug with Cloudbeds.** `getDashboard.capacity`
+   over-reports by 1 at KE and JW. We route around it now, but it is their
+   defect and may affect other consumers (the home/occupancy views still read
+   capacity — see item 6).
+2. **[?] JN renovation rooms are STILL not blocked in Cloudbeds.** The audit found
+   **zero** `out_of_service` blocks at JN, so the 107 is entirely our config
+   override. Get them blocked, confirm the sellable count of **20** (inferred
+   from her OOO, unconfirmed), then delete `sellableOverrides`.
+3. **[?] $125,911.92 of JN room revenue** on May–Nov 2025 days with zero occupancy
+   (tapering lease run-off, $22k → $3.5k). Her report excludes it entirely; we
+   kept it with zero inventory so the difference stays visible. Business ruling.
+4. **[ ] Agree the block-type → "Other blocks" mapping with Monica** so both sides
+   define the line identically (OR read 11 MTD vs her 0). Composition is now
+   stored per `roomBlockType`, so it is answerable.
+5. **[ ] Residual ±1s:** JW transient nights 30 vs 29 and SA lease nights 104 vs
+   103 on 7/26; 7/25 DP gives 13 transient where she reports 12. Sub-1% and may
+   be on her side. Re-check after a few nights of restatement.
+6. **[ ] Home / occupancy views still use `getDashboard.capacity`**
+   (`lib/occupancy.ts`), so KE and JW occupancy there is computed on a
+   denominator 1 too large and now disagrees with `/report`. Deliberately left
+   out of scope — wider blast radius, needs its own verification pass.
+7. **[ ] On-the-books 7-day grid never validated** against her figures — future
+   days post no transactions, so it still uses the dataset-3 path.
+8. **[ ] PRE-EXISTING:** `lib/ops-pdf-ooo.test.ts` has a type error (a
+   `DashboardData` fixture missing `property_now`, `timezone`,
+   `gmt_offset_hours`, `roomsOccupied`). Predates this work; `npx tsc --noEmit`
+   is not clean until it is fixed. Tests themselves pass (205/205).
+
+**▶ First thing next session:** watch the two crons fire on their own — 10:00 UTC
+flash, 11:30 UTC restate. On the restate response check `daysMoved` /
+`netRoomRevDelta` (how much the ledger settled overnight); on the report cron
+check `availabilityAlerts` is empty now JN is corrected. The visual light/dark
+pass on the redesign is STILL outstanding — it shipped without it.
+
+> **Pickup — 07/28/26 (session 3b close). REDESIGN + ACCURACY REMEDIATION ARE
+> BOTH DEPLOYED.** Working tree is clean; branch is level with `origin`.
+> Production = `c5237b6` on `dashboard.rentstayable.com`.
 >
 > **▶ START HERE NEXT SESSION:**
-> 1. **Look at it in a browser, light AND dark.** Dark mode was verified only via
->    the emitted CSS + served HTML, never visually. `npm run build && npx next start`,
->    log in, toggle the Dark/Light button in the top bar. Check the wide tables
->    (/report OTB, /ops by-property) don't scroll the page body.
-> 2. **Then commit + push + deploy.** Nothing is committed yet — a `git checkout`
->    would destroy the whole redesign.
+> 1. **[!] The redesign shipped WITHOUT the visual light/dark pass.** It was
+>    committed and deployed on Kyle's "do everything" instruction, so the review
+>    is still owed: log in, toggle Dark/Light in the top bar, and check the wide
+>    tables (/report OTB, /ops by-property) don't scroll the page body. Rollback
+>    is one click — `docs/ROLLBACK.md`.
+> 2. **Watch the crons fire unattended** — 10:00 UTC flash, 11:30 UTC restate
+>    (both in `vercel.json`). See the session-3b block below for what to check.
 > 3. Carry-overs still open from session 2: verify `/ops` §6–8 + `/report` on prod;
 >    **ask Elise about the 15 empty views**; the two ops findings (952/3,299 calls
 >    unanswered; "unknown" = 424/472 cancellations).
