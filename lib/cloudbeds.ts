@@ -236,6 +236,37 @@ async function getRoomNameMap(apiKey: string): Promise<{ map: Map<string, OooRoo
   return { map, loaded };
 }
 
+/** Physical room count from the ROOM LIST, not from `getDashboard.capacity`.
+ *
+ *  WHY (verified live 07/28/26 across all 8 properties, after the key rotation):
+ *  `getDashboard.capacity` over-reports at two properties, and the room list is
+ *  the one that matches the property's own record.
+ *
+ *  | property          | getDashboard | /getRooms | Monica's workbook |
+ *  |-------------------|--------------|-----------|-------------------|
+ *  | Kissimmee East    | 168          | **167**   | 167               |
+ *  | Jacksonville West | 134          | **133**   | 133               |
+ *  | Lakeland (control)| 157          | 157       | 157               |
+ *
+ *  The per-room-type breakdown sums to the `/getRooms` count at both, so the
+ *  extra room exists only in the dashboard aggregate. This is what the KE
+ *  "167 vs 168" reconciliation item turned out to be — and it found the same
+ *  defect at JW, which nobody had noticed because JW's banked history came from
+ *  the workbook and was already right.
+ *
+ *  Falls back to `getDashboard.capacity` when the room list is unavailable (a
+ *  key lacking the Room scope), reporting which source was used so a caller can
+ *  log the degradation rather than silently banking the wrong denominator. */
+async function getPhysicalRoomCount(
+  apiKey: string,
+): Promise<{ count: number; source: "getRooms" | "getDashboard" | "none" }> {
+  const rooms = await getRoomNameMap(apiKey);
+  if (rooms.loaded && rooms.map.size > 0) return { count: rooms.map.size, source: "getRooms" };
+  const dashboard = await getDashboard(apiKey);
+  if (dashboard.ok) return { count: dashboard.data.capacity, source: "getDashboard" };
+  return { count: 0, source: "none" };
+}
+
 /** Map ALL room blocks (out_of_service AND every other block type, e.g.
  *  blocked_dates) → rooms using the name map. Pure (no I/O) so the no-raw-id
  *  guarantee is unit-tested. Unresolved roomIDs get a blank `room` (the UI
@@ -1504,13 +1535,15 @@ export async function getRevenueReportInputs(
       const keDays = (range: [string, string]) =>
         property.code === "KE" ? { keDays: dayCount(range[0], range[1]) } : undefined;
 
-      const [dashboard, countsSince] = await Promise.all([
-        getDashboard(key),
+      const [rooms, countsSince] = await Promise.all([
+        getPhysicalRoomCount(key),
         getEarliestCountsDate(property.code),
       ]);
-      const capacity = dashboard.ok ? dashboard.data.capacity : 0;
-      if (!dashboard.ok) {
-        console.error(`[revenue-report] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
+      const capacity = rooms.count;
+      if (rooms.source !== "getRooms") {
+        console.error(
+          `[revenue-report] room list unavailable for ${property.code} — inventory fell back to ${rooms.source} (${capacity})`,
+        );
       }
       // A block's counts are partial (not yet a full period) when this
       // property has no banked count-snapshot yet, or the earliest one lands
@@ -1590,8 +1623,11 @@ export async function persistDailySnapshots(asOf: string): Promise<{ written: nu
       const key = readKey(property.code);
       if (!key || !property.apiPropertyId) return;
       try {
-        const dashboard = await getDashboard(key);
-        const capacity = dashboard.ok ? dashboard.data.capacity : 0;
+        const rooms = await getPhysicalRoomCount(key);
+        const capacity = rooms.count;
+        if (rooms.source !== "getRooms") {
+          console.error(`[revenue-report] room list unavailable for ${property.code} — inventory from ${rooms.source}`);
+        }
         const inputs = await buildRowInputs(key, property, asOf, asOf, capacity, getPaidNightsByPlanDay);
         // The FLASH capture: first write wins, and its room-revenue total is kept
         // in flash_room_rev forever so the later restatement delta is visible.
@@ -1630,10 +1666,10 @@ export async function restateSnapshots(
       if (!key || !property.apiPropertyId) return;
       properties++;
 
-      const dashboard = await getDashboard(key);
-      const capacity = dashboard.ok ? dashboard.data.capacity : 0;
-      if (!dashboard.ok) {
-        console.error(`[restate] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
+      const rooms = await getPhysicalRoomCount(key);
+      const capacity = rooms.count;
+      if (rooms.source !== "getRooms") {
+        console.error(`[restate] room list unavailable for ${property.code} — inventory from ${rooms.source} (${capacity})`);
       }
 
       for (const day of days) {
@@ -1687,10 +1723,10 @@ export async function backfillRevenue(
       const apiPropertyId = property.apiPropertyId;
       properties++;
 
-      const dashboard = await getDashboard(key);
-      const capacity = dashboard.ok ? dashboard.data.capacity : 0;
-      if (!dashboard.ok) {
-        console.error(`[backfill-revenue] capacity fetch failed for ${property.code} — treated as 0:`, dashboard.error);
+      const rooms = await getPhysicalRoomCount(key);
+      const capacity = rooms.count;
+      if (rooms.source !== "getRooms") {
+        console.error(`[backfill-revenue] room list unavailable for ${property.code} — inventory from ${rooms.source} (${capacity})`);
       }
 
       // Sequential across days (per property) to respect DI rate limits;

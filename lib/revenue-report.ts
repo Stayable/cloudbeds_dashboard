@@ -244,6 +244,7 @@ export const METHODOLOGY: { heading: string; points: string[] }[] = [
     points: [
       "The room-revenue ledger keeps posting for days after a stay, so a recent day is a flash, not a close: one Davenport day moved +48% on re-query and another -1.7%.",
       "Every non-final day is re-derived nightly over a trailing 31-day window; a month freezes permanently five days after it closes.",
+      "Out-of-Order and Other blocks are the exception: they are frozen at first capture, because Cloudbeds reports room blocks as they exist now with no as-of view, so a tidied-up expired block would silently erase an out-of-order day that genuinely happened.",
       "The first captured figure is retained, so the restatement can always be quantified.",
       "Inventory counts only days a property was in service, and reflects the room count in effect on each day rather than today's.",
     ],

@@ -394,9 +394,24 @@ export async function bankDailySnapshot(
 // dates keep changing. So: keep the 06:00 flash, restate nightly over a trailing
 // window, and freeze permanently once the month is closed.
 
-/** Re-derive one day for one property. Updates every figure EXCEPT the flash
- *  columns, and only while the row is not yet final. Returns true if a row was
- *  actually updated (false = already finalized, or no such row). */
+/** Re-derive one day for one property. Updates revenue, nights and inventory,
+ *  and only while the row is not yet final. Returns true if a row was actually
+ *  updated (false = already finalized, or no such row).
+ *
+ *  ROOM BLOCKS ARE NOT RESTATED once a day has a real occupancy capture, and that
+ *  exception is the opposite of the rule for everything else here. Revenue and
+ *  room-nights key off `service_date`, so re-querying them recovers late postings
+ *  — a correction. Room blocks have no as-of query at all: `/getRoomBlocks`
+ *  returns the block records as they exist NOW, and an expired block that someone
+ *  has since tidied up simply vanishes. Observed live on the first full
+ *  restatement run (07/28/26): Lakeland's 07/26 out-of-order dropped 6 -> 4 and
+ *  Jacksonville West's 6 -> 5, both moving AWAY from the figures Monica published
+ *  and that our own 06:00 capture had matched exactly. The rooms were out of order
+ *  that day; only the record changed. So the first capture wins.
+ *
+ *  `other_blocks` is split for this: its BLOCK component is frozen while its comp
+ *  component (room-nights whose room rate nets to $0) still restates, because
+ *  that half comes from the revenue query and does settle. */
 export async function restateSnapshot(
   propertyCode: string,
   stayDate: string,
@@ -407,14 +422,26 @@ export async function restateSnapshot(
     update report_daily_snapshot set
       transient_nights = ${inputs.transientNights},
       lease_nights = ${inputs.leaseNights},
-      other_blocks = ${inputs.otherBlocks},
-      ooo = ${inputs.ooo},
       transient_rev = ${inputs.transientRev},
       lease_rev = ${inputs.leaseRev},
       inventory = ${inputs.inventory},
       comp_nights = ${inputs.compNights ?? 0},
-      blocks_by_type = ${JSON.stringify(inputs.blocksByType ?? {})},
-      ooo_source = ${inputs.oooSource ?? "cloudbeds"},
+      -- Freeze the block half, restate the comp half. Column references on the
+      -- right-hand side of SET are the row's OLD values.
+      other_blocks = case
+        when transient_nights + lease_nights > 0
+          then greatest(other_blocks - comp_nights, 0) + ${inputs.compNights ?? 0}
+        else ${inputs.otherBlocks}
+      end,
+      ooo = case when transient_nights + lease_nights > 0 then ooo else ${inputs.ooo} end,
+      blocks_by_type = case
+        when transient_nights + lease_nights > 0 then blocks_by_type
+        else ${JSON.stringify(inputs.blocksByType ?? {})}
+      end,
+      ooo_source = case
+        when transient_nights + lease_nights > 0 then ooo_source
+        else ${inputs.oooSource ?? "cloudbeds"}
+      end,
       flash_room_rev = coalesce(flash_room_rev, ${inputs.transientRev + inputs.leaseRev}),
       restated_at = now(),
       updated_at = now()
