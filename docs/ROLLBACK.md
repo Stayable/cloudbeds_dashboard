@@ -14,12 +14,22 @@ Last known-good commit before both: **`4e1eb0b`**, also tagged
 
 ## Fastest fix if production looks wrong (seconds, no git)
 
-**Vercel → the project → Deployments → the last good deployment → Instant
-Rollback** (or *Promote to Production*). This re-serves an already-built
-deployment and does not touch the repository, so it works no matter what the
-code dependencies are. Do this first; sort the git history out afterwards.
+**Vercel → Deployments → Instant Rollback** on the last good deployment (or
+*Promote to Production*). This re-serves an already-built deployment and does not
+touch the repository, so it works no matter what the code dependencies are. Do
+this first; sort the git history out afterwards.
 
-Dashboard: https://vercel.com/dashboard
+Note this branch (`claude/nifty-thompson-ts8zny`) deploys straight to the
+**production** target and carries `dashboard.rentstayable.com` — a push here is a
+production release.
+
+| | Deployment | Commit |
+|---|---|---|
+| **Current (this release)** | `dpl_FFKn1d67Yf4J9iUKrgQopDJk7jYc` | `028c3f1` |
+| **Roll back to this** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
+
+Rollback target inspector:
+https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/92vmRYYZhidi6xdQ9fkg79L28sYa
 
 ---
 
