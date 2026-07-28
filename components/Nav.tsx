@@ -1,38 +1,57 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import LogOut from "@/components/LogOut";
-import { AUTH_COOKIE, RESTRICTED_LEVELS, accessiblePages, verifyCookie } from "@/lib/auth";
+import NavLinks from "@/components/NavLinks";
+import ThemeToggle from "@/components/ThemeToggle";
+import { AUTH_COOKIE, RESTRICTED_LEVELS, accessiblePages, verifyCookie, type Level } from "@/lib/auth";
 
-// Persistent top nav — one login, reach every page your role permits without
+// Persistent top chrome — one login, reach every page your role permits without
 // re-entering a PIN. SERVER component: reads the signed auth cookie directly
 // (no client round-trip). Self-hides (renders null) when there's no valid
 // cookie or the level is fully restricted (elise) — so it never appears on
 // /login, /test, or /elise. Route access itself is still enforced by
 // middleware/canAccess; this only decides what to *show*.
+//
+// Layout is the design source's 56px navy bar: wordmark + gold dot, pill nav,
+// then role / theme / log out on the right.
+
+// How each PIN level is described in the chrome. These are the levels the app
+// already defines (lib/auth.ts) — nothing here is inferred about a person.
+const ROLE: Record<Level, { name: string; title: string }> = {
+  base: { name: "Portfolio", title: "Base access" },
+  exec: { name: "Executive", title: "CEO · full access" },
+  ops: { name: "Operations", title: "Ops access" },
+  crystal: { name: "Crystal", title: "VP Operations" },
+  monica: { name: "Monica", title: "Revenue Management" },
+  bea: { name: "Bea", title: "Ops Support" },
+  elise: { name: "EliseAI", title: "Leasing partner" },
+};
+
 export default async function Nav() {
   const level = await verifyCookie((await cookies()).get(AUTH_COOKIE)?.value);
   if (!level || RESTRICTED_LEVELS.has(level)) return null;
 
   const pages = accessiblePages(level);
+  const role = ROLE[level];
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-white/10 bg-ink text-white">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 overflow-x-auto px-4 py-2.5 sm:px-6">
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-white/60">
-          Stayable
-        </span>
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {pages.map((p) => (
-            <Link
-              key={p.href}
-              href={p.href}
-              className="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              {p.label}
-            </Link>
-          ))}
+    <nav className="sticky top-0 z-40 border-b border-chromeLine bg-chrome">
+      <div className="mx-auto flex h-14 max-w-[1560px] items-center gap-6 px-4 sm:px-6">
+        {/* Wordmark — lowercase "stayable" + the gold dot, per the brand. */}
+        <div className="flex shrink-0 items-baseline gap-2">
+          <span className="text-[18px] font-bold tracking-[-.02em] text-white">stayable</span>
+          <span className="h-[5px] w-[5px] -translate-y-[3px] rounded-full bg-gold" />
         </div>
-        <LogOut />
+
+        <NavLinks pages={pages} />
+
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <div className="hidden text-right leading-tight sm:block">
+            <div className="text-[12.5px] font-semibold text-white">{role.name}</div>
+            <div className="text-[10.5px] tracking-[.04em] text-[#6E96C9]">{role.title}</div>
+          </div>
+          <ThemeToggle />
+          <LogOut />
+        </div>
       </div>
     </nav>
   );

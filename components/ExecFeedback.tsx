@@ -33,27 +33,27 @@ export default function ExecFeedback() {
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Feedback</p>
-      <h2 className="mt-1 text-lg font-semibold text-slate-900">Leave a note on this dashboard</h2>
+    <section className="rounded-[10px] border border-line bg-surface p-5 shadow-card sm:p-6">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Feedback</p>
+      <h2 className="mt-1 text-lg font-semibold text-txt">Leave a note on this dashboard</h2>
       <form onSubmit={submit} className="mt-3 space-y-3">
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="What would you change, add, or remove?"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+          className="w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
         />
         <div className="flex items-center gap-3">
           <button
             type="submit"
             disabled={!notes.trim() || status === "saving"}
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-[7px] bg-accent px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {status === "saving" ? "Sending…" : "Send feedback"}
           </button>
-          {status === "done" && <span className="text-sm text-emerald-600">Thanks — recorded.</span>}
-          {status === "error" && <span className="text-sm text-red-600">Could not send. Try again.</span>}
+          {status === "done" && <span className="text-sm text-pos">Thanks — recorded.</span>}
+          {status === "error" && <span className="text-sm text-neg">Could not send. Try again.</span>}
         </div>
       </form>
     </section>

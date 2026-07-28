@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PageHead } from "@/components/ui";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import ChangePin from "@/components/ChangePin";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
@@ -16,15 +16,16 @@ const NAV: NavItem[] = [
   { id: "localtime", label: "Local time", n: 2 },
 ];
 
+// Section header. The step number ties back to the numbered rail on the left.
 function SectionHeading({ n, title, sub }: { n: number; title: string; sub: string }) {
   return (
-    <div className="mb-3 flex items-baseline gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
+    <div className="mb-3.5 flex items-start gap-2.5 border-b border-line pb-3">
+      <span className="mt-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] bg-surface3 text-[10px] font-semibold text-txt3">
         {n}
       </span>
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        <p className="text-xs text-slate-500">{sub}</p>
+        <h2 className="text-[19px] font-semibold tracking-[-.02em] text-txt">{title}</h2>
+        <p className="mt-[3px] text-[12.5px] text-txt3">{sub}</p>
       </div>
     </div>
   );
@@ -72,34 +73,22 @@ export default async function BeaPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-      <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-            Stayable · Operations Support
-          </p>
-          <Link
-            href="/"
-            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
-            ← Dashboard
-          </Link>
-        </div>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Bea&apos;s View</h1>
-        <p className="mt-1 text-sm text-white/70">
-          Out-of-service rooms and current property time — live.
-        </p>
-      </header>
+      <PageHead
+        eyebrow="Stayable · Operations Support"
+        title={<>Bea&apos;s View</>}
+        sub={<>Out-of-service rooms and current property time — live.</>}
+      />
 
-      <div className="lg:flex lg:gap-8">
+      <div className="mt-4 lg:flex lg:items-start lg:gap-[18px]">
         <SectionNav items={NAV} />
 
         <div className="min-w-0 flex-1">
-          <section id="oos" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="oos" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading n={1} title="Out-of-service rooms" sub="Live · pick a property → reasons, then rooms" />
             <BeaOosExplorer properties={oosProps} asOf={asOf} />
           </section>
 
-          <section id="localtime" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="localtime" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
             <div className="flex items-start justify-between gap-3">
               <SectionHeading n={2} title="Property local time" sub="Live · current time at each property" />
               <ExportMenu
@@ -108,23 +97,23 @@ export default async function BeaPage() {
                 matrix={localTimeMatrix}
               />
             </div>
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>
-                  <tr className="bg-ink text-left text-xs uppercase tracking-wide text-white/70">
-                    <th className="px-4 py-3 font-medium">Property</th>
-                    <th className="px-4 py-3 font-medium">Local time</th>
-                    <th className="px-4 py-3 font-medium">Time zone</th>
+                  <tr className="bg-chrome text-left text-[10px] font-semibold uppercase tracking-[.07em] text-white/70">
+                    <th className="px-4 py-3 font-semibold">Property</th>
+                    <th className="px-4 py-3 font-semibold">Local time</th>
+                    <th className="px-4 py-3 font-semibold">Time zone</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.code} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{r.name}</td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {r.localTime ?? <span className="text-slate-400">awaiting key</span>}
+                    <tr key={r.code} className="border-t border-line">
+                      <td className="px-4 py-3 font-medium text-txt">{r.name}</td>
+                      <td className="px-4 py-3 text-txt">
+                        {r.localTime ?? <span className="text-txt3">awaiting key</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{r.tz ?? "—"}</td>
+                      <td className="px-4 py-3 text-txt2">{r.tz ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -132,7 +121,7 @@ export default async function BeaPage() {
             </div>
           </section>
 
-          <p className="mb-6 text-xs text-slate-400">
+          <p className="mb-6 text-xs text-txt3">
             Live, read-only · cached up to 10 min. Out-of-service rooms are blocks active today;
             room numbers are inventory only (no guest data). Only properties with a configured
             Cloudbeds key report (Davenport today).

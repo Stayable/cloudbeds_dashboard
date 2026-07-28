@@ -43,10 +43,10 @@ function num(n: number) {
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
-      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5 shadow-card">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{label}</p>
+      <p className="mt-2.5 text-[27px] font-semibold leading-none tracking-[-.03em] text-txt">{value}</p>
+      {sub && <p className="mt-[7px] text-[11.5px] text-txt3">{sub}</p>}
     </div>
   );
 }
@@ -55,24 +55,24 @@ function MixBars({ title, mix }: { title: string; mix: Record<string, number> })
   const entries = Object.entries(mix).sort((a, b) => b[1] - a[1]);
   const total = entries.reduce((s, [, v]) => s + v, 0);
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
+    <section className="rounded-[10px] border border-line bg-surface p-5 shadow-card sm:p-6">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{title}</p>
       {total > 0 ? (
         <div className="mt-3 space-y-2">
           {entries.map(([k, v]) => (
             <div key={k} className="flex items-center gap-3">
-              <span className="w-32 shrink-0 truncate text-sm text-slate-600" title={k}>{k}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <span className="w-32 shrink-0 truncate text-sm text-txt2" title={k}>{k}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
                 <div className="h-full rounded-full bg-accent" style={{ width: `${(v / total) * 100}%` }} />
               </div>
-              <span className="w-24 shrink-0 text-right text-sm tabular-nums text-slate-700">
-                {num(v)} <span className="text-slate-400">({((v / total) * 100).toFixed(0)}%)</span>
+              <span className="w-24 shrink-0 text-right text-sm tabular-nums text-txt">
+                {num(v)} <span className="text-txt3">({((v / total) * 100).toFixed(0)}%)</span>
               </span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-sm text-slate-400">No data for the selected range.</p>
+        <p className="mt-2 text-sm text-txt3">No data for the selected range.</p>
       )}
     </section>
   );
@@ -93,7 +93,7 @@ export default function CrystalReservations({
 
   if (views.length === 0) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+      <div className="rounded-[10px] border border-warn/40 bg-warnbg p-5 text-sm text-warn">
         No reservation data returned for the selected range (no reporting properties).
       </div>
     );
@@ -119,7 +119,7 @@ export default function CrystalReservations({
                   "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
                   (active
                     ? "border-accent bg-accent/10 text-accent"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                    : "border-line bg-surface text-txt2 hover:border-lineStrong")
                 }
               >
                 {v.key === "ALL" ? "All properties" : v.label}
@@ -152,22 +152,22 @@ export default function CrystalReservations({
 
       <MixBars title="Reservation status mix (rooms)" mix={view.statusMix} />
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Lease vs transient (rooms on books)</p>
+      <section className="rounded-[10px] border border-line bg-surface p-5 shadow-card sm:p-6">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Lease vs transient (rooms on books)</p>
         {lease.total > 0 ? (
           <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-            <div><p className="text-xs text-slate-500">Monthly lease</p><p className="text-lg font-semibold text-slate-900">{((lease.monthly / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-slate-400">{num(lease.monthly)} rooms</p></div>
-            <div><p className="text-xs text-slate-500">Weekly lease</p><p className="text-lg font-semibold text-slate-900">{((lease.weekly / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-slate-400">{num(lease.weekly)} rooms</p></div>
-            <div><p className="text-xs text-slate-500">Transient</p><p className="text-lg font-semibold text-slate-900">{((lease.transient / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-slate-400">{num(lease.transient)} rooms</p></div>
+            <div><p className="text-xs text-txt2">Monthly lease</p><p className="text-lg font-semibold text-txt">{((lease.monthly / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-txt3">{num(lease.monthly)} rooms</p></div>
+            <div><p className="text-xs text-txt2">Weekly lease</p><p className="text-lg font-semibold text-txt">{((lease.weekly / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-txt3">{num(lease.weekly)} rooms</p></div>
+            <div><p className="text-xs text-txt2">Transient</p><p className="text-lg font-semibold text-txt">{((lease.transient / lease.total) * 100).toFixed(0)}%</p><p className="text-xs text-txt3">{num(lease.transient)} rooms</p></div>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-slate-400">No data for the selected range.</p>
+          <p className="mt-2 text-sm text-txt3">No data for the selected range.</p>
         )}
       </section>
 
       <MixBars title="Room type category (rooms)" mix={view.roomTypeCategoryMix} />
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-txt3">
         {isAll ? "All reporting properties combined. " : `${view.label} only. `}
         Reservations whose stay overlaps {rangeLabel}. Currency, room-night, and guest
         totals exclude cancelled / no-show and reflect full reservation values (not

@@ -1,4 +1,5 @@
 import IntakeForm from "@/components/IntakeForm";
+import { PageHead } from "@/components/ui";
 import { CATALOG_BY_CATEGORY } from "@/config/catalog-sample";
 
 // Public, no PIN (excluded in middleware matcher). Fully static — no Cloudbeds
@@ -7,24 +8,20 @@ export const dynamic = "force-static";
 
 export default function TestPage() {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-      <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
-        <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-          Stayable · Dashboard Requirements
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Tell us what to put on your dashboard</h1>
-        <p className="mt-1 text-sm text-white/70">
-          Browse the available metrics, pick the ones your team needs, and submit. No login required.
-        </p>
-      </header>
+    <main className="mx-auto max-w-[1120px] animate-fadeup px-4 pb-16 pt-5 sm:px-6">
+      <PageHead
+        eyebrow="Stayable · Dashboard Requirements"
+        title="Tell us what to put on your dashboard"
+        sub="Browse the available metrics, pick the ones your team needs, and submit. No login required."
+      />
 
-      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <div className="mt-4 rounded-[10px] border border-warn/40 bg-warnbg px-4 py-3 text-[12.5px] text-warn">
         Please submit your selections within <span className="font-semibold">24 hours</span> if you can.
         The form stays open — there is no hard deadline.
       </div>
 
-      <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        <span className="font-semibold text-slate-700">Note:</span> not every metric below will appear on
+      <div className="mb-4 mt-3 rounded-[10px] border border-line bg-surface2 px-4 py-3 text-[12.5px] leading-relaxed text-txt2">
+        <span className="font-semibold text-txt">Note:</span> not every metric below will appear on
         your final dashboard. Availability depends on your role and permissions — some of these will be
         hidden or removed depending on who you are. Pick what you&apos;d find useful; we&apos;ll scope the
         live view to what your role is allowed to see.
@@ -32,7 +29,7 @@ export default function TestPage() {
 
       <IntakeForm groups={CATALOG_BY_CATEGORY} />
 
-      <p className="mt-8 text-xs text-slate-400">
+      <p className="mt-8 text-xs text-txt3">
         All values on this page are SAMPLE data for illustration only — not live Cloudbeds figures. No guest
         personal data is shown anywhere on this site.
       </p>

@@ -2,11 +2,15 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { SegTrack, segButton } from "@/components/ui";
 
+// Period selector for the sticky ControlBar. Presets are a segmented control;
+// "Custom…" reveals the two date inputs inline rather than always occupying a
+// second row (the design keeps the bar to one line).
 const PRESETS: { key: string; label: string }[] = [
   { key: "yesterday", label: "Yesterday" },
-  { key: "last7", label: "Last 7 days" },
-  { key: "last30", label: "Last 30 days" },
+  { key: "last7", label: "Last 7" },
+  { key: "last30", label: "Last 30" },
   { key: "month", label: "This month" },
 ];
 
@@ -23,70 +27,70 @@ export default function PeriodControls({
   const pathname = usePathname();
   const [from, setFrom] = useState(start);
   const [to, setTo] = useState(end);
+  const [openCustom, setOpenCustom] = useState(preset === "custom");
 
   function go(params: Record<string, string>) {
-    // Stay on the current path (/, /exec, …) so the date filter doesn't bounce
+    // Stay on the current path (/, /ops, …) so the date filter doesn't bounce
     // the user back to the base dashboard.
     router.push(`${pathname}?${new URLSearchParams(params).toString()}`);
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Presets */}
-      <div className="flex flex-wrap gap-1.5">
-        {PRESETS.map((p) => {
-          const active = p.key === preset;
-          return (
-            <button
-              key={p.key}
-              onClick={() => go({ preset: p.key })}
-              className={
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
-                (active
-                  ? "bg-ink text-white"
-                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100")
-              }
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
+  const dateInput =
+    "h-[26px] rounded-[5px] border border-lineStrong bg-surface px-2 text-xs text-txt outline-none focus:border-accent";
 
-      {/* Custom range */}
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col text-xs text-slate-500">
-          From
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <SegTrack>
+        {PRESETS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => {
+              setOpenCustom(false);
+              go({ preset: p.key });
+            }}
+            className={segButton(p.key === preset)}
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOpenCustom((v) => !v)}
+          className={segButton(preset === "custom")}
+        >
+          Custom…
+        </button>
+      </SegTrack>
+
+      {openCustom && (
+        <div className="flex items-center gap-1.5">
           <input
             type="date"
+            aria-label="From date"
             value={from}
             max={to}
             onChange={(e) => setFrom(e.target.value)}
-            className="mt-0.5 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-accent"
+            className={dateInput}
           />
-        </label>
-        <label className="flex flex-col text-xs text-slate-500">
-          To
+          <span className="text-xs text-txt3">→</span>
           <input
             type="date"
+            aria-label="To date"
             value={to}
             min={from}
             onChange={(e) => setTo(e.target.value)}
-            className="mt-0.5 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-accent"
+            className={dateInput}
           />
-        </label>
-        <button
-          onClick={() => from && to && go({ preset: "custom", start: from, end: to })}
-          className={
-            "rounded-lg px-3 py-2 text-xs font-semibold transition-colors " +
-            (preset === "custom"
-              ? "bg-accent text-white"
-              : "bg-accent/10 text-accent hover:bg-accent/20")
-          }
-        >
-          Apply range
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => from && to && go({ preset: "custom", start: from, end: to })}
+            className="h-[26px] rounded-[5px] bg-accent px-3 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Apply
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -46,16 +46,16 @@ export default function ChangePin() {
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-[10px] border border-line bg-surface p-5 shadow-card sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Account</p>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">Change your PIN</h2>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Account</p>
+          <h2 className="mt-1 text-lg font-semibold text-txt">Change your PIN</h2>
         </div>
         {!open && (
           <button
             onClick={() => { setOpen(true); setStatus("idle"); }}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="shrink-0 rounded-[7px] border border-lineStrong px-3 py-1.5 text-[12.5px] font-semibold text-txt2 transition-colors hover:border-accent hover:text-accent"
           >
             Change PIN
           </button>
@@ -64,37 +64,37 @@ export default function ChangePin() {
 
       {open && (
         <form onSubmit={submit} className="mt-3 space-y-3">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-txt2">
             Updates the PIN for this dashboard. You&apos;ll stay signed in; use the new PIN next time.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               type="password" autoComplete="new-password" value={pin} onChange={(e) => setPin(e.target.value)}
               placeholder="New PIN (min 4 chars)"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+              className="w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
             <input
               type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
               placeholder="Confirm new PIN"
               className={
-                "w-full rounded-lg border px-3 py-2 text-slate-900 outline-none focus:ring-2 " +
-                (mismatch ? "border-red-400 focus:border-red-400 focus:ring-red-200" : "border-slate-300 focus:border-accent focus:ring-accent/20")
+                "w-full rounded-lg border px-3 py-2 text-txt outline-none focus:ring-2 " +
+                (mismatch ? "border-neg focus:border-neg focus:ring-neg/40" : "border-lineStrong focus:border-accent focus:ring-accent/20")
               }
             />
           </div>
           <div className="flex items-center gap-3">
             <button
               type="submit" disabled={!canSubmit}
-              className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-[7px] bg-accent px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {status === "saving" ? "Saving…" : "Save new PIN"}
             </button>
-            <button type="button" onClick={() => setOpen(false)} className="text-sm font-medium text-slate-500 hover:text-slate-700">
+            <button type="button" onClick={() => setOpen(false)} className="text-sm font-medium text-txt2 hover:text-txt">
               Cancel
             </button>
-            {mismatch && <span className="text-sm text-red-600">PINs don&apos;t match</span>}
-            {status === "done" && <span className="text-sm text-emerald-600">PIN updated.</span>}
-            {status === "error" && <span className="text-sm text-red-600">{errorMsg}</span>}
+            {mismatch && <span className="text-sm text-neg">PINs don&apos;t match</span>}
+            {status === "done" && <span className="text-sm text-pos">PIN updated.</span>}
+            {status === "error" && <span className="text-sm text-neg">{errorMsg}</span>}
           </div>
         </form>
       )}

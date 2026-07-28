@@ -8,6 +8,7 @@
 // so they never weigh down initial page load. Inventory/aggregate data only —
 // no guest PII passes through here.
 import { useEffect, useRef, useState } from "react";
+import { surfaceButton } from "@/components/ui";
 import { toCSV } from "@/lib/export";
 
 type Props = {
@@ -92,7 +93,8 @@ export default function ExportMenu({ filename, matrix, title, disabled }: Props)
     }
   }
 
-  const item = "block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50";
+  const item =
+    "block w-full px-3.5 py-2 text-left text-[12.5px] font-semibold text-txt2 transition-colors hover:bg-surface2 hover:text-txt";
 
   return (
     <div ref={ref} className="relative inline-block text-left">
@@ -101,14 +103,13 @@ export default function ExportMenu({ filename, matrix, title, disabled }: Props)
         onClick={() => setOpen((v) => !v)}
         disabled={isEmpty || busy}
         className={
-          "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 " +
-          (isEmpty || busy ? "cursor-not-allowed opacity-50" : "")
+          surfaceButton + (isEmpty || busy ? " cursor-not-allowed opacity-50" : "")
         }
       >
         {busy ? "Exporting…" : "Export ▾"}
       </button>
       {open && !isEmpty && (
-        <div className="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-[8px] border border-line bg-surface py-1 shadow-card">
           <button type="button" className={item} onClick={() => run("csv")}>
             CSV (.csv)
           </button>

@@ -28,12 +28,12 @@ const EXPORT_COLS: ExportColumn<LeasingView>[] = [
 ];
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "good" | "bad" }) {
-  const valueColor = tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-red-700" : "text-slate-900";
+  const valueColor = tone === "good" ? "text-pos" : tone === "bad" ? "text-neg" : "text-txt";
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${valueColor}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5 shadow-card">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{label}</p>
+      <p className={`mt-2.5 text-[27px] font-semibold leading-none tracking-[-.03em] ${valueColor}`}>{value}</p>
+      {sub && <p className="mt-[7px] text-[11.5px] text-txt3">{sub}</p>}
     </div>
   );
 }
@@ -43,8 +43,8 @@ function Funnel({ view }: { view: LeasingView }) {
   const leads = view.stages[0]?.n ?? 0;
   const max = Math.max(1, ...view.stages.map((s) => s.n));
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <p className="mb-4 text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
+      <p className="mb-4 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
         Funnel · {view.label}
       </p>
       <div className="space-y-2.5">
@@ -52,16 +52,20 @@ function Funnel({ view }: { view: LeasingView }) {
           const shareOfLeads = leads > 0 ? Math.round((s.n / leads) * 100) : null;
           return (
             <div key={s.key} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-right text-xs font-medium text-slate-600">{s.label}</span>
-              <div className="relative h-6 flex-1 overflow-hidden rounded bg-slate-100">
+              <span className="w-28 shrink-0 text-right text-[11.5px] font-semibold text-txt2">
+                {s.label}
+              </span>
+              <div className="relative h-[26px] flex-1 overflow-hidden rounded-[5px] bg-surface2">
                 <div
-                  className="h-full rounded bg-accent/80"
+                  className="h-full rounded-[5px] bg-navy"
                   style={{ width: `${(s.n / max) * 100}%`, minWidth: s.n ? "2px" : 0 }}
                 />
               </div>
-              <span className="w-24 shrink-0 text-xs tabular-nums text-slate-500">
-                <span className="font-semibold text-slate-900">{intFmt(s.n)}</span>
-                {shareOfLeads != null && s.key !== "prospect" && <span className="text-slate-400"> · {shareOfLeads}%</span>}
+              <span className="w-24 shrink-0 text-[11.5px]">
+                <span className="font-semibold text-txt">{intFmt(s.n)}</span>
+                {shareOfLeads != null && s.key !== "prospect" && (
+                  <span className="text-txt3"> · {shareOfLeads}%</span>
+                )}
               </span>
             </div>
           );
@@ -88,12 +92,12 @@ export default function LeasingSection({
 
   if (!configured || views.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-        <p className="text-sm font-semibold text-slate-700">Leasing data not synced yet</p>
-        <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
+      <div className="rounded-[10px] border border-dashed border-lineStrong bg-surface2 px-5 py-8 text-center">
+        <p className="text-sm font-semibold text-txt">Leasing data not synced yet</p>
+        <p className="mx-auto mt-1 max-w-md text-xs text-txt2">
           The nightly EliseAI → Neon sync hasn&apos;t populated the funnel. It runs daily; once{" "}
-          <code className="rounded bg-slate-200 px-1">/api/cron/elise-sync</code> has run (or{" "}
-          <code className="rounded bg-slate-200 px-1">node scripts/elise-sync.mjs</code> locally), the
+          <code className="rounded bg-surface3 px-1">/api/cron/elise-sync</code> has run (or{" "}
+          <code className="rounded bg-surface3 px-1">node scripts/elise-sync.mjs</code> locally), the
           funnel appears here.
         </p>
       </div>
@@ -125,7 +129,7 @@ export default function LeasingSection({
                   "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
                   (active
                     ? "border-accent bg-accent/10 text-accent"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                    : "border-line bg-surface text-txt2 hover:border-lineStrong")
                 }
               >
                 {v.key === "ALL" ? "All properties" : v.label}
@@ -140,13 +144,13 @@ export default function LeasingSection({
         />
       </div>
 
-      <p className="text-xs text-slate-500">
-        Activity from <span className="font-medium text-slate-700">{from}</span> to{" "}
-        <span className="font-medium text-slate-700">{to}</span> · windowed by event date.
+      <p className="text-xs text-txt2">
+        Activity from <span className="font-medium text-txt">{from}</span> to{" "}
+        <span className="font-medium text-txt">{to}</span> · windowed by event date.
         {view.tourAttendanceRecorded != null && view.tourAttendanceRecorded < 90 && (
           <>
             {" "}Elise recorded attendance for only{" "}
-            <span className="font-medium text-slate-700">{view.tourAttendanceRecorded}%</span> of booked
+            <span className="font-medium text-txt">{view.tourAttendanceRecorded}%</span> of booked
             tours, so Tour → Lease is measured against tours <em>booked</em>.
           </>
         )}
@@ -166,18 +170,18 @@ export default function LeasingSection({
 
       {/* Current pipeline snapshot (not windowed) */}
       {view.pipeline.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
-            Current pipeline · {view.label} <span className="text-slate-400">(live status, all-time)</span>
+        <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
+          <p className="mb-3 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
+            Current pipeline · {view.label} <span className="text-txt3">(live status, all-time)</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {view.pipeline.map((p) => (
               <span
                 key={p.status}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface2 px-3 py-1 text-xs text-txt2"
               >
                 {p.status}
-                <span className="font-semibold text-slate-900 tabular-nums">{intFmt(p.n)}</span>
+                <span className="font-semibold text-txt tabular-nums">{intFmt(p.n)}</span>
               </span>
             ))}
           </div>
@@ -185,31 +189,31 @@ export default function LeasingSection({
       )}
 
       {/* Per-property summary — always visible so the portfolio reads at a glance. */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[10px] border border-line bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-2 font-medium">Property</th>
-                <th className="px-4 py-2 text-right font-medium">Leads</th>
-                <th className="px-4 py-2 text-right font-medium">Tours</th>
-                <th className="px-4 py-2 text-right font-medium">Apps</th>
-                <th className="px-4 py-2 text-right font-medium">Leased</th>
-                <th className="px-4 py-2 text-right font-medium">Lead→Lease</th>
+              <tr className="border-b border-lineStrong bg-surface2 text-left text-[10px] font-semibold uppercase tracking-[.07em] text-txt3">
+                <th className="px-4 py-2.5 font-semibold">Property</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Leads</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Tours</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Apps</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Leased</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Lead→Lease</th>
               </tr>
             </thead>
             <tbody>
               {perProperty.map((v) => (
                 <tr
                   key={v.key}
-                  className={"border-b border-slate-100 last:border-0 " + (v.key === view.key ? "bg-accent/5" : "")}
+                  className={"border-b border-line last:border-0 " + (v.key === view.key ? "bg-accent/5" : "")}
                 >
-                  <td className="px-4 py-2 text-slate-700">{v.label}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(stageN(v, "prospect"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(stageN(v, "tour_booked"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(stageN(v, "application_started"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(stageN(v, "lease_completed"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-700">{rate(v.leadToLease)}</td>
+                  <td className="px-4 py-2 text-txt">{v.label}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "prospect"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "tour_booked"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "application_started"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "lease_completed"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{rate(v.leadToLease)}</td>
                 </tr>
               ))}
             </tbody>
@@ -217,7 +221,7 @@ export default function LeasingSection({
         </div>
       </section>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-txt3">
         Source: EliseAI Snowflake data share (PROSPECT_EVENTS for the funnel, PROSPECTS for the pipeline
         snapshot), synced nightly to Neon. Aggregate counts only — no lead names, emails, phones, or
         conversation content ever leave Snowflake. Funnel is windowed by event date; the pipeline

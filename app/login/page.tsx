@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 
+// PIN gate. Deliberately its own visual world: a navy field with a single glass
+// card, no app chrome (Nav self-hides without a valid cookie). Fixed dark
+// palette — this screen is the same in both themes, so the colours here are
+// literal rather than tokens.
 export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
@@ -30,56 +34,71 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-ink px-4">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl sm:p-8"
-      >
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-          Stayable · Operating Dashboard
-        </p>
-        <h1 className="mt-1 text-xl font-semibold text-slate-900">Enter PIN</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          This dashboard is private to RISE8 / Stayable.
-        </p>
+    <main
+      className="grid min-h-screen place-items-center px-6 py-10"
+      style={{ background: "linear-gradient(180deg,#041E42 0%,#062B5C 100%)" }}
+    >
+      <div className="w-full max-w-[392px] animate-fadeup">
+        <div className="mb-8 flex items-baseline gap-2.5">
+          <span className="text-[26px] font-bold tracking-[-.02em] text-white">stayable</span>
+          <span className="h-[7px] w-[7px] -translate-y-0.5 rounded-full bg-gold" />
+          <span className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#7FA8DA]">
+            Operating Dashboard
+          </span>
+        </div>
 
-        <input
-          type="password"
-          inputMode="text"
-          autoComplete="off"
-          autoFocus
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          placeholder="Enter PIN"
-          className="mt-5 w-full rounded-lg border border-slate-300 px-4 py-3 text-center text-lg tracking-widest text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-        />
+        <div className="rounded-xl border border-[#12386B] bg-white/[.04] p-7">
+          <h1 className="text-[15px] font-semibold text-white">Enter access PIN</h1>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[#7FA8DA]">
+            Internal, read-only. Aggregate metrics only — no guest data.
+          </p>
 
-        {error && (
-          <p className="mt-2 text-sm text-red-600">Incorrect PIN. Try again.</p>
-        )}
+          <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
+            <input
+              type="password"
+              inputMode="text"
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setError(false);
+              }}
+              placeholder="Access PIN"
+              aria-label="Access PIN"
+              className="h-12 w-full rounded-[9px] border border-[#12386B] bg-white/[.04] px-4 text-[15px] font-semibold tracking-[.22em] text-white outline-none transition-colors placeholder:tracking-normal placeholder:text-[#5C82B4] focus:border-accent focus:bg-accent/10"
+            />
+            <button
+              type="submit"
+              disabled={loading || pin.length === 0}
+              className="h-11 rounded-[9px] bg-accent text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0A7FD1] disabled:opacity-50"
+            >
+              {loading ? "Checking…" : "Unlock dashboard"}
+            </button>
+          </form>
 
-        <button
-          type="submit"
-          disabled={loading || pin.length === 0}
-          className="mt-5 w-full rounded-lg bg-ink py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {loading ? "Checking…" : "Unlock"}
-        </button>
+          {error && <p className="mt-3 text-xs text-[#FF9BAA]">Incorrect PIN. Try again.</p>}
 
-        <button
-          type="button"
-          onClick={() => {
-            // Return to wherever they came from (e.g. the base dashboard when
-            // they hit the /exec PIN prompt without exec access). Falls back to
-            // the base dashboard if there's no history to go back to.
-            if (window.history.length > 1) window.history.back();
-            else window.location.assign("/");
-          }}
-          className="mt-3 w-full rounded-lg border border-slate-300 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          ← Back
-        </button>
-      </form>
+          <button
+            type="button"
+            onClick={() => {
+              // Return to wherever they came from (e.g. the base dashboard when
+              // they hit a per-user PIN prompt without that access). Falls back
+              // to the base dashboard if there's no history to go back to.
+              if (window.history.length > 1) window.history.back();
+              else window.location.assign("/");
+            }}
+            className="mt-3 h-10 w-full rounded-[9px] border border-[#12386B] text-xs font-semibold text-[#8FB3DD] transition-colors hover:border-[#2A5C9E] hover:text-white"
+          >
+            ← Back
+          </button>
+
+          <p className="mt-5 text-center text-[11.5px] text-[#5C82B4]">
+            Issued by RISE8 IT
+          </p>
+        </div>
+      </div>
     </main>
   );
 }

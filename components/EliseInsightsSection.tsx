@@ -34,12 +34,12 @@ function Tile({
   sub?: string;
   tone?: "good" | "bad";
 }) {
-  const valueColor = tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-red-700" : "text-slate-900";
+  const valueColor = tone === "good" ? "text-pos" : tone === "bad" ? "text-neg" : "text-txt";
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${valueColor}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5 shadow-card">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{label}</p>
+      <p className={`mt-2.5 text-[27px] font-semibold leading-none tracking-[-.03em] ${valueColor}`}>{value}</p>
+      {sub && <p className="mt-[7px] text-[11.5px] text-txt3">{sub}</p>}
     </div>
   );
 }
@@ -48,33 +48,37 @@ function Tile({
 function Breakdown({ title, slices, note }: { title: string; slices: Slice[]; note?: string }) {
   if (slices.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
-        <p className="text-sm text-slate-400">No data in this window.</p>
+      <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
+        <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{title}</p>
+        <p className="text-sm text-txt3">No data in this window.</p>
       </div>
     );
   }
   const max = Math.max(...slices.map((s) => s.n), 1);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
-      {note && <p className="mb-3 text-xs text-slate-400">{note}</p>}
-      <div className={note ? "space-y-2.5" : "mt-3 space-y-2.5"}>
+    <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
+      <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{title}</p>
+      {note && <p className="mb-3 text-xs text-txt3">{note}</p>}
+      {/* Label + figures on one line, bar underneath — the design's breakdown
+          pattern. Long labels get the full width instead of a truncated gutter. */}
+      <div className={note ? "space-y-3" : "mt-3 space-y-3"}>
         {slices.map((s) => (
-          <div key={s.label} className="flex items-center gap-3">
-            <span className="w-36 shrink-0 truncate text-right text-xs font-medium text-slate-600" title={s.label}>
-              {s.label}
-            </span>
-            <div className="relative h-6 flex-1 overflow-hidden rounded bg-slate-100">
+          <div key={s.label}>
+            <div className="mb-1.5 flex items-baseline gap-2.5">
+              <span className="truncate text-xs text-txt2" title={s.label}>
+                {s.label}
+              </span>
+              <span className="ml-auto shrink-0 text-xs font-semibold text-txt">{intFmt(s.n)}</span>
+              <span className="w-11 shrink-0 text-right text-[11.5px] text-txt3">
+                {Math.round(s.pct * 100)}%
+              </span>
+            </div>
+            <div className="h-[7px] overflow-hidden rounded-full bg-surface3">
               <div
-                className="h-full rounded bg-accent/80"
+                className="h-full rounded-full bg-accent"
                 style={{ width: `${(s.n / max) * 100}%`, minWidth: s.n ? "2px" : 0 }}
               />
             </div>
-            <span className="w-24 shrink-0 text-xs tabular-nums text-slate-500">
-              <span className="font-semibold text-slate-900">{intFmt(s.n)}</span>
-              <span className="text-slate-400"> · {Math.round(s.pct * 100)}%</span>
-            </span>
           </div>
         ))}
       </div>
@@ -145,12 +149,12 @@ export default function EliseInsightsSection({
   // A single "ALL" view with no properties means the sync hasn't landed rows.
   if (views.length <= 1) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-        <p className="text-sm font-semibold text-slate-700">Elise enrichment not synced yet</p>
-        <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
-          The nightly sync hasn&apos;t populated <code className="rounded bg-slate-200 px-1">elise_metric_daily</code>.
+      <div className="rounded-[10px] border border-dashed border-lineStrong bg-surface2 px-5 py-8 text-center">
+        <p className="text-sm font-semibold text-txt">Elise enrichment not synced yet</p>
+        <p className="mx-auto mt-1 max-w-md text-xs text-txt2">
+          The nightly sync hasn&apos;t populated <code className="rounded bg-surface3 px-1">elise_metric_daily</code>.
           It runs daily; you can also run{" "}
-          <code className="rounded bg-slate-200 px-1">node scripts/elise-enrichment-sync.mjs</code> locally.
+          <code className="rounded bg-surface3 px-1">node scripts/elise-enrichment-sync.mjs</code> locally.
         </p>
       </div>
     );
@@ -173,7 +177,7 @@ export default function EliseInsightsSection({
                 "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
                 (v.key === view.key
                   ? "border-accent bg-accent/10 text-accent"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                  : "border-line bg-surface text-txt2 hover:border-lineStrong")
               }
             >
               {v.key === "ALL" ? "All properties" : v.label}
@@ -187,9 +191,9 @@ export default function EliseInsightsSection({
         />
       </div>
 
-      <p className="text-xs text-slate-500">
-        Activity from <span className="font-medium text-slate-700">{from}</span> to{" "}
-        <span className="font-medium text-slate-700">{to}</span> · windowed by event date.
+      <p className="text-xs text-txt2">
+        Activity from <span className="font-medium text-txt">{from}</span> to{" "}
+        <span className="font-medium text-txt">{to}</span> · windowed by event date.
       </p>
 
       {section === "leasing" && (
@@ -259,11 +263,11 @@ export default function EliseInsightsSection({
       )}
 
       {/* Per-property summary — always visible so the portfolio reads at a glance. */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[10px] border border-line bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-lineStrong bg-surface2 text-left text-[10px] font-semibold uppercase tracking-[.07em] text-txt3">
                 {EXPORT_COLS[section].map((c, i) => (
                   <th key={c.header} className={"px-4 py-2 font-medium " + (i === 0 ? "" : "text-right")}>
                     {c.header}
@@ -275,7 +279,7 @@ export default function EliseInsightsSection({
               {perProperty.map((v) => (
                 <tr
                   key={v.key}
-                  className={"border-b border-slate-100 last:border-0 " + (v.key === view.key ? "bg-accent/5" : "")}
+                  className={"border-b border-line last:border-0 " + (v.key === view.key ? "bg-accent/5" : "")}
                 >
                   {EXPORT_COLS[section].map((c, i) => {
                     const raw = c.value(v);
@@ -285,7 +289,7 @@ export default function EliseInsightsSection({
                         key={c.header}
                         className={
                           "px-4 py-2 " +
-                          (i === 0 ? "text-slate-700" : "text-right text-slate-700 ") +
+                          (i === 0 ? "text-txt" : "text-right text-txt ") +
                           (isNum ? "tabular-nums" : "")
                         }
                       >
@@ -300,7 +304,7 @@ export default function EliseInsightsSection({
         </div>
       </section>
 
-      <p className="text-xs text-slate-400">{SOURCE_NOTE[section]}</p>
+      <p className="text-xs text-txt3">{SOURCE_NOTE[section]}</p>
     </div>
   );
 }

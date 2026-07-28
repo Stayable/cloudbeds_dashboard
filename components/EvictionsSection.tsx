@@ -23,10 +23,10 @@ const EVICTION_COLS: ExportColumn<EvictionsView>[] = [
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
-      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5 shadow-card">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">{label}</p>
+      <p className="mt-2.5 text-[27px] font-semibold leading-none tracking-[-.03em] text-txt">{value}</p>
+      {sub && <p className="mt-[7px] text-[11.5px] text-txt3">{sub}</p>}
     </div>
   );
 }
@@ -46,9 +46,9 @@ export default function EvictionsSection({
 
   if (!configured) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+      <div className="rounded-[10px] border border-warn/40 bg-warnbg p-5 text-sm text-warn">
         Evictions data isn&apos;t connected yet. Set the{" "}
-        <code className="rounded bg-amber-100 px-1">SMARTSHEET_API_TOKEN</code> environment
+        <code className="rounded bg-warnbg px-1">SMARTSHEET_API_TOKEN</code> environment
         variable (Smartsheet → Personal Settings → API Access) so the server can read the
         Evictions Metrics sheet.
       </div>
@@ -57,7 +57,7 @@ export default function EvictionsSection({
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-900">
+      <div className="rounded-[10px] border border-neg/40 bg-negbg p-5 text-sm text-neg">
         Couldn&apos;t load evictions data from Smartsheet: {error}
       </div>
     );
@@ -65,7 +65,7 @@ export default function EvictionsSection({
 
   if (views.length === 0) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+      <div className="rounded-[10px] border border-warn/40 bg-warnbg p-5 text-sm text-warn">
         No evictions metrics returned from the sheet.
       </div>
     );
@@ -90,7 +90,7 @@ export default function EvictionsSection({
                   "rounded-lg border px-3 py-1.5 text-sm font-medium transition " +
                   (active
                     ? "border-accent bg-accent/10 text-accent"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                    : "border-line bg-surface text-txt2 hover:border-lineStrong")
                 }
               >
                 {v.key === "ALL" ? "All properties" : v.label}
@@ -122,17 +122,17 @@ export default function EvictionsSection({
       </div>
 
       {/* Per-property breakdown — always visible so the portfolio reads at a glance. */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[10px] border border-line bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-2 font-medium">Property</th>
-                <th className="px-4 py-2 text-right font-medium">Open</th>
-                <th className="px-4 py-2 text-right font-medium">Closed</th>
-                <th className="px-4 py-2 text-right font-medium">Total</th>
-                <th className="px-4 py-2 text-right font-medium">Days to file</th>
-                <th className="px-4 py-2 text-right font-medium">Days to resolve</th>
+              <tr className="border-b border-lineStrong bg-surface2 text-left text-[10px] font-semibold uppercase tracking-[.07em] text-txt3">
+                <th className="px-4 py-2.5 font-semibold">Property</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Open</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Closed</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Total</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Days to file</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Days to resolve</th>
               </tr>
             </thead>
             <tbody>
@@ -142,18 +142,18 @@ export default function EvictionsSection({
                   <tr
                     key={v.key}
                     className={
-                      "border-b border-slate-100 last:border-0 " +
+                      "border-b border-line last:border-0 " +
                       (active ? "bg-accent/5" : "")
                     }
                   >
-                    <td className="px-4 py-2 text-slate-700">{v.label}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(v.open)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(v.closed)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700">{intFmt(v.total)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700">
+                    <td className="px-4 py-2 text-txt">{v.label}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(v.open)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(v.closed)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(v.total)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-txt">
                       {v.avgDaysToFile == null ? "—" : v.avgDaysToFile.toFixed(1)}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700">
+                    <td className="px-4 py-2 text-right tabular-nums text-txt">
                       {v.avgDays == null ? "—" : v.avgDays.toFixed(1)}
                     </td>
                   </tr>
@@ -164,7 +164,7 @@ export default function EvictionsSection({
         </div>
       </section>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-txt3">
         Source: Smartsheet &ldquo;Evictions Metrics&rdquo; (pre-aggregated rollup of the Closed
         and Master Database case sheets). Counts only — no tenant names or case-level detail.
         &ldquo;Open&rdquo; = all non-closed cases; &ldquo;Total&rdquo; = open + closed all-time.

@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { summarizeOoo, type OooRoom } from "@/lib/cloudbeds";
 import ExportMenu from "@/components/ExportMenu";
+import { thClass } from "@/components/ui";
 import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
 
 export type BeaProperty = {
@@ -65,27 +66,27 @@ function groupReasons(rooms: OooRoom[]): ReasonGroup[] {
 
 function RoomTable({ rooms }: { rooms: OooRoom[] }) {
   return (
-    <table className="w-full min-w-[520px] text-sm">
+    <table className="w-full min-w-[520px] border-collapse">
       <thead>
-        <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-          <th className="px-4 py-2 font-medium">Room</th>
-          <th className="px-4 py-2 font-medium">Type</th>
-          <th className="px-4 py-2 font-medium">Reason</th>
-          <th className="px-4 py-2 font-medium">Until</th>
+        <tr>
+          <th className={thClass("left")}>Room</th>
+          <th className={thClass("left")}>Type</th>
+          <th className={thClass("left")}>Reason</th>
+          <th className={thClass("left")}>Until</th>
         </tr>
       </thead>
       <tbody>
         {rooms.map((r, i) => (
-          <tr key={`${r.room}-${i}`} className="border-t border-slate-100">
-            <td className="px-4 py-2 font-medium text-slate-900">
-              {r.room || <span className="italic text-slate-400">Unknown</span>}
+          <tr key={`${r.room}-${i}`} className="border-t border-line">
+            <td className="px-4 py-2.5 text-[12.5px] font-semibold text-txt">
+              {r.room || <span className="italic text-txt3">Unknown</span>}
             </td>
-            <td className="px-4 py-2 text-slate-600">
+            <td className="px-4 py-2.5 text-[12.5px] text-txt2">
               {r.roomType || "—"}
-              {r.roomTypeCode && <span className="ml-1 text-xs text-slate-400">({r.roomTypeCode})</span>}
+              {r.roomTypeCode && <span className="ml-1 text-[11px] text-txt3">({r.roomTypeCode})</span>}
             </td>
-            <td className="px-4 py-2 text-slate-600">{r.reason}</td>
-            <td className="px-4 py-2 text-slate-500">{r.endDate}</td>
+            <td className="px-4 py-2.5 text-[12.5px] text-txt2">{r.reason}</td>
+            <td className="px-4 py-2.5 text-[12.5px] text-txt2">{r.endDate}</td>
           </tr>
         ))}
       </tbody>
@@ -100,22 +101,24 @@ function RoomTable({ rooms }: { rooms: OooRoom[] }) {
 function CategoryGroup({ title, rooms }: { title: string; rooms: OooRoom[] }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
         {title} · {rooms.length}
       </p>
       {rooms.length === 0 ? (
-        <p className="rounded-lg bg-slate-50 px-4 py-2 text-xs text-slate-400">None.</p>
+        <p className="rounded-lg bg-surface2 px-4 py-2 text-xs text-txt3">None.</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {groupReasons(rooms).map((g) => (
-              <div key={g.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <p className="text-2xl font-semibold text-slate-900">{g.count}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{g.label}</p>
+              <div key={g.label} className="rounded-[10px] border border-line bg-surface px-4 py-3.5 shadow-card">
+                <p className="text-[27px] font-semibold leading-none tracking-[-.03em] text-txt">
+                  {g.count}
+                </p>
+                <p className="mt-[7px] text-[11.5px] text-txt3">{g.label}</p>
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
             <RoomTable rooms={rooms} />
           </div>
         </>
@@ -140,21 +143,23 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
         key={key}
         onClick={() => setActiveKey(key)}
         className={
-          "rounded-xl border bg-white px-3 py-3 text-left shadow-sm transition " +
-          (active ? "border-accent ring-1 ring-accent/30 " : "border-slate-200 hover:border-slate-300 ") +
+          "rounded-[10px] border bg-surface px-4 py-3.5 text-left shadow-card transition-colors " +
+          (active ? "border-accent " : "border-line hover:border-accent ") +
           (disabled ? "opacity-60" : "")
         }
       >
-        <p className="truncate text-xs text-slate-500">{label}</p>
+        <p className="truncate text-[13px] font-semibold tracking-[-.01em] text-txt">{label}</p>
         {counts !== null ? (
           <>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">{counts.total}</p>
-            <p className="text-[11px] text-slate-400">
+            <p className="mt-2.5 text-[27px] font-semibold leading-none tracking-[-.03em] text-txt">
+              {counts.total}
+            </p>
+            <p className="mt-[7px] text-[11.5px] text-txt3">
               {counts.ooo} out-of-order · {counts.other} other blocks
             </p>
           </>
         ) : (
-          <p className="mt-1 text-sm font-medium text-slate-400">{statusSub}</p>
+          <p className="mt-2.5 text-[12.5px] font-semibold text-txt3">{statusSub}</p>
         )}
       </button>
     );
@@ -191,10 +196,10 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
       {activeKey === "ALL" ? (
         /* All properties → total + a compact summary table; click a row to drill in. */
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3 rounded-[10px] border border-line bg-surface px-4 py-3 shadow-card">
             <span>
-              <span className="text-2xl font-semibold text-slate-900">{allCounts.total}</span>
-              <span className="ml-2 text-sm text-slate-500">
+              <span className="text-2xl font-semibold text-txt">{allCounts.total}</span>
+              <span className="ml-2 text-sm text-txt2">
                 room{allCounts.total === 1 ? "" : "s"} blocked across all properties
                 {allCounts.total > 0 && (
                   <> ({allCounts.ooo} out-of-order · {allCounts.other} other blocks)</>
@@ -207,15 +212,15 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
               matrix={buildMatrix(ROOM_COLS_ALL, allRowsForExport)}
             />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full min-w-[560px] text-sm">
+          <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
+            <table className="w-full min-w-[560px] border-collapse">
               <thead>
-                <tr className="bg-ink text-left text-xs uppercase tracking-wide text-white/70">
-                  <th className="px-4 py-3 font-medium">Property</th>
-                  <th className="px-4 py-3 font-medium">Out-of-Order</th>
-                  <th className="px-4 py-3 font-medium">Other blocks</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Top reason</th>
+                <tr>
+                  <th className={thClass("left")}>Property</th>
+                  <th className={thClass("left")}>Out-of-Order</th>
+                  <th className={thClass("left")}>Other blocks</th>
+                  <th className={thClass("left")}>Total</th>
+                  <th className={thClass("left")}>Top reason</th>
                 </tr>
               </thead>
               <tbody>
@@ -228,42 +233,42 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
                       key={p.code}
                       onClick={drillable ? () => setActiveKey(p.code) : undefined}
                       className={
-                        "border-t border-slate-100 " +
-                        (drillable ? "cursor-pointer hover:bg-slate-50" : "")
+                        "border-t border-line " +
+                        (drillable ? "cursor-pointer hover:bg-surface2" : "")
                       }
                     >
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {p.name} <span className="text-xs font-normal text-slate-400">· {p.county}</span>
+                      <td className="px-4 py-2.5 text-[12.5px] font-semibold text-txt">
+                        {p.name} <span className="text-xs font-normal text-txt3">· {p.county}</span>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{counts === null ? <span className="text-slate-300">—</span> : counts.ooo}</td>
-                      <td className="px-4 py-3 text-slate-700">{counts === null ? <span className="text-slate-300">—</span> : counts.other}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5 text-[12.5px] text-txt">{counts === null ? <span className="text-txt3">—</span> : counts.ooo}</td>
+                      <td className="px-4 py-2.5 text-[12.5px] text-txt">{counts === null ? <span className="text-txt3">—</span> : counts.other}</td>
+                      <td className="px-4 py-2.5">
                         {counts === null ? (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-txt3">—</span>
                         ) : (
                           <span
                             className={
-                              "rounded-full px-2 py-0.5 text-xs font-semibold " +
-                              (counts.total > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500")
+                              "rounded-[5px] px-[7px] py-0.5 text-[11px] font-semibold " +
+                              (counts.total > 0 ? "bg-warnbg text-warn" : "bg-surface2 text-txt2")
                             }
                           >
                             {counts.total}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-txt2">
                         {!p.configured ? (
-                          <span className="text-slate-400">awaiting key</span>
+                          <span className="text-txt3">awaiting key</span>
                         ) : p.error ? (
-                          <span className="text-amber-700">error</span>
+                          <span className="text-warn">error</span>
                         ) : counts !== null && counts.total === 0 ? (
-                          <span className="text-emerald-700">none</span>
+                          <span className="text-pos">none</span>
                         ) : (
                           <span className="flex items-center justify-between gap-2">
                             <span>
-                              {top?.label} <span className="text-slate-400">({top?.count})</span>
+                              {top?.label} <span className="text-txt3">({top?.count})</span>
                             </span>
-                            <span className="text-slate-300">›</span>
+                            <span className="text-txt3">›</span>
                           </span>
                         )}
                       </td>
@@ -277,10 +282,10 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
       ) : (
         /* Single property → Total + breakdown header, then Out-of-Order / Other-blocks groups. */
         <>
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3 rounded-[10px] border border-line bg-surface px-4 py-3 shadow-card">
             <span>
-              <span className="text-2xl font-semibold text-slate-900">{selectedCounts.total}</span>
-              <span className="ml-2 text-sm text-slate-500">
+              <span className="text-2xl font-semibold text-txt">{selectedCounts.total}</span>
+              <span className="ml-2 text-sm text-txt2">
                 {selectedProp?.name} · total blocked
                 {selectedCounts.total > 0 && (
                   <> ({selectedCounts.ooo} out-of-order · {selectedCounts.other} other blocks)</>
@@ -297,15 +302,15 @@ export default function BeaOosExplorer({ properties, asOf }: { properties: BeaPr
           </div>
 
           {!selectedProp?.configured ? (
-            <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-400">Awaiting Cloudbeds key.</p>
+            <p className="rounded-lg bg-surface2 px-4 py-3 text-sm text-txt3">Awaiting Cloudbeds key.</p>
           ) : selectedProp?.error ? (
-            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">{selectedProp.error}</p>
+            <p className="rounded-lg bg-warnbg px-4 py-3 text-sm text-warn">{selectedProp.error}</p>
           ) : selectedCounts.total === 0 ? (
-            <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">No rooms blocked.</p>
+            <p className="rounded-lg bg-posbg px-4 py-3 text-sm text-pos">No rooms blocked.</p>
           ) : (
             <>
               {selectedRooms.some((r) => !r.room) && (
-                <p className="rounded-lg bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                <p className="rounded-lg bg-warnbg px-4 py-2 text-xs text-warn">
                   Some room numbers couldn&apos;t be resolved (shown as “Unknown”). This property&apos;s
                   Cloudbeds key needs the <span className="font-semibold">Room</span> scope.
                 </p>

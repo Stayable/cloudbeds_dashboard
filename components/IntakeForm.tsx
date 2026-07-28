@@ -68,9 +68,9 @@ export default function IntakeForm({
 
   if (status === "done") {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-        <p className="text-lg font-semibold text-emerald-900">Thank you — your selections were recorded.</p>
-        <p className="mt-1 text-sm text-emerald-700">
+      <div className="rounded-[10px] border border-pos/40 bg-posbg p-6 text-center">
+        <p className="text-lg font-semibold text-pos">Thank you — your selections were recorded.</p>
+        <p className="mt-1 text-sm text-pos">
           {metrics.length} metric{metrics.length === 1 ? "" : "s"} submitted. You can close this page.
         </p>
       </div>
@@ -81,30 +81,30 @@ export default function IntakeForm({
     <form onSubmit={submit} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Name *</span>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Name *</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="mt-1 w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Role *</span>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Role *</span>
           <input
             value={role}
             onChange={(e) => setRole(e.target.value)}
             required
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="mt-1 w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Team *</span>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Team *</span>
           <select
             value={team}
             onChange={(e) => setTeam(e.target.value)}
             required
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="mt-1 w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
           >
             <option value="">Select…</option>
             {TEAMS.map((t) => (
@@ -116,26 +116,26 @@ export default function IntakeForm({
 
       {team === "Other" && (
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Your team</span>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Your team</span>
           <input
             value={otherTeam}
             onChange={(e) => setOtherTeam(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="mt-1 w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         </label>
       )}
 
       <div>
-        <p className="text-sm font-semibold text-slate-900">
-          Which metrics do you want on your dashboard? <span className="text-slate-400">(pick at least one)</span>
+        <p className="text-sm font-semibold text-txt">
+          Which metrics do you want on your dashboard? <span className="text-txt3">(pick at least one)</span>
         </p>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-txt2">
           Values shown are <span className="font-semibold">SAMPLE</span> data — not live figures.
         </p>
         <div className="mt-3 space-y-5">
           {groups.map((g) => (
             <fieldset key={g.category}>
-              <legend className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <legend className="mb-2 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
                 {g.category}
               </legend>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -143,8 +143,8 @@ export default function IntakeForm({
                   <label
                     key={m.key}
                     className={
-                      "flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-3 transition " +
-                      (selected[m.key] ? "border-accent ring-1 ring-accent/30" : "border-slate-200 hover:border-slate-300")
+                      "flex cursor-pointer items-start gap-3 rounded-lg border bg-surface p-3 transition " +
+                      (selected[m.key] ? "border-accent ring-1 ring-accent/30" : "border-line hover:border-lineStrong")
                     }
                   >
                     <input
@@ -154,9 +154,9 @@ export default function IntakeForm({
                       className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
                     />
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium text-slate-900">{m.name}</span>
-                      <span className="block text-xs text-slate-500">{m.explanation}</span>
-                      <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
+                      <span className="block text-sm font-medium text-txt">{m.name}</span>
+                      <span className="block text-xs text-txt2">{m.explanation}</span>
+                      <span className="mt-1 inline-block rounded bg-surface2 px-1.5 py-0.5 text-[11px] font-medium text-txt2">
                         SAMPLE: {m.sample}
                       </span>
                     </span>
@@ -169,26 +169,26 @@ export default function IntakeForm({
       </div>
 
       <label className="block">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Notes (optional)</span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Notes (optional)</span>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+          className="mt-1 w-full rounded-[7px] border border-lineStrong bg-surface px-3 py-2 text-[13px] text-txt outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
         />
       </label>
 
-      {status === "error" && <p className="text-sm text-red-600">{errorMsg}</p>}
+      {status === "error" && <p className="text-sm text-neg">{errorMsg}</p>}
 
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={!canSubmit}
-          className="rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="rounded-[7px] bg-accent px-5 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {status === "saving" ? "Submitting…" : "Submit selections"}
         </button>
-        <span className="text-xs text-slate-400">{metrics.length} selected</span>
+        <span className="text-xs text-txt3">{metrics.length} selected</span>
       </div>
     </form>
   );

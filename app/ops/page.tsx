@@ -1,6 +1,7 @@
-import Link from "next/link";
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
+import ControlBar, { ControlLabel } from "@/components/ControlBar";
+import { PageHead, chromeButton } from "@/components/ui";
 import EvictionsSection from "@/components/EvictionsSection";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
 import ReviewsSection from "@/components/ReviewsSection";
@@ -35,15 +36,17 @@ const NAV: NavItem[] = [
   { id: "ai-performance", label: "AI performance", n: 8 },
 ];
 
+// Section header for each operations block. The step number ties back to the
+// numbered rail on the left.
 function SectionHeading({ n, title, sub }: { n: number; title: string; sub: string }) {
   return (
-    <div className="mb-3 flex items-baseline gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
+    <div className="mb-3.5 flex items-start gap-2.5 border-b border-line pb-3">
+      <span className="mt-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] bg-surface3 text-[10px] font-semibold text-txt3">
         {n}
       </span>
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        <p className="text-xs text-slate-500">{sub}</p>
+        <h2 className="text-[19px] font-semibold tracking-[-.02em] text-txt">{title}</h2>
+        <p className="mt-[3px] text-[12.5px] text-txt3">{sub}</p>
       </div>
     </div>
   );
@@ -125,70 +128,47 @@ export default async function OpsPage({
   const rangeLabel = start === end ? start : `${start} → ${end}`;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      <header className="mb-6 rounded-xl bg-ink px-5 py-4 text-white shadow-sm sm:mb-8 sm:px-6 sm:py-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-widest text-white/60">
-            Stayable · Operations
-          </p>
-          <Link
-            href="/"
-            className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
-            ← Dashboard
-          </Link>
-        </div>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Operations Dashboard</h1>
-        <p className="mt-1 text-sm text-white/70">
-          OOO rooms, leasing, occupancy, evictions, reviews, and EliseAI insights across the portfolio.
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-widest text-white/60">Export:</span>
-          <a
-            href="/ops/occupancy.pdf"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
+    <>
+      <ControlBar note={`${rangeLabel} · ${days} day${days === 1 ? "" : "s"} · Eastern`}>
+        <ControlLabel>Period</ControlLabel>
+        <PeriodControls preset={preset} start={start} end={end} />
+      </ControlBar>
+
+      <main className="mx-auto max-w-[1560px] animate-fadeup px-4 pb-16 pt-5 sm:px-6">
+        <PageHead
+          eyebrow="Stayable · Operations"
+          title="Operations Dashboard"
+          sub="OOO rooms, leasing, occupancy, evictions, reviews, and EliseAI insights across the portfolio."
+        >
+          <a href="/ops/occupancy.pdf" className={chromeButton}>
             Occupancy PDF
           </a>
-          <a
-            href="/ops/ooo.pdf"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
+          <a href="/ops/ooo.pdf" className={chromeButton}>
             OOO PDF
           </a>
-          <a
-            href="/ops/leasing.pdf"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
+          <a href="/ops/leasing.pdf" className={chromeButton}>
             Leasing PDF
           </a>
-          <a
-            href="/ops/reviews.pdf"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
+          <a href="/ops/reviews.pdf" className={chromeButton}>
             Reviews PDF
           </a>
-        </div>
-      </header>
+        </PageHead>
 
-      <div className="lg:flex lg:gap-8">
-        <SectionNav items={NAV} />
+      <div className="mt-4 lg:flex lg:gap-[18px] lg:items-start">
+        <SectionNav items={NAV} title="Operations" />
 
         <div className="min-w-0 flex-1">
-          <section id="oos" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="oos" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading n={1} title="OOO rooms" sub="Live · pick a property → reasons, then rooms" />
             <BeaOosExplorer properties={oosProps} asOf={asOf} />
           </section>
 
-          <section id="leasing" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="leasing" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={2}
               title="Leasing"
               sub={`Funnel + pipeline · EliseAI · ${rangeLabel} · Eastern`}
             />
-            <div className="mb-4">
-              <PeriodControls preset={preset} start={start} end={end} />
-            </div>
             <LeasingSection
               configured={eliseReady}
               views={leasingViews}
@@ -198,19 +178,16 @@ export default async function OpsPage({
             />
           </section>
 
-          <section id="occupancy" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="occupancy" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={3}
               title="Occupancy"
               sub={`${rangeLabel} · ${days} day${days === 1 ? "" : "s"} · Eastern`}
             />
-            <div className="mb-4">
-              <PeriodControls preset={preset} start={start} end={end} />
-            </div>
             <OccupancyView properties={properties} exportDate={end} />
           </section>
 
-          <section id="evictions" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="evictions" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading n={4} title="Evictions" sub="Live from Smartsheet · counts only · no case detail" />
             <EvictionsSection
               configured={evictions.configured}
@@ -220,7 +197,7 @@ export default async function OpsPage({
             />
           </section>
 
-          <section id="reviews" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="reviews" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={5}
               title="1-Star Reviews"
@@ -234,43 +211,34 @@ export default async function OpsPage({
             />
           </section>
 
-          <section id="leasing-insights" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="leasing-insights" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={6}
               title="Leasing insights"
               sub={`Lead source · channel · AI-booked · cancellations · EliseAI · ${rangeLabel}`}
             />
-            <div className="mb-4">
-              <PeriodControls preset={preset} start={start} end={end} />
-            </div>
             <EliseInsightsSection section="leasing" views={insightViews} from={start} to={end} asOf={end} />
           </section>
 
-          <section id="voice" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="voice" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={7}
               title="Voice AI"
               sub={`Call volume · who answered · after hours · transfers · ${rangeLabel}`}
             />
-            <div className="mb-4">
-              <PeriodControls preset={preset} start={start} end={end} />
-            </div>
             <EliseInsightsSection section="voice" views={insightViews} from={start} to={end} asOf={end} />
           </section>
 
-          <section id="ai-performance" className="mb-10 scroll-mt-20 lg:scroll-mt-6">
+          <section id="ai-performance" className="mb-9 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading
               n={8}
               title="AI performance"
               sub={`AI→human handoffs and task resolution · ${rangeLabel}`}
             />
-            <div className="mb-4">
-              <PeriodControls preset={preset} start={start} end={end} />
-            </div>
             <EliseInsightsSection section="ai" views={insightViews} from={start} to={end} asOf={end} />
           </section>
 
-          <p className="mb-6 text-xs text-slate-400">
+          <p className="mb-6 text-xs text-txt3">
             Aggregated metrics only · no guest PII · read-only · cached up to 10 min. Only
             properties with a configured Cloudbeds key report. Elise-sourced sections (2, 6–8) are
             aggregated inside Snowflake and synced nightly — no lead or resident PII reaches this app.
@@ -279,6 +247,7 @@ export default async function OpsPage({
           <ChangePin />
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

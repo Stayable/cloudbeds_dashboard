@@ -2,10 +2,136 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Design tokens — Stayable Operating Dashboard
+   Source of truth: "Property management dashboard system/Stayable Operating
+   Dashboard.dc.html". Every colour in the app resolves through these vars, so
+   the light/dark pair below is the ONLY place a palette value is written.
+
+   Values are space-separated RGB channels (not hex) so Tailwind can compose
+   them with an alpha channel: `rgb(var(--surface) / <alpha-value>)` makes
+   `bg-surface/60` work exactly like a literal colour.
+
+   Brand anchors (unchanged from rentstayable.com): navy #041E42,
+   blue #0091F5, sky #91D1FA, gold #FDDA24.
+   --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
+
+  --canvas: 244 246 249; /* #F4F6F9 page background */
+  --surface: 255 255 255; /* #FFFFFF cards */
+  --surface-2: 238 242 247; /* #EEF2F7 table heads, segmented tracks */
+  --surface-3: 230 236 243; /* #E6ECF3 progress-bar troughs, badges */
+
+  --line: 226 232 240; /* #E2E8F0 hairlines */
+  --line-strong: 203 213 225; /* #CBD5E1 emphasised borders */
+
+  --txt: 10 27 51; /* #0A1B33 primary */
+  --txt-2: 74 92 117; /* #4A5C75 secondary */
+  --txt-3: 138 154 176; /* #8A9AB0 tertiary / labels */
+
+  --navy: 4 30 66; /* #041E42 */
+  --navy-2: 10 43 87; /* #0A2B57 */
+  --blue: 0 145 245; /* #0091F5 */
+  --sky: 145 209 250; /* #91D1FA */
+  --gold: 253 218 36; /* #FDDA24 */
+
+  --pos: 14 138 95; /* #0E8A5F */
+  --pos-bg: 228 244 236; /* #E4F4EC */
+  --neg: 194 53 74; /* #C2354A */
+  --neg-bg: 251 233 236; /* #FBE9EC */
+  --warn: 183 121 31; /* #B7791F */
+  --warn-bg: 251 241 220; /* #FBF1DC */
+
+  --chrome: 4 30 66; /* top bar */
+  --chrome-text: 220 232 246; /* #DCE8F6 */
+  --chrome-line: 18 56 107; /* #12386B */
+
+  --shadow: 0 1px 2px rgb(4 30 66 / 0.06), 0 8px 24px -16px rgb(4 30 66 / 0.22);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: 5 15 31; /* #050F1F */
+  --surface: 11 27 51; /* #0B1B33 */
+  --surface-2: 16 35 63; /* #10233F */
+  --surface-3: 22 48 79; /* #16304F */
+
+  --line: 27 51 85; /* #1B3355 */
+  --line-strong: 39 69 108; /* #27456C */
+
+  --txt: 233 240 249; /* #E9F0F9 */
+  --txt-2: 158 179 206; /* #9EB3CE */
+  --txt-3: 108 131 163; /* #6C83A3 */
+
+  --navy: 10 36 71; /* #0A2447 */
+  --navy-2: 14 49 99; /* #0E3163 */
+  --blue: 43 166 255; /* #2BA6FF */
+  --sky: 95 183 240; /* #5FB7F0 */
+  --gold: 253 218 36;
+
+  --pos: 63 203 147; /* #3FCB93 */
+  --pos-bg: 12 58 44; /* #0C3A2C */
+  --neg: 255 122 143; /* #FF7A8F */
+  --neg-bg: 61 22 32; /* #3D1620 */
+  --warn: 232 180 80; /* #E8B450 */
+  --warn-bg: 58 44 16; /* #3A2C10 */
+
+  --chrome: 4 22 46; /* #04162E */
+  --chrome-text: 207 224 242; /* #CFE0F2 */
+  --chrome-line: 23 54 89; /* #173659 */
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -18px rgb(0 0 0 / 0.8);
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-canvas text-txt antialiased;
+  /* Lining tabular figures — every number in this app sits in a column that
+     has to line up (tables, KPI rows, deltas). */
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Chrome-hosted content (top bar, navy hero cards) always sits on navy in both
+   themes, so its foreground stays literal white rather than a token. */
+
+@keyframes fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes routebar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@layer utilities {
+  .animate-fadeup {
+    animation: fadeup 0.35s ease both;
+  }
+}
+
+/* Scrollbars: thin, token-coloured, unobtrusive on both themes. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--line-strong));
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }

@@ -23,9 +23,9 @@ export default function LogOut() {
     <button
       onClick={onClick}
       disabled={loading}
-      className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-50"
+      className="h-[30px] shrink-0 rounded-md border border-chromeLine bg-transparent px-2.5 text-[11.5px] font-semibold text-[#8FB3DD] transition-colors hover:border-[#2A5C9E] hover:text-white disabled:opacity-50"
     >
-      {loading ? "…" : "Log Out"}
+      {loading ? "…" : "Log out"}
     </button>
   );
 }

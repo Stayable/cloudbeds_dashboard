@@ -1,24 +1,34 @@
-// Sticky section navigation pane shared by every per-user dashboard
-// (convention: vertical sidebar on lg+, horizontal pill bar on mobile).
+// Sticky section navigation pane shared by every dashboard surface
+// (convention: vertical rail on lg+, horizontal scroller on mobile).
 // Pure server-rendered anchor links — no client JS.
+//
+// Visual idiom is the design system's rail: a bordered card whose hover/active
+// row carries a blue left edge. The numeric step badge is kept — it ties each
+// row to the numbered section headings on the page.
 export type NavItem = { id: string; label: string; n: number | null };
 
-export default function SectionNav({ items }: { items: NavItem[] }) {
+export default function SectionNav({
+  items,
+  title = "On this page",
+}: {
+  items: NavItem[];
+  title?: string;
+}) {
   return (
-    <nav className="mb-6 lg:mb-0 lg:w-44 lg:shrink-0">
-      <div className="sticky top-4 z-10 -mx-4 bg-slate-50/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:top-6 lg:mx-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-        <p className="mb-2 hidden text-xs font-medium uppercase tracking-wide text-slate-400 lg:block">
-          On this page
-        </p>
-        <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0">
+    <nav className="mb-4 lg:mb-0 lg:w-[214px] lg:shrink-0">
+      <div className="overflow-hidden rounded-[10px] border border-line bg-surface shadow-card lg:sticky lg:top-[104px]">
+        <div className="hidden border-b border-line px-3.5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.09em] text-txt3 lg:block">
+          {title}
+        </div>
+        <ul className="flex overflow-x-auto lg:block lg:overflow-visible">
           {items.map((item) => (
             <li key={item.id} className="shrink-0">
               <a
                 href={`#${item.id}`}
-                className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                className="flex items-center gap-2 whitespace-nowrap border-l-[3px] border-transparent px-3.5 py-2.5 text-[12.5px] font-semibold text-txt2 transition-colors hover:border-accent hover:bg-surface2 hover:text-txt"
               >
                 {item.n !== null && (
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-semibold text-white">
+                  <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] bg-surface3 text-[10px] font-semibold text-txt3">
                     {item.n}
                   </span>
                 )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ExportMenu from "@/components/ExportMenu";
+import { Notice, SectionTitle } from "@/components/ui";
 import { buildMatrix, exportFilename } from "@/lib/export";
 import type { ZoneGroup } from "@/lib/zones";
 
@@ -34,10 +35,12 @@ function statusOf(r: { ooo: boolean; occupied: boolean }): "ooo" | "occupied" | 
   if (r.occupied) return "occupied";
   return "vacant";
 }
+// Filled tiles, per the design's room grid: occupied reads as the darkest
+// (navy), vacant as sky, out-of-service as the negative tone.
 const CHIP_CLASS: Record<"ooo" | "occupied" | "vacant", string> = {
-  occupied: "border-accent bg-accent text-white",
-  vacant: "border-slate-200 bg-white text-slate-600",
-  ooo: "border-yellow-300 bg-yellow-200 text-yellow-900",
+  occupied: "bg-navy text-white",
+  vacant: "bg-sky text-[#04305C]",
+  ooo: "bg-neg text-white",
 };
 
 function RoomChip({ name, ooo, occupied, reason }: { name: string; ooo: boolean; occupied: boolean; reason?: string }) {
@@ -46,7 +49,10 @@ function RoomChip({ name, ooo, occupied, reason }: { name: string; ooo: boolean;
   return (
     <span
       title={title}
-      className={"inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums " + CHIP_CLASS[s]}
+      className={
+        "inline-flex h-[30px] min-w-[42px] items-center justify-center rounded-[5px] px-1.5 text-[11px] font-semibold " +
+        CHIP_CLASS[s]
+      }
     >
       {name}
     </span>
@@ -57,13 +63,13 @@ function Legend() {
   const items: { s: "occupied" | "vacant" | "ooo"; label: string }[] = [
     { s: "occupied", label: "Occupied" },
     { s: "vacant", label: "Vacant" },
-    { s: "ooo", label: "OOO" },
+    { s: "ooo", label: "Out of service" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3.5">
       {items.map((it) => (
-        <span key={it.s} className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-          <span className={"h-3 w-3 rounded-sm border " + CHIP_CLASS[it.s]} />
+        <span key={it.s} className="inline-flex items-center gap-1.5 text-[11.5px] text-txt2">
+          <span className={"h-[11px] w-[11px] rounded-[3px] " + CHIP_CLASS[it.s]} />
           {it.label}
         </span>
       ))}
@@ -74,64 +80,62 @@ function Legend() {
 function PropertyZones({ p }: { p: ZoneProperty }) {
   if (!p.configured) {
     return (
-      <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+      <Notice>
         Awaiting key — <code className="text-xs">CLOUDBEDS_API_KEY_{p.code}</code>
-      </p>
+      </Notice>
     );
   }
   if (p.error) {
     return (
-      <div className="rounded-lg bg-amber-50 px-4 py-4 text-sm text-amber-900">
-        <p className="font-medium">Room inventory unavailable</p>
+      <Notice tone="warn">
+        <p className="font-semibold">Room inventory unavailable</p>
         <p className="mt-1">{p.error}</p>
-      </div>
+      </Notice>
     );
   }
   if (!p.total) {
-    return (
-      <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-        No rooms returned for this property.
-      </p>
-    );
+    return <Notice>No rooms returned for this property.</Notice>;
   }
 
   const buildings = p.groups.filter((g) => g.zone !== "Other").length;
   const occPct = p.total > 0 ? Math.round((p.occupiedTotal / p.total) * 100) : 0;
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">
-          {p.total} rooms across {buildings} building{buildings === 1 ? "" : "s"} · {p.occupiedTotal}{" "}
-          occupied ({occPct}%)
-          {p.oooTotal > 0 && ` · ${p.oooTotal} out of service`}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+        <p className="text-[12.5px] font-semibold text-txt">
+          {p.total} rooms across {buildings} building{buildings === 1 ? "" : "s"} ·{" "}
+          <span className="font-normal text-txt3">
+            {p.occupiedTotal} occupied ({occPct}%)
+            {p.oooTotal > 0 && ` · ${p.oooTotal} out of service`}
+          </span>
         </p>
         <Legend />
       </div>
 
       {p.groups.map((g) => (
-        <section key={g.zone} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <h4 className="text-sm font-semibold text-slate-900">
+        <section key={g.zone} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
+          <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h4 className="text-[12.5px] font-semibold text-txt">
               {g.zone}
               {g.zone === "Other" && (
-                <span className="ml-2 text-[10px] font-normal uppercase tracking-wide text-slate-400">
+                <span className="ml-2 text-[10px] font-normal uppercase tracking-[.07em] text-txt3">
                   no zone match
                 </span>
               )}
             </h4>
-            <span className="text-xs text-slate-500">
+            <span className="text-[11.5px] text-txt3">
               {g.rooms.length} room{g.rooms.length === 1 ? "" : "s"} · {g.occupiedCount} occupied
               {g.oooCount > 0 && ` · ${g.oooCount} OOO`}
             </span>
           </div>
           {g.rooms.length ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-[5px]">
               {g.rooms.map((r) => (
                 <RoomChip key={r.name} name={r.name} ooo={r.ooo} occupied={r.occupied} reason={r.reason} />
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400">No rooms in inventory for this zone.</p>
+            <p className="text-[11.5px] text-txt3">No rooms in inventory for this zone.</p>
           )}
         </section>
       ))}
@@ -164,11 +168,11 @@ export default function ZonesSection({
   const matrix = buildMatrix(ROW_COLS, rows);
 
   return (
-    <section id="zones" className="scroll-mt-20 lg:scroll-mt-6">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Rooms by building / zone
-        </p>
+    <section id="zones" className="scroll-mt-24 lg:scroll-mt-28">
+      <SectionTitle
+        title="Rooms by building / zone"
+        sub="Live room status · inventory only, never guest data"
+      >
         {current && current.configured && !current.error && current.total > 0 && (
           <ExportMenu
             filename={exportFilename("RoomZones", current.id, exportDate)}
@@ -176,17 +180,21 @@ export default function ZonesSection({
             matrix={matrix}
           />
         )}
-      </div>
+      </SectionTitle>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200 pb-px">
+      <div
+        role="tablist"
+        className="flex gap-0.5 overflow-x-auto rounded-t-[10px] border border-b-0 border-line bg-surface2 px-1 pt-1"
+      >
         {properties.map((p) => {
           const isActive = p.code === activeCode;
+          // Data state, not occupancy: has inventory / configured-but-silent / no key.
           const dot =
             p.configured && !p.error && p.total > 0
-              ? "bg-emerald-500"
+              ? "bg-pos"
               : p.configured
-                ? "bg-amber-500"
-                : "bg-slate-300";
+                ? "bg-warn"
+                : "bg-lineStrong";
           return (
             <button
               key={p.code}
@@ -194,10 +202,8 @@ export default function ZonesSection({
               aria-selected={isActive}
               onClick={() => setActiveCode(p.code)}
               className={
-                "flex shrink-0 items-center gap-2 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors " +
-                (isActive
-                  ? "border border-b-0 border-slate-200 bg-white text-slate-900"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")
+                "flex shrink-0 items-center gap-2 rounded-t-[7px] px-3.5 py-2 text-[12.5px] font-semibold transition-colors " +
+                (isActive ? "bg-surface text-txt shadow-seg" : "text-txt2 hover:text-txt")
               }
             >
               <span className={"h-1.5 w-1.5 rounded-full " + dot} />
@@ -207,11 +213,11 @@ export default function ZonesSection({
         })}
       </div>
 
-      <div className="rounded-b-xl rounded-tr-xl border border-t-0 border-slate-200 bg-slate-50/50 p-4 sm:p-5">
+      <div className="rounded-b-[10px] border border-t-0 border-line bg-surface p-4 shadow-card sm:p-5">
         {current && <PropertyZones p={current} />}
       </div>
 
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-[11.5px] leading-relaxed text-txt3">
         Rooms grouped into buildings/zones per <code>ROOM-ZONING.md</code>.
         Occupied = In-House reservation today; OOO = out of service today
         (Cloudbeds room blocks). Room numbers are inventory, not guest data. JW /

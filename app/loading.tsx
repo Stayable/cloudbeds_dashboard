@@ -8,7 +8,7 @@ export default function Loading() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-ink/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-chrome/40 backdrop-blur-sm"
     >
       <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-white/30 border-t-white" />
       <span className="text-xs font-semibold uppercase tracking-widest text-white/80">

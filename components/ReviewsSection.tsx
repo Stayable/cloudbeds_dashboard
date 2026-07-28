@@ -16,17 +16,17 @@ function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays
   const dayLabel = `${windowDays} day${windowDays === 1 ? "" : "s"}`;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
           1-Star Reviews · Previous vs Current ({dayLabel})
         </p>
-        <div className="flex items-center gap-4 text-xs text-slate-600">
+        <div className="flex items-center gap-4 text-xs text-txt2">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Prior ({view.priorFrom} → {view.priorTo})
+            <span className="h-[11px] w-[11px] rounded-[2px] bg-sky" /> Prior ({view.priorFrom} → {view.priorTo})
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Current ({view.from} → {view.to})
+            <span className="h-[11px] w-[11px] rounded-[2px] bg-navy" /> Current ({view.from} → {view.to})
           </span>
         </div>
       </div>
@@ -41,21 +41,21 @@ function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays
                 {/* bar pair, growing from the baseline */}
                 <div className="flex w-full items-end justify-center gap-1.5">
                   <div className="flex flex-1 flex-col items-center justify-end" style={{ maxWidth: "28px" }}>
-                    <span className="mb-0.5 text-[11px] font-medium tabular-nums text-slate-500">
+                    <span className="mb-0.5 text-[11px] tabular-nums text-txt3">
                       {p.priorCount}
                     </span>
                     <div
-                      className="w-full rounded-t-sm bg-slate-400"
+                      className="w-full rounded-t-[3px] bg-sky"
                       style={{ height: `${(p.priorCount / max) * 130}px`, minHeight: p.priorCount ? "3px" : 0 }}
                       title={`Prior: ${p.priorCount}`}
                     />
                   </div>
                   <div className="flex flex-1 flex-col items-center justify-end" style={{ maxWidth: "28px" }}>
-                    <span className="mb-0.5 text-[11px] font-semibold tabular-nums text-accent">
+                    <span className="mb-0.5 text-[11px] font-semibold tabular-nums text-txt">
                       {p.count}
                     </span>
                     <div
-                      className="w-full rounded-t-sm bg-accent"
+                      className="w-full rounded-t-[3px] bg-navy"
                       style={{ height: `${(p.count / max) * 130}px`, minHeight: p.count ? "3px" : 0 }}
                       title={`Current: ${p.count}`}
                     />
@@ -68,21 +68,21 @@ function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays
       </div>
 
       {/* x-axis: property name + improvement/regression badge under each column */}
-      <div className="mt-2 flex min-w-fit gap-5 border-t border-slate-100 px-1 pt-2">
+      <div className="mt-2 flex min-w-fit gap-5 border-t border-line px-1 pt-2">
         {view.byProperty.map((p) => {
           const delta = p.count - p.priorCount;
           return (
             <div key={p.property} className="flex flex-1 flex-col items-center gap-1 text-center">
-              <span className="max-w-[88px] truncate text-xs font-medium text-slate-700" title={p.property}>
+              <span className="max-w-[88px] truncate text-xs font-medium text-txt" title={p.property}>
                 {p.property}
               </span>
               <span
-                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                className={`whitespace-nowrap rounded-[5px] px-[7px] py-0.5 text-[11px] font-semibold ${
                   delta < 0
-                    ? "bg-emerald-100 text-emerald-700"
+                    ? "bg-posbg text-pos"
                     : delta > 0
-                      ? "bg-red-100 text-red-700"
-                      : "bg-slate-100 text-slate-500"
+                      ? "bg-negbg text-neg"
+                      : "bg-surface2 text-txt2"
                 }`}
                 title={delta < 0 ? "Improved" : delta > 0 ? "Worsened" : "No change"}
               >
@@ -93,11 +93,11 @@ function ReviewsTrendChart({ view, windowDays }: { view: ReviewsView; windowDays
         })}
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">
-        Portfolio: <span className="font-semibold text-slate-600">{view.priorTotal}</span> prior →{" "}
-        <span className="font-semibold text-slate-900">{view.total}</span> current
+      <p className="mt-3 text-xs text-txt2">
+        Portfolio: <span className="font-semibold text-txt2">{view.priorTotal}</span> prior →{" "}
+        <span className="font-semibold text-txt">{view.total}</span> current
         {view.total !== view.priorTotal && (
-          <span className={view.total < view.priorTotal ? "text-emerald-700" : "text-red-700"}>
+          <span className={view.total < view.priorTotal ? "text-pos" : "text-neg"}>
             {" "}
             ({view.total < view.priorTotal ? "▼" : "▲"} {Math.abs(view.total - view.priorTotal)})
           </span>
@@ -165,10 +165,10 @@ export default function ReviewsSection({
 
   if (!configured) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-        <p className="text-sm font-semibold text-slate-700">Smartsheet not connected</p>
-        <p className="mt-1 text-xs text-slate-500">
-          Set <code className="rounded bg-slate-200 px-1">SMARTSHEET_API_TOKEN</code> to load 1-star reviews.
+      <div className="rounded-[10px] border border-dashed border-lineStrong bg-surface2 px-5 py-8 text-center">
+        <p className="text-sm font-semibold text-txt">Smartsheet not connected</p>
+        <p className="mt-1 text-xs text-txt2">
+          Set <code className="rounded bg-surface3 px-1">SMARTSHEET_API_TOKEN</code> to load 1-star reviews.
         </p>
       </div>
     );
@@ -177,59 +177,59 @@ export default function ReviewsSection({
   return (
     <div className="space-y-4">
       {/* Locked date window editor */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card sm:p-5">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs font-medium text-slate-600">
+          <label className="text-xs font-medium text-txt2">
             From
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+              className="mt-1 block rounded-lg border border-lineStrong px-3 py-2 text-sm text-txt outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
           </label>
-          <label className="text-xs font-medium text-slate-600">
+          <label className="text-xs font-medium text-txt2">
             To
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+              className="mt-1 block rounded-lg border border-lineStrong px-3 py-2 text-sm text-txt outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
           </label>
           <button
             onClick={save}
             disabled={!dirty || status === "saving"}
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-chrome px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {status === "saving" ? "Saving…" : "Save & lock"}
           </button>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-txt3">
             {saved ? "Locked window · shared" : "Default window — set & save to lock"}
           </span>
-          {status === "error" && <span className="text-xs text-red-600">{errorMsg}</span>}
+          {status === "error" && <span className="text-xs text-neg">{errorMsg}</span>}
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-lg bg-warnbg px-4 py-3 text-sm text-warn">
           Couldn&apos;t load reviews: {error}
         </div>
       )}
 
       {/* Count headline */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">1-Star Reviews</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900 sm:text-4xl">{view.total}</p>
-          <p className="mt-1 text-xs text-slate-400">
+        <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">1-Star Reviews</p>
+          <p className="mt-2 text-3xl font-semibold text-txt sm:text-4xl">{view.total}</p>
+          <p className="mt-1 text-xs text-txt3">
             {view.from} → {view.to}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Manager Responded</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900 sm:text-4xl">{view.responded}</p>
-          <p className="mt-1 text-xs text-slate-400">
+        <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">Manager Responded</p>
+          <p className="mt-2 text-3xl font-semibold text-txt sm:text-4xl">{view.responded}</p>
+          <p className="mt-1 text-xs text-txt3">
             {view.total > 0 ? Math.round((view.responded / view.total) * 100) : 0}% of 1-star reviews
           </p>
         </div>
@@ -240,17 +240,17 @@ export default function ReviewsSection({
 
       {/* Per-property collapsible breakdown */}
       {view.byProperty.length === 0 ? (
-        <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+        <p className="rounded-lg bg-surface2 px-4 py-8 text-center text-sm text-txt3">
           No 1-star reviews in this window.
         </p>
       ) : (
         <div className="space-y-2">
           {view.byProperty.map((p) => (
-            <details key={p.property} className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+            <details key={p.property} className="group rounded-[10px] border border-line bg-surface shadow-card">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
                   <svg
-                    className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-90"
+                    className="h-4 w-4 shrink-0 text-txt3 transition-transform duration-200 group-open:rotate-90"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     aria-hidden="true"
@@ -261,34 +261,34 @@ export default function ReviewsSection({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className="text-sm font-semibold text-slate-900">{p.property}</span>
+                  <span className="text-sm font-semibold text-txt">{p.property}</span>
                 </span>
-                <span className="shrink-0 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-900">{p.count}</span> review{p.count === 1 ? "" : "s"} ·{" "}
+                <span className="shrink-0 text-xs text-txt2">
+                  <span className="font-semibold text-txt">{p.count}</span> review{p.count === 1 ? "" : "s"} ·{" "}
                   {p.responded} responded
                 </span>
               </summary>
-              <div className="overflow-x-auto border-t border-slate-100">
+              <div className="overflow-x-auto border-t border-line">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
-                    <tr className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-2 font-medium">Date</th>
-                      <th className="px-4 py-2 font-medium">Source</th>
-                      <th className="px-4 py-2 font-medium">Review / Feedback</th>
-                      <th className="px-4 py-2 font-medium">Manager Response</th>
+                    <tr className="border-b border-lineStrong bg-surface2 text-left text-[10px] font-semibold uppercase tracking-[.07em] text-txt3">
+                      <th className="px-4 py-2.5 font-semibold">Date</th>
+                      <th className="px-4 py-2.5 font-semibold">Source</th>
+                      <th className="px-4 py-2.5 font-semibold">Review / Feedback</th>
+                      <th className="px-4 py-2.5 font-semibold">Manager Response</th>
                     </tr>
                   </thead>
                   <tbody>
                     {p.reviews.map((r, i) => (
-                      <tr key={i} className="border-t border-slate-100 align-top">
-                        <td className="whitespace-nowrap px-4 py-2 text-slate-500">{r.created || "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{r.source || "—"}</td>
-                        <td className="px-4 py-2 text-slate-800">{r.review || "—"}</td>
-                        <td className="px-4 py-2 text-slate-600">
+                      <tr key={i} className="border-t border-line align-top">
+                        <td className="whitespace-nowrap px-4 py-2 text-txt2">{r.created || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-txt2">{r.source || "—"}</td>
+                        <td className="px-4 py-2 text-txt">{r.review || "—"}</td>
+                        <td className="px-4 py-2 text-txt2">
                           {r.managerResponse ? (
                             r.managerResponse
                           ) : (
-                            <span className="text-amber-600">No response</span>
+                            <span className="text-warn">No response</span>
                           )}
                         </td>
                       </tr>

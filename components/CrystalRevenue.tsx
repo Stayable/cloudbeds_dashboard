@@ -41,48 +41,48 @@ export default function CrystalRevenue({
         />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ADR (portfolio)</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{money2(summary.portfolioAdr)}</p>
+        <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">ADR (portfolio)</p>
+          <p className="mt-2 text-2xl font-semibold text-txt sm:text-3xl">{money2(summary.portfolioAdr)}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">RevPAR (portfolio)</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{money2(summary.portfolioRevpar)}</p>
+        <div className="rounded-[10px] border border-line bg-surface p-4 shadow-card">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">RevPAR (portfolio)</p>
+          <p className="mt-2 text-2xl font-semibold text-txt sm:text-3xl">{money2(summary.portfolioRevpar)}</p>
         </div>
-        <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Total room revenue <span className="text-amber-600">· est.</span>
+        <div className="col-span-2 rounded-[10px] border border-line bg-surface p-4 shadow-card sm:col-span-1">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
+            Total room revenue <span className="text-warn">· est.</span>
           </p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{money(summary.totalRoomRevenueEst)}</p>
-          <p className="mt-1 text-[11px] text-slate-400">RevPAR × capacity × {summary.days}d</p>
+          <p className="mt-2 text-2xl font-semibold text-txt sm:text-3xl">{money(summary.totalRoomRevenueEst)}</p>
+          <p className="mt-1 text-[11px] text-txt3">RevPAR × capacity × {summary.days}d</p>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
-            <tr className="bg-ink text-left text-xs uppercase tracking-wide text-white/70">
-              <th className="px-4 py-3 font-medium">Property</th>
-              <th className="px-4 py-3 font-medium">ADR</th>
-              <th className="px-4 py-3 font-medium">RevPAR</th>
-              <th className="px-4 py-3 font-medium">Room revenue (est.)</th>
+            <tr className="bg-chrome text-left text-[10px] font-semibold uppercase tracking-[.07em] text-white/70">
+              <th className="px-4 py-3 font-semibold">Property</th>
+              <th className="px-4 py-3 font-semibold">ADR</th>
+              <th className="px-4 py-3 font-semibold">RevPAR</th>
+              <th className="px-4 py-3 font-semibold">Room revenue (est.)</th>
             </tr>
           </thead>
           <tbody>
             {ranked.map((r) => (
-              <tr key={r.code} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {r.name} <span className="text-xs text-slate-400">· {r.county}</span>
+              <tr key={r.code} className="border-t border-line">
+                <td className="px-4 py-3 font-medium text-txt">
+                  {r.name} <span className="text-xs text-txt3">· {r.county}</span>
                 </td>
-                <td className="px-4 py-3 text-slate-700">{money2(r.adr)}</td>
-                <td className="px-4 py-3 text-slate-700">{money2(r.revpar)}</td>
-                <td className="px-4 py-3 text-slate-700">{money(r.roomRevenueEst)}</td>
+                <td className="px-4 py-3 text-txt">{money2(r.adr)}</td>
+                <td className="px-4 py-3 text-txt">{money2(r.revpar)}</td>
+                <td className="px-4 py-3 text-txt">{money(r.roomRevenueEst)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-txt3">
         ADR and RevPAR are live from Cloudbeds Data Insights. Revenue is an estimate
         (RevPAR × available room-nights) — Cloudbeds&apos; aggregate API does not expose
         summable revenue totals. Room rate ≈ ADR.
