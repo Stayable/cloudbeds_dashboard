@@ -148,11 +148,74 @@ KE question and exposed a second, related defect.
    `physicalRooms` field surfaced three more errors in the same file. 208/208
    tests pass; `next build` green.
 
-**▶ First thing next session:** watch the two crons fire on their own — 10:00 UTC
-flash, 11:30 UTC restate. On the restate response check `daysMoved` /
-`netRoomRevDelta` (how much the ledger settled overnight); on the report cron
-check `availabilityAlerts` is empty now JN is corrected. The visual light/dark
-pass on the redesign is STILL outstanding — it shipped without it.
+---
+
+## 07/28/26 (session 4) — INVENTORY SOURCE FIXED APP-WIDE; CAPACITY BUG ROOT-CAUSED
+
+> **Pickup — 07/28/26 (session 4 close). DEPLOYED AND VERIFIED.**
+> Working tree clean except the intentionally-untracked `Property management
+> dashboard system/`. Branch level with `origin`. Production = **`371af0b`**;
+> the code release is **`7851786`** = `dpl_8yarC3AZCpKE94HSF3CFSQ1Bq2t1`, READY,
+> aliased to `dashboard.rentstayable.com`. Live smoke: `/`, `/report`, `/ops`
+> → 307→/login; `/login`, `/test` → 200.
+>
+> **▶ START HERE NEXT SESSION:**
+> 1. **[?] DECIDE item 6** — should the home / occupancy views stop taking
+>    occupancy from Data Insights and compute nights ÷ inventory the way
+>    `/report` does? Monica's answer makes this more pressing: DI is now the only
+>    place the inflated denominator can still reach us, and we cannot correct a
+>    percentage whose denominator Cloudbeds owns. Note DI also feeds ADR/RevPAR
+>    on those views, so it is a real change, not a cleanup.
+> 2. **[ ] SEND the Cloudbeds write-up** —
+>    `outputs/CloudbedsCapacityDefect_2295-6802_072826.md`. Ready; not sent.
+> 3. **[ ] TESTABLE, needs one fact from Monica:** ask her for a **date + property
+>    of a past room-type change**. Then re-query that stay date in DI now. If the
+>    denominator is still inflated, DI's per-day snapshots do NOT heal
+>    retroactively and our whole historical occupancy series carries stale
+>    denominators on those days. If it healed, the exposure is live-only. This is
+>    the highest-value unanswered question on the thread.
+> 4. **[ ] Still never observed: the crons firing unattended.** Could not be
+>    confirmed this session — the previous session's manual restatement runs
+>    overwrote `updated_at` on the same rows a cron would have touched, so cron
+>    writes are indistinguishable from manual ones. **The clean test:** 07-28
+>    currently has revenue but NO counts; if counts appear for all 8 properties
+>    with nobody running anything, the flash cron fired. Then check the restate
+>    response for `daysMoved` / `netRoomRevDelta`, and `availabilityAlerts` empty
+>    on the report cron now JN is corrected.
+> 5. Carry-overs: verify `/ops` §6–8 on prod; **ask Elise about the 15 empty
+>    views**; the two ops findings (952/3,299 calls unanswered; "unknown" =
+>    424/472 cancellations).
+>
+> **What shipped (`7851786`):** every room count in the app now comes from the
+> room list instead of `getDashboard.capacity` — see open item 6 above for the
+> full consumer list and the important caveat that it does NOT align the
+> occupancy percentages. `tsc --noEmit` is clean for the first time in several
+> sessions (item 8). 208/208 tests, build green.
+>
+> **Data-layer state verified live this session (all healthy):**
+> - Snapshot store: 8/8 properties, counts complete through **2026-07-27**, zero
+>   gaps. 2026 = 212 days (01-01→07-31); 208 with counts, 212 with revenue — the
+>   4-day spread is the forward revenue-only stubs (07-28→07-31), inert for
+>   MTD/YTD.
+> - In-service windows working exactly as configured: JN 2026 = 122 days
+>   (Apr 1–Jul 31), JN 2025 = 120 (Jan–Apr), DP 2025 = 214 (Jun–Dec). No phantom
+>   rows.
+> - Month freeze correct: Apr/May/Jun 2026 fully `is_final` (728 rows); July open
+>   (248).
+> - **Restatement is working and immaterial:** exactly ONE day×property moved ≥$1
+>   in the last 40 days — DP 07-27, flash $3,273.25 → settled $3,332.75,
+>   **+$59.50**. The relaxed capture-once rule is earning its keep without
+>   churning the ledger.
+>
+> **Unrelated item logged to Smartsheet** (Action Items Staging Sheet, **Item
+> 288**): two Power Automate flows failed in the past week — "Send webhook alerts
+> to Network Tickets (test)" and "Send webhook alerts to GBP - Test". **Verified
+> NOT this project** (zero references to GBP or Network Tickets in the repo; our
+> only Power Automate dependency is the flow behind `TEAMS_FLOW_URL`). Owner Kyle,
+> Task Sheet + Priority deliberately left blank rather than guessed. Worth a look
+> while in Power Automate: if those share a connection with the `TEAMS_FLOW_URL`
+> flow, the daily revenue card would fail **silently** (`postAdaptiveCard` returns
+> `{ok:false}` and never throws, by design).
 
 > **Pickup — 07/28/26 (session 3b close). REDESIGN + ACCURACY REMEDIATION ARE
 > BOTH DEPLOYED.** Working tree is clean; branch is level with `origin`.
