@@ -136,4 +136,56 @@ await sql`
     primary key (property_code, stay_date)
   )
 `;
-console.log("report_daily_snapshot table ready.");
+
+// Added 07/28/26 (Monica-parity remediation). Additive + idempotent so an
+// existing store upgrades in place; every column has a default that reproduces
+// the old behaviour for rows banked before it existed.
+//   comp_nights      room-nights whose room-rate transactions net to $0
+//                    (employee/complimentary). Already inside other_blocks;
+//                    stored separately for the drill-down.
+//   blocks_by_type   Cloudbeds roomBlockType -> room-nights, so "Other blocks"
+//                    is explainable (Orlando showed 11 MTD vs Monica's 0).
+//   ooo_source       'cloudbeds' | 'override' — an OOO figure that came from a
+//                    config sellableOverrides entry is badged, never blended.
+//   is_final /       a day stops being restated once its month is closed.
+//   finalized_at
+//   flash_room_rev   the FIRST captured total room revenue, never overwritten,
+//                    so the restatement delta is visible. Monica's figures are
+//                    the settled ledger; our 06:00 ET capture is a flash, and
+//                    re-querying moved a single Davenport day by +48% one way
+//                    and -1.7% the other.
+//   first_captured_at / restated_at   audit trail for the two writes.
+for (const [column, ddl] of [
+  ["comp_nights", "int not null default 0"],
+  ["blocks_by_type", "jsonb not null default '{}'::jsonb"],
+  ["ooo_source", "text not null default 'cloudbeds'"],
+  ["is_final", "boolean not null default false"],
+  ["finalized_at", "timestamptz"],
+  ["flash_room_rev", "numeric"],
+  ["first_captured_at", "timestamptz"],
+  ["restated_at", "timestamptz"],
+]) {
+  await sql.query(`alter table report_daily_snapshot add column if not exists ${column} ${ddl}`);
+}
+// The restatement pass scans "recent, not yet final" rows every night.
+await sql`
+  create index if not exists report_daily_snapshot_restate_idx
+    on report_daily_snapshot (is_final, stay_date)
+`;
+console.log("report_daily_snapshot table ready (with restatement columns).");
+
+// known_rate_plan: the plan names we have already ruled on. Lease vs transient is
+// detected purely from the rate-plan string, so a NEW plan name silently banks as
+// transient forever (and the snapshot freezes it). The rate-plans audit records
+// what it sees here and reports anything unseen, turning a silent
+// misclassification into a one-line alert. `acknowledged_class` is the ruling
+// (Monica's, 07/27/26 for the current 57 plans); null = not yet ruled on.
+await sql`
+  create table if not exists known_rate_plan (
+    plan               text primary key,
+    first_seen         timestamptz not null default now(),
+    last_seen          timestamptz not null default now(),
+    acknowledged_class text
+  )
+`;
+console.log("known_rate_plan table ready.");

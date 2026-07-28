@@ -22,6 +22,21 @@ export function classifyForReport(ratePlan: string): "lease" | "transient" {
 export type RowInputs = {
   transientNights: number; leaseNights: number; otherBlocks: number; ooo: number;
   inventory: number; transientRev: number; leaseRev: number;
+  /** Room-nights whose room-rate transactions net to $0 — employee or
+   *  complimentary stays. ALREADY INCLUDED in `otherBlocks` (Monica reports
+   *  comps there, not as paid nights); carried separately only so the
+   *  drill-down can explain the composition. Optional: absent on rows banked
+   *  before 07/28/26 and in tests that predate it. */
+  compNights?: number;
+  /** Cloudbeds `roomBlockType` → room-nights over the period. Optional for the
+   *  same reason. `out_of_service` maps to the OOO line; every other type rolls
+   *  into Other blocks. */
+  blocksByType?: Record<string, number>;
+  /** Where the OOO figure came from: `cloudbeds` = summed `out_of_service`
+   *  blocks; `override` = a `sellableOverrides` entry in config/properties.ts
+   *  exceeded the Cloudbeds blocks (rooms unsellable but not blocked). Drives
+   *  the report's source badge — an override is never blended silently. */
+  oooSource?: "cloudbeds" | "override";
 };
 export type DerivedRow = RowInputs & {
   occupied: number; available: number; pOcc: number; pOoo: number; pAvail: number;
@@ -60,9 +75,27 @@ export function sumSnapshotRows(rows: RowInputs[]): RowInputs {
       inventory: acc.inventory + r.inventory,
       transientRev: acc.transientRev + r.transientRev,
       leaseRev: acc.leaseRev + r.leaseRev,
+      compNights: (acc.compNights ?? 0) + (r.compNights ?? 0),
+      blocksByType: mergeBlockTypes(acc.blocksByType, r.blocksByType),
+      // An override anywhere in the range taints the whole range's OOO figure,
+      // so the badge must survive the roll-up.
+      oooSource: acc.oooSource === "override" || r.oooSource === "override" ? "override" : "cloudbeds",
     }),
-    { transientNights: 0, leaseNights: 0, otherBlocks: 0, ooo: 0, inventory: 0, transientRev: 0, leaseRev: 0 },
+    {
+      transientNights: 0, leaseNights: 0, otherBlocks: 0, ooo: 0, inventory: 0,
+      transientRev: 0, leaseRev: 0, compNights: 0, blocksByType: {}, oooSource: "cloudbeds",
+    },
   );
+}
+
+/** Element-wise sum of two `roomBlockType` → room-nights maps. */
+export function mergeBlockTypes(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = { ...(a ?? {}) };
+  for (const [type, nights] of Object.entries(b ?? {})) out[type] = (out[type] ?? 0) + nights;
+  return out;
 }
 
 export type PeriodBlock = {
@@ -127,6 +160,14 @@ export type RevenueReport = {
    *  if no snapshots exist yet. MTD/YTD accumulate from stored snapshots since
    *  this date + the live "today" figure — see getRevenueReportInputs. */
   trackingSince?: string;
+  /** Latest stay_date whose figures are FINAL (its month closed and the
+   *  restatement pass has stopped touching it). Days after this are
+   *  preliminary: the room-revenue ledger keeps posting for several days, so a
+   *  fresh day can move in either direction. Undefined = nothing final yet. */
+  finalThrough?: string;
+  /** Human-readable reasons any property's out-of-order figure came from a
+   *  config override rather than Cloudbeds blocks. Empty = all Cloudbeds. */
+  oooOverrideNotes?: string[];
   /** When the snapshot store was last written and what it last captured, so a
    *  reader can tell a quiet day from a broken cron. */
   freshness?: {
@@ -182,10 +223,29 @@ export const METHODOLOGY: { heading: string; points: string[] }[] = [
     ],
   },
   {
+    heading: "Room-nights",
+    points: [
+      "Transient and lease nights are counted from the SAME query as revenue: one room-night per distinct reservation-room with a Room Rate transaction on that service date.",
+      "Nothing depends on a reservation's current status, so a past day reproduces faithfully. The previous in-house-status count dropped guests who checked out before the morning capture — Davenport 07/26 read 7 transient nights instead of 18.",
+      "Room-nights whose room rate nets to $0 (employee / complimentary) are reported under Other blocks, not as paid nights.",
+    ],
+  },
+  {
     heading: "Out-of-Order vs. Other blocks",
     points: [
       "Out-of-Order (not sellable, e.g. floor repair) is reported separately from",
       "Other / grey blocks (contractor, complimentary/employee, room transfers — occupied but not paid), counted from yesterday onward.",
+      "Composition is stored per Cloudbeds block type, so either line can be broken down.",
+      "Where rooms are unsellable but not blocked in Cloudbeds, a config override supplies the figure and the report says so explicitly — currently Jacksonville North.",
+    ],
+  },
+  {
+    heading: "Preliminary vs. final",
+    points: [
+      "The room-revenue ledger keeps posting for days after a stay, so a recent day is a flash, not a close: one Davenport day moved +48% on re-query and another -1.7%.",
+      "Every non-final day is re-derived nightly over a trailing 31-day window; a month freezes permanently five days after it closes.",
+      "The first captured figure is retained, so the restatement can always be quantified.",
+      "Inventory counts only days a property was in service, and reflects the room count in effect on each day rather than today's.",
     ],
   },
   {

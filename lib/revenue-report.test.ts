@@ -43,7 +43,32 @@ describe("sumSnapshotRows", () => {
     expect(r.transientRev).toBeCloseTo(860.55, 2);
   });
   it("empty → zeros", () => {
-    expect(sumSnapshotRows([])).toEqual({ transientNights:0, leaseNights:0, otherBlocks:0, ooo:0, inventory:0, transientRev:0, leaseRev:0 });
+    expect(sumSnapshotRows([])).toEqual({
+      transientNights:0, leaseNights:0, otherBlocks:0, ooo:0, inventory:0, transientRev:0, leaseRev:0,
+      compNights:0, blocksByType:{}, oooSource:"cloudbeds",
+    });
+  });
+
+  it("carries comp nights, block-type composition and the OOO source badge", () => {
+    const r = sumSnapshotRows([
+      { transientNights:10, leaseNights:84, otherBlocks:2, ooo:2, inventory:153, transientRev:492.05, leaseRev:2706.13,
+        compNights:1, blocksByType:{ out_of_service:2, blocked_dates:1 }, oooSource:"cloudbeds" },
+      { transientNights:8, leaseNights:83, otherBlocks:1, ooo:107, inventory:127, transientRev:368.50, leaseRev:2675.56,
+        compNights:0, blocksByType:{ out_of_service:20 }, oooSource:"override" },
+    ]);
+    expect(r.compNights).toBe(1);
+    expect(r.blocksByType).toEqual({ out_of_service:22, blocked_dates:1 });
+    // One overridden day taints the range — the badge must not be lost in the roll-up.
+    expect(r.oooSource).toBe("override");
+  });
+
+  it("treats rows banked before the comp/block-type columns existed as zeros", () => {
+    const r = sumSnapshotRows([
+      { transientNights:10, leaseNights:84, otherBlocks:1, ooo:2, inventory:153, transientRev:492.05, leaseRev:2706.13 },
+    ]);
+    expect(r.compNights).toBe(0);
+    expect(r.blocksByType).toEqual({});
+    expect(r.oooSource).toBe("cloudbeds");
   });
 
   it("composes stored snapshot rows + a live 'today' row into MTD inputs (Task 3r)", () => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { easternToday, shiftYmd } from "@/lib/dates";
 import { persistDailySnapshots, buildRevenueReport } from "@/lib/cloudbeds";
-import { findSnapshotGaps } from "@/lib/db";
+import { findAvailabilityAnomalies, findSnapshotGaps } from "@/lib/db";
 import { PROPERTIES } from "@/config/properties";
 import { buildReportCard } from "@/lib/report-card";
 import { postAdaptiveCard } from "@/lib/teams";
@@ -37,7 +37,10 @@ export async function GET(req: Request) {
     // daily snapshots over the last 14 days (a cron miss / expired key / DB blip)
     // in the response — visible in Vercel cron logs the next morning.
     const codes = PROPERTIES.filter((p) => p.active === true).map((p) => p.code);
-    const gaps = await findSnapshotGaps(shiftYmd(asOf, -13), asOf, codes);
+    const [gaps, availability] = await Promise.all([
+      findSnapshotGaps(shiftYmd(asOf, -13), asOf, codes),
+      findAvailabilityAnomalies(shiftYmd(asOf, -13), asOf),
+    ]);
 
     return NextResponse.json({
       ok: posted.ok,
@@ -47,6 +50,12 @@ export async function GET(req: Request) {
       snapshotsWritten: written,
       gapsLast14d: gaps.length,
       gaps: gaps.slice(0, 50),
+      // A banked-but-wrong day is as bad as a missing one — see
+      // findAvailabilityAnomalies.
+      availabilityAlerts: availability.map((a) => ({
+        ...a,
+        avgAvailablePct: Number((a.avgAvailablePct * 100).toFixed(1)),
+      })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { easternToday, shiftYmd } from "@/lib/dates";
-import { findSnapshotGaps } from "@/lib/db";
+import { findAvailabilityAnomalies, findSnapshotGaps } from "@/lib/db";
 import { PROPERTIES } from "@/config/properties";
 
 // Snapshot gap detector. Our Neon store is the source of truth going forward, so
@@ -28,7 +28,14 @@ export async function GET(req: Request) {
     const start = shiftYmd(end, -(days - 1));
     const codes = PROPERTIES.filter((p) => p.active === true).map((p) => p.code);
 
-    const gaps = await findSnapshotGaps(start, end, codes);
+    const [gaps, availability] = await Promise.all([
+      findSnapshotGaps(start, end, codes),
+      // Second failure mode, added 07/28/26: a day can be banked and still be
+      // wrong. Sustained implausible availability means inventory or OOO is off
+      // (JN sat at 70% "available" for months because its renovation rooms were
+      // never blocked in Cloudbeds).
+      findAvailabilityAnomalies(start, end),
+    ]);
     const byProperty: Record<string, string[]> = {};
     for (const g of gaps) (byProperty[g.propertyCode] ??= []).push(g.stayDate);
 
@@ -38,6 +45,10 @@ export async function GET(req: Request) {
       propertiesChecked: codes,
       totalMissing: gaps.length,
       byProperty,
+      availabilityAlerts: availability.map((a) => ({
+        ...a,
+        avgAvailablePct: Number((a.avgAvailablePct * 100).toFixed(1)),
+      })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

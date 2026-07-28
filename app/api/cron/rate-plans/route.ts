@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { easternToday } from "@/lib/dates";
 import { getRatePlanInventory } from "@/lib/cloudbeds";
+import { recordAndDiffRatePlans } from "@/lib/db";
 
 // Rate-plan classifier audit. Lease/transient is detected purely from rate-plan
 // strings, so a lease booked on a plan name missing from the keyword lists banks
@@ -38,12 +39,29 @@ export async function GET(req: Request) {
     );
     const distinctPlans = [...new Set(properties.flatMap((p) => p.plans.map((x) => x.plan)))].sort();
 
+    // Alert on plan names never seen before. A run that surfaces a new plan is
+    // the ONLY warning that a lease may be banking as transient — the audit
+    // itself has always listed plans, but nothing compared the list run to run.
+    // Best-effort: an unreachable DB must not fail the audit.
+    let newPlans: string[] = [];
+    let planTrackingError: string | undefined;
+    try {
+      newPlans = await recordAndDiffRatePlans(distinctPlans);
+    } catch (e) {
+      planTrackingError = e instanceof Error ? e.message : String(e);
+    }
+
     return NextResponse.json({
       ok: true,
       window: { start, end },
       propertiesFailed: properties.filter((p) => !p.ok).map((p) => ({ code: p.code, error: p.error })),
       distinctPlanCount: distinctPlans.length,
       distinctPlans,
+      // Plans appearing for the first time — each needs a lease/transient ruling
+      // before its nights and revenue can be trusted.
+      newPlans,
+      newPlanCount: newPlans.length,
+      planTrackingError,
       reviewCandidates,
       properties,
     });

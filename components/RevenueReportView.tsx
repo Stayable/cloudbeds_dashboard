@@ -1,6 +1,26 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import {
+  Bar,
+  Card,
+  DeltaChip,
+  FreshnessStrip,
+  Kpi,
+  KpiNavy,
+  Label,
+  Notice,
+  PointChip,
+  Rail as RailShell,
+  SegTrack,
+  StatusDot,
+  TableScroll,
+  occColor,
+  railRowClass,
+  segButton,
+  surfaceButton,
+  thClass,
+} from "@/components/ui";
 import { isCountDependentRow, METHODOLOGY } from "@/lib/revenue-report";
 import type {
   RevenueReport,
@@ -91,12 +111,13 @@ function fmtMetric(kind: MetricKind, n: number | null): string {
 const BLANKED = "—";
 
 /** Availability highlighting (mirrors the xlsx conditional formatting):
- *  red bg <=15%, orange bg <=20%, purple bold text >=40%. */
+ *  scarce ≤15% and ≤20% get a filled cell, plentiful ≥40% is called out in the
+ *  accent. Three tiers only — the legend below the table names each one. */
 function availClass(n: number | null): string {
   if (n == null) return "";
-  if (n <= 0.15) return "bg-red-200 text-red-900";
-  if (n <= 0.2) return "bg-orange-200 text-orange-900";
-  if (n >= 0.4) return "font-semibold text-purple-700";
+  if (n <= 0.15) return "bg-negbg font-semibold text-neg";
+  if (n <= 0.2) return "bg-warnbg font-semibold text-warn";
+  if (n >= 0.4) return "font-semibold text-accent";
   return "";
 }
 
@@ -108,14 +129,18 @@ function metricLabelCell(metric: MetricRow) {
   return (
     <td
       className={
-        "whitespace-nowrap px-3 py-1.5 " +
-        (metric.indent ? "pl-7 italic text-slate-500" : "font-medium text-slate-700")
+        "sticky left-0 z-[1] whitespace-nowrap bg-surface px-4 py-2 text-[12.5px] " +
+        (metric.indent ? "pl-8 text-txt3" : "font-semibold text-txt2")
       }
     >
       {metric.label}
     </td>
   );
 }
+
+/** Value cell shared by both detail tables. */
+const CELL = "whitespace-nowrap px-4 py-2 text-right text-[12.5px] font-semibold text-txt";
+const CELL_LY = "whitespace-nowrap px-4 py-2 text-right text-[12.5px] text-txt3";
 
 function ActualTable({ property }: { property: PropertyActual }) {
   const groups: Array<{ label: string; block: PeriodBlock }> = [
@@ -127,28 +152,28 @@ function ActualTable({ property }: { property: PropertyActual }) {
   const rows = rowsFor(anyAdjusted);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-      <table className="w-full min-w-[920px] border-collapse text-sm">
+    <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
+      <table className="w-full min-w-[920px] border-collapse">
         <thead>
           <tr>
-            <th className="bg-ink px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-white">
+            <th className="sticky left-0 z-[3] bg-chrome px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[.07em] text-white">
               {property.name}
             </th>
             {groups.map((g) => (
               <th
                 key={g.label}
                 colSpan={3}
-                className="border-l border-white/10 bg-slate-800 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-white"
+                className="border-l border-white/10 bg-navy2 px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[.07em] text-white"
               >
                 {g.label}
               </th>
             ))}
           </tr>
-          <tr className="bg-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-            <th className="px-3 py-1.5 text-left">History</th>
+          <tr>
+            <th className={thClass("left", true)}>History</th>
             {groups.map((g) =>
               ["Actual", "Last Year", "Variance"].map((l) => (
-                <th key={`${g.label}-${l}`} className="px-3 py-1.5 text-right">
+                <th key={`${g.label}-${l}`} className={thClass("right")}>
                   {l}
                 </th>
               )),
@@ -159,7 +184,7 @@ function ActualTable({ property }: { property: PropertyActual }) {
           {rows.map((metric) => {
             const isAvail = metric.label === AVAILABILITY_LABEL;
             return (
-              <tr key={metric.label} className="border-t border-slate-100">
+              <tr key={metric.label} className="border-t border-line">
                 {metricLabelCell(metric)}
                 {groups.map((g) => {
                   const blanked = g.block.countsPartial === true && isCountDependentRow(metric.key);
@@ -168,28 +193,13 @@ function ActualTable({ property }: { property: PropertyActual }) {
                   const varVal = actualVal == null || lyVal == null ? null : actualVal - lyVal;
                   return (
                     <Fragment key={g.label}>
-                      <td
-                        className={
-                          "whitespace-nowrap px-3 py-1.5 text-right tabular-nums " +
-                          (isAvail ? availClass(actualVal) : "")
-                        }
-                      >
+                      <td className={CELL + (isAvail ? " " + availClass(actualVal) : "")}>
                         {blanked ? BLANKED : fmtMetric(metric.kind, actualVal)}
                       </td>
-                      <td
-                        className={
-                          "whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-slate-500 " +
-                          (isAvail ? availClass(lyVal) : "")
-                        }
-                      >
+                      <td className={CELL_LY + (isAvail ? " " + availClass(lyVal) : "")}>
                         {fmtMetric(metric.kind, lyVal)}
                       </td>
-                      <td
-                        className={
-                          "whitespace-nowrap px-3 py-1.5 text-right tabular-nums " +
-                          (isAvail ? availClass(varVal) : "")
-                        }
-                      >
+                      <td className={CELL + (isAvail ? " " + availClass(varVal) : "")}>
                         {blanked ? BLANKED : fmtMetric(metric.kind, varVal)}
                       </td>
                     </Fragment>
@@ -209,17 +219,17 @@ function OnTheBooksTable({ property }: { property: PropertyOnTheBooks }) {
   const rows = rowsFor(anyAdjusted);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
+    <div className="overflow-x-auto rounded-[10px] border border-line bg-surface shadow-card">
+      <table className="w-full min-w-[760px] border-collapse">
         <thead>
           <tr>
-            <th className="bg-ink px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-white">
+            <th className="sticky left-0 z-[3] bg-chrome px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[.07em] text-white">
               {property.name}
             </th>
             {property.days.map((d) => (
               <th
                 key={d.date}
-                className="border-l border-white/10 bg-slate-800 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-white"
+                className="border-l border-white/10 bg-navy2 px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[.07em] text-white"
               >
                 {d.date}
               </th>
@@ -230,17 +240,14 @@ function OnTheBooksTable({ property }: { property: PropertyOnTheBooks }) {
           {rows.map((metric) => {
             const isAvail = metric.label === AVAILABILITY_LABEL;
             return (
-              <tr key={metric.label} className="border-t border-slate-100">
+              <tr key={metric.label} className="border-t border-line">
                 {metricLabelCell(metric)}
                 {property.days.map((d) => {
                   const val = metric.get(d.row);
                   return (
                     <td
                       key={d.date}
-                      className={
-                        "whitespace-nowrap px-3 py-1.5 text-right tabular-nums " +
-                        (isAvail ? availClass(val) : "")
-                      }
+                      className={CELL + (isAvail ? " " + availClass(val) : "")}
                     >
                       {fmtMetric(metric.kind, val)}
                     </td>
@@ -257,58 +264,75 @@ function OnTheBooksTable({ property }: { property: PropertyOnTheBooks }) {
 
 // --- New navigation-driven shell --------------------------------------------
 
-/** Occupancy status color for the rail dot / bar (from yesterday % occupied). */
-function occDot(pOcc: number | null): string {
-  if (pOcc == null) return "bg-slate-300";
-  if (pOcc >= 0.85) return "bg-emerald-500";
-  if (pOcc >= 0.6) return "bg-amber-500";
-  return "bg-red-500";
-}
+// `pOcc` here is a FRACTION (0–1); the shared occColor/StatusDot helpers take a
+// percentage, so scale before handing it over.
+const asPct = (pOcc: number | null) => (pOcc == null ? null : pOcc * 100);
 
 type RailItem = { code: string; name: string; occ: number | null };
 
+/** Property navigation. Each row carries its own occupancy figure and bar, so
+ *  the rail doubles as an at-a-glance ranking while you're deep in one property. */
 function Rail({
   items,
   selected,
   onSelect,
+  portfolioOcc,
 }: {
   items: RailItem[];
   selected: string;
   onSelect: (code: string) => void;
+  portfolioOcc: number | null;
 }) {
-  const base =
-    "flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors whitespace-nowrap";
-  const on = "bg-ink text-white";
-  const off = "text-slate-600 hover:bg-slate-100";
-  return (
-    <nav
-      aria-label="Property navigation"
-      className="mb-4 flex gap-1.5 overflow-x-auto pb-2 lg:mb-0 lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:pb-0"
+  const row = (
+    key: string,
+    label: string,
+    occ: number | null,
+    active: boolean,
+    dotTone: string,
+    barTone: string,
+    first = false,
+  ) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => onSelect(key)}
+      className={railRowClass(active) + (first ? " lg:border-b lg:border-b-line" : "")}
     >
-      <button
-        type="button"
-        onClick={() => onSelect("all")}
-        className={`${base} font-semibold ${selected === "all" ? on : off}`}
-      >
-        All Properties
-      </button>
-      {items.map((p) => (
-        <button
-          key={p.code}
-          type="button"
-          onClick={() => onSelect(p.code)}
-          className={`${base} lg:justify-between ${selected === p.code ? on : off}`}
-        >
-          <span className="flex items-center gap-2">
-            <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${occDot(p.occ)}`} />
-            {p.name}
-          </span>
-          <span className={selected === p.code ? "text-white/70" : "text-slate-400"}>
-            {p.occ == null ? "—" : fmtPct(p.occ)}
-          </span>
-        </button>
-      ))}
-    </nav>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${dotTone}`} />
+        <span className="truncate text-[12.5px] font-semibold tracking-[-.01em]">{label}</span>
+        <span className="ml-auto shrink-0 pl-2 text-[12px] font-semibold text-txt2">
+          {occ == null ? "—" : fmtPct(occ)}
+        </span>
+      </span>
+      <span className="mt-[7px] hidden lg:block">
+        <Bar pct={asPct(occ)} tone={barTone} height={4} />
+      </span>
+    </button>
+  );
+
+  return (
+    <RailShell title="Properties">
+      {row(
+        "all",
+        "All properties",
+        portfolioOcc,
+        selected === "all",
+        "bg-accent",
+        "bg-accent",
+        true,
+      )}
+      {items.map((p) =>
+        row(
+          p.code,
+          p.name,
+          p.occ,
+          selected === p.code,
+          occColor(asPct(p.occ)),
+          occColor(asPct(p.occ)),
+        ),
+      )}
+    </RailShell>
   );
 }
 
@@ -325,62 +349,88 @@ function Leaderboard({
   onSelect: (code: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead>
-          <tr className="bg-ink text-xs font-semibold uppercase tracking-wide text-white">
-            <th className="px-4 py-2.5 text-left">Property</th>
-            <th className="px-4 py-2.5 text-right">% Occ (yest)</th>
-            <th className="px-4 py-2.5 text-center">Occ trend (30d)</th>
-            <th className="px-4 py-2.5 text-right">Room Rev (YTD)</th>
-            <th className="px-4 py-2.5 text-right">ADR (yest)</th>
-            <th className="px-4 py-2.5 text-right">RevPAR (yest)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((p) => (
-            <tr
-              key={p.code}
-              onClick={() => onSelect(p.code)}
-              className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-slate-50"
-            >
-              <td className="px-4 py-2.5">
-                <span className="flex items-center gap-2 font-medium text-slate-800">
-                  <span className={`inline-block h-2 w-2 rounded-full ${occDot(p.occ)}`} />
-                  {p.name}
-                </span>
-              </td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
-                {p.occ == null ? "—" : fmtPct(p.occ)}
-              </td>
-              <td className="px-4 py-2.5 text-center">
-                <Sparkline points={p.spark} />
-              </td>
-              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900">
-                {fmtCompactCurrency(p.roomRevYtd)}
-              </td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
-                {fmtCompactCurrency(p.adr)}
-              </td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
-                {fmtCompactCurrency(p.revpar)}
-              </td>
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+        <div>
+          <div className="text-[13.5px] font-semibold tracking-[-.01em] text-txt">
+            Property leaderboard
+          </div>
+          <div className="mt-0.5 text-[11.5px] text-txt3">
+            Select a property for its full Actual / On-the-Books detail
+          </div>
+        </div>
+        <div className="text-[11.5px] text-txt3">Occupancy, ADR and RevPAR are yesterday&apos;s</div>
+      </div>
+      <TableScroll>
+        <table className="w-full min-w-[720px] border-collapse">
+          <thead>
+            <tr>
+              <th className={thClass("left")}>Property</th>
+              <th className={thClass("left")}>% Occ (yest)</th>
+              <th className={thClass("right")}>Room Rev (YTD)</th>
+              <th className={thClass("right")}>ADR (yest)</th>
+              <th className={thClass("right")}>RevPAR (yest)</th>
+              <th className={thClass("left")}>Occ trend (30d)</th>
+              <th className={thClass("right")}></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {items.map((p) => (
+              <tr
+                key={p.code}
+                onClick={() => onSelect(p.code)}
+                className="cursor-pointer border-t border-line transition-colors hover:bg-surface2"
+              >
+                <td className="whitespace-nowrap px-4 py-2.5">
+                  <span className="flex items-center gap-2 text-[12.5px] font-semibold text-txt">
+                    <StatusDot occ={asPct(p.occ)} />
+                    {p.name}
+                  </span>
+                </td>
+                <td className="min-w-[136px] px-4 py-2.5">
+                  <span className="flex items-center gap-2.5">
+                    <span className="min-w-[56px] flex-1">
+                      <Bar pct={asPct(p.occ)} />
+                    </span>
+                    <span className="w-[46px] text-right text-[12.5px] font-semibold text-txt">
+                      {p.occ == null ? "—" : fmtPct(p.occ)}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-right text-[12.5px] font-semibold text-txt">
+                  {fmtCompactCurrency(p.roomRevYtd)}
+                </td>
+                <td className="px-4 py-2.5 text-right text-[12.5px] text-txt">
+                  {fmtCompactCurrency(p.adr)}
+                </td>
+                <td className="px-4 py-2.5 text-right text-[12.5px] text-txt">
+                  {fmtCompactCurrency(p.revpar)}
+                </td>
+                <td className="w-[132px] px-4 py-2">
+                  <Sparkline points={p.spark} width={120} height={30} />
+                </td>
+                <td className="px-4 py-2.5 text-right text-sm text-txt3">›</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
+    </Card>
   );
 }
 
-function KpiTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
-    </div>
-  );
+function KpiTile({
+  label,
+  value,
+  sub,
+  chip,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  chip?: React.ReactNode;
+}) {
+  return <Kpi label={label} value={value} sub={sub} chip={chip} />;
 }
 
 /** Portfolio roll-up for the "All Properties" overview. Occupancy / ADR / RevPAR
@@ -415,19 +465,21 @@ function portfolioSummary(props: PropertyActual[]) {
 
 function PortfolioSummary({ props }: { props: PropertyActual[] }) {
   const s = portfolioSummary(props);
+  // No delta chips here on purpose: the dedicated "Revenue vs. Last Year" card
+  // directly below is the like-for-like comparison (it excludes properties that
+  // weren't operated last year). A second, differently-scoped delta up here
+  // would read as a contradiction.
   return (
-    <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <div className="rounded-xl bg-ink px-4 py-3 text-white shadow-sm">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-white/60">Portfolio Occ</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{s.pOcc == null ? "—" : fmtPct(s.pOcc)}</p>
-        <p className="mt-0.5 text-xs text-white/50">
-          {s.reporting} of {s.total} · yesterday
-        </p>
-      </div>
-      <KpiTile label="Room Rev" value={fmtCompactCurrency(s.revYtd)} sub="year-to-date" />
-      <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub="yesterday" />
-      <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub="yesterday" />
-      <KpiTile label="Rooms OOO" value={s.ooo.toLocaleString()} sub="yesterday" />
+    <div className="mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(168px,1fr))] gap-3">
+      <KpiNavy
+        label="Portfolio occupancy"
+        value={s.pOcc == null ? "—" : fmtPct(s.pOcc)}
+        sub={`${s.reporting} of ${s.total} reporting · yesterday`}
+      />
+      <KpiTile label="Room revenue" value={fmtCompactCurrency(s.revYtd)} sub="Year to date" />
+      <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub="Yesterday, combined" />
+      <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub="Yesterday" />
+      <KpiTile label="Rooms out of order" value={s.ooo.toLocaleString()} sub="Yesterday" />
     </div>
   );
 }
@@ -444,46 +496,89 @@ function PropertyDetail({
   onView: (v: "actual" | "onTheBooks") => void;
 }) {
   const y = actual.yesterday.actual;
+  const yLY = actual.yesterday.lastYear;
   const ytd = actual.ytd.actual;
-  const seg = "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors";
-  const segOn = "bg-ink text-white";
-  const segOff = "text-slate-600 hover:bg-slate-100";
 
   return (
-    <div className="space-y-5">
-      {(actual.spark?.length ?? 0) >= 2 && (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Occupancy trend</p>
-            <p className="text-xs text-slate-400">
-              last {actual.spark!.length} captured days · {fmtPct(actual.spark![0].pOcc)} →{" "}
-              {fmtPct(actual.spark!.at(-1)!.pOcc)}
-            </p>
-          </div>
-          <div className="ml-auto">
-            <Sparkline points={actual.spark!} width={220} height={40} />
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile label="% Occupied" value={y.pOcc == null ? "—" : fmtPct(y.pOcc)} sub="yesterday" />
-        <KpiTile label="Room Revenue" value={fmtCompactCurrency(ytd.roomRev)} sub="year-to-date" />
-        <KpiTile label="ADR" value={fmtCompactCurrency(y.adrCombined)} sub="yesterday" />
-        <KpiTile label="RevPAR" value={fmtCompactCurrency(y.revpar)} sub="yesterday" />
+    <div className="space-y-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(168px,1fr))] gap-3">
+        <KpiTile
+          label="% Occupied"
+          value={y.pOcc == null ? "—" : fmtPct(y.pOcc)}
+          sub="Yesterday"
+          // Occupancy is already a percentage, so the movement is in points.
+          chip={
+            y.pOcc != null && yLY?.pOcc != null ? (
+              <PointChipPct current={y.pOcc} prior={yLY.pOcc} />
+            ) : undefined
+          }
+        />
+        <KpiTile
+          label="Room revenue"
+          value={fmtCompactCurrency(ytd.roomRev)}
+          sub={
+            actual.ytd.lastYear?.roomRev != null
+              ? `LY ${fmtCompactCurrency(actual.ytd.lastYear.roomRev)}`
+              : "Year to date"
+          }
+          chip={
+            <DeltaChip current={ytd.roomRev} prior={actual.ytd.lastYear?.roomRev ?? null} />
+          }
+        />
+        <KpiTile
+          label="ADR"
+          value={fmtCompactCurrency(y.adrCombined)}
+          sub="Yesterday, combined"
+          chip={<DeltaChip current={y.adrCombined} prior={yLY?.adrCombined ?? null} />}
+        />
+        <KpiTile
+          label="RevPAR"
+          value={fmtCompactCurrency(y.revpar)}
+          sub="Yesterday"
+          chip={<DeltaChip current={y.revpar} prior={yLY?.revpar ?? null} />}
+        />
+        <KpiTile
+          label="Out of order"
+          value={y.ooo == null ? "—" : y.ooo.toLocaleString()}
+          sub="Yesterday"
+          // Fewer OOO rooms is better, hence inverse.
+          chip={<DeltaChip current={y.ooo} prior={yLY?.ooo ?? null} inverse />}
+        />
       </div>
 
-      <div className="inline-flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        <button type="button" onClick={() => onView("actual")} className={`${seg} ${view === "actual" ? segOn : segOff}`}>
-          Actual
-        </button>
-        <button
-          type="button"
-          onClick={() => onView("onTheBooks")}
-          className={`${seg} ${view === "onTheBooks" ? segOn : segOff}`}
-        >
-          On-the-Books
-        </button>
+      {(actual.spark?.length ?? 0) >= 2 && (
+        <Card className="px-5 py-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[13px] font-semibold text-txt">
+              Occupancy · trailing captured days
+            </div>
+            <div className="text-[11.5px] text-txt3">
+              {actual.spark!.length} days · {fmtPct(actual.spark![0].pOcc)} →{" "}
+              {fmtPct(actual.spark!.at(-1)!.pOcc)}
+            </div>
+          </div>
+          <Sparkline points={actual.spark!} width={600} height={90} fill />
+          <div className="mt-1.5 flex justify-between text-[11px] text-txt3">
+            <span>{actual.spark![0].day}</span>
+            <span>{actual.spark!.at(-1)!.day}</span>
+          </div>
+        </Card>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-[15px] font-semibold tracking-[-.01em] text-txt">Detailed metrics</div>
+        <SegTrack>
+          <button type="button" onClick={() => onView("actual")} className={segButton(view === "actual")}>
+            Actual
+          </button>
+          <button
+            type="button"
+            onClick={() => onView("onTheBooks")}
+            className={segButton(view === "onTheBooks")}
+          >
+            On the books
+          </button>
+        </SegTrack>
       </div>
 
       {view === "actual" ? (
@@ -491,12 +586,15 @@ function PropertyDetail({
       ) : onTheBooks ? (
         <OnTheBooksTable property={onTheBooks} />
       ) : (
-        <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-          No on-the-books data for this property.
-        </p>
+        <Notice>No on-the-books data for this property.</Notice>
       )}
     </div>
   );
+}
+
+/** Point-movement chip for two FRACTIONS (0–1) that represent percentages. */
+function PointChipPct({ current, prior }: { current: number; prior: number }) {
+  return <PointChip delta={(current - prior) * 100} />;
 }
 
 /** Inline SVG sparkline of trailing daily occupancy. Deliberately unlabelled —
@@ -506,12 +604,15 @@ function Sparkline({
   points,
   width = 110,
   height = 26,
+  fill = false,
 }: {
   points: { day: string; pOcc: number }[];
   width?: number;
   height?: number;
+  /** Stretch to the container width and shade the area under the line. */
+  fill?: boolean;
 }) {
-  if (points.length < 2) return <span className="text-xs text-slate-300">—</span>;
+  if (points.length < 2) return <span className="text-xs text-txt3">—</span>;
   const vals = points.map((p) => p.pOcc);
   const lo = Math.min(...vals);
   const hi = Math.max(...vals);
@@ -523,19 +624,32 @@ function Sparkline({
   const last = points.at(-1)!;
   const first = points[0]!;
   const rising = last.pOcc >= first.pOcc;
+  // `fill` closes the path along the baseline for the large single-property
+  // chart; the in-table sparklines stay as bare strokes.
+  const area = `M${pad},${height} L${path.slice(1)} L${(pad + (points.length - 1) * dx).toFixed(1)},${height} Z`;
   return (
     <svg
-      width={width}
+      width={fill ? undefined : width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className="overflow-visible align-middle"
+      preserveAspectRatio={fill ? "none" : undefined}
+      className={fill ? "block w-full" : "overflow-visible align-middle"}
       role="img"
       aria-label={`Occupancy trend over the last ${points.length} captured days, ${fmtPct(first.pOcc)} to ${fmtPct(last.pOcc)}`}
     >
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"
-        className={rising ? "text-emerald-500" : "text-red-400"} />
-      <circle cx={(pad + (points.length - 1) * dx).toFixed(1)} cy={y(last.pOcc).toFixed(1)} r="1.8"
-        className={rising ? "fill-emerald-600" : "fill-red-500"} />
+      {fill && (
+        <path
+          d={area}
+          stroke="none"
+          className={rising ? "fill-pos/10" : "fill-neg/10"}
+        />
+      )}
+      <path d={path} fill="none" stroke="currentColor" strokeWidth={fill ? 1.8 : 1.5} strokeLinejoin="round"
+        className={rising ? "text-pos" : "text-neg"} />
+      {!fill && (
+        <circle cx={(pad + (points.length - 1) * dx).toFixed(1)} cy={y(last.pOcc).toFixed(1)} r="1.8"
+          className={rising ? "fill-pos" : "fill-neg"} />
+      )}
     </svg>
   );
 }
@@ -548,28 +662,50 @@ function FreshnessStamp({ report }: { report: RevenueReport }) {
   const current = f.latestCapturedDate >= report.asOf;
   const banked = f.lastBankedAt ? f.lastBankedAt.slice(0, 16).replace("T", " ") + " UTC" : "unknown";
   return (
-    <div
-      className={
-        "mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-2.5 text-xs " +
-        (current
-          ? "border-slate-200 bg-slate-50 text-slate-600"
-          : "border-amber-300 bg-amber-50 text-amber-900")
-      }
-    >
-      <span className="flex items-center gap-1.5 font-semibold">
-        <span className={"inline-block h-2 w-2 rounded-full " + (current ? "bg-emerald-500" : "bg-amber-500")} />
-        {current ? "Data current" : "Data may be stale"}
-      </span>
-      <span>
-        Last captured day <span className="font-medium">{f.latestCapturedDate}</span> ({f.propertiesOnLatest} of{" "}
-        {f.propertiesExpected} properties)
-      </span>
-      <span className="text-slate-400">·</span>
-      <span>Snapshot last written {banked}</span>
-      {!current && (
-        <span className="font-medium">
-          — this report is for {report.asOf}; the daily capture has not landed yet.
-        </span>
+    <div className="mb-3.5 overflow-hidden rounded-[10px] border-t border-line">
+      <FreshnessStrip
+        current={current}
+        title={current ? "Data current" : "Data may be stale"}
+        detail={
+          <>
+            Last captured day <span className="font-semibold">{f.latestCapturedDate}</span> ·{" "}
+            {f.propertiesOnLatest} of {f.propertiesExpected} properties reported
+            {!current && (
+              <> — this report is for {report.asOf}; the daily capture has not landed yet.</>
+            )}
+          </>
+        }
+        trailing={`Store written ${banked}`}
+      />
+      <ProvenanceStrip report={report} />
+    </div>
+  );
+}
+
+/** Preliminary-vs-final and manual-override provenance.
+ *
+ *  The room-revenue ledger keeps posting for days after a stay: re-querying one
+ *  Davenport day moved its transient revenue +48% and another -1.7%. So a figure
+ *  for a recent day is a flash, not a close. This says which days are settled and
+ *  where a number is a manual override rather than Cloudbeds-sourced — the report
+ *  should never present the two as the same thing. */
+function ProvenanceStrip({ report }: { report: RevenueReport }) {
+  const overrides = report.oooOverrideNotes ?? [];
+  if (!report.finalThrough && overrides.length === 0) return null;
+  return (
+    <div className="border-t border-line bg-surface2 px-5 py-2.5 text-[11.5px] leading-relaxed text-txt2">
+      {report.finalThrough ? (
+        <>
+          <span className="font-semibold">Final through {report.finalThrough}</span> · later days are
+          preliminary and restated nightly as the ledger settles.
+        </>
+      ) : (
+        <span className="font-semibold">All figures preliminary</span>
+      )}
+      {overrides.length > 0 && (
+        <div className="mt-1 text-warn">
+          <span className="font-semibold">Manual out-of-order override:</span> {overrides.join("; ")}
+        </div>
       )}
     </div>
   );
@@ -580,26 +716,30 @@ function FreshnessStamp({ report }: { report: RevenueReport }) {
 function MethodologyFooter() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="mt-3.5 overflow-hidden rounded-[10px] border border-line bg-surface">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 px-5 py-3.5 text-left text-txt2 transition-colors hover:text-txt"
       >
-        <span>
-          <span className="text-sm font-semibold text-slate-800">Methodology &amp; sources</span>
-          <span className="ml-2 text-xs text-slate-500">
-            Confirmed by Monica Oco (Revenue Management) · 2026-07-24, rate plans re-confirmed 07/27
-          </span>
+        <span
+          className="inline-block text-[15px] text-txt3 transition-transform"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ›
         </span>
-        <span className="shrink-0 text-xs font-semibold text-slate-500">{open ? "Hide" : "Show"}</span>
+        <span className="text-[12.5px] font-semibold">Methodology &amp; sources</span>
+        <span className="ml-auto hidden text-[11px] text-txt3 sm:block">
+          Confirmed by Monica Oco (Revenue Management) · 2026-07-24, rate plans re-confirmed 07/27
+        </span>
       </button>
       {open && (
-        <div className="grid gap-4 border-t border-slate-100 px-4 py-4 text-xs text-slate-600 sm:grid-cols-2">
+        <div className="grid gap-x-8 border-t border-line px-5 pb-5 pt-1 sm:grid-cols-2">
           {METHODOLOGY.map((sec) => (
-            <div key={sec.heading}>
-              <p className="mb-1 font-semibold text-slate-700">{sec.heading}</p>
-              <ul className="list-disc space-y-1 pl-4">
+            <div key={sec.heading} className="border-b border-line py-3 last:border-b-0">
+              <p className="mb-1 text-[11.5px] font-semibold text-txt2">{sec.heading}</p>
+              <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-txt3">
                 {sec.points.map((pt) => (
                   <li key={pt}>{pt}</li>
                 ))}
@@ -612,15 +752,22 @@ function MethodologyFooter() {
   );
 }
 
+/** Names the three conditional-format tiers used in the % Available row. */
 function Legend() {
   return (
-    <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-      <p className="mb-1 font-semibold text-slate-600">Availability legend</p>
-      <p>
-        <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-red-200 align-middle" /> % Available ≤ 15% ·{" "}
-        <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-orange-200 align-middle" /> ≤ 20% ·{" "}
-        <span className="font-semibold text-purple-700">% Available ≥ 40%</span>
-      </p>
+    <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-[10px] border border-line bg-surface px-5 py-3 text-[11px] text-txt3">
+      <span className="font-semibold text-txt2">% Available</span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-negbg ring-1 ring-inset ring-neg/40" />
+        ≤ 15% — scarce
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-warnbg ring-1 ring-inset ring-warn/40" />
+        ≤ 20% — tight
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="font-semibold text-accent">≥ 40%</span> — plentiful
+      </span>
     </div>
   );
 }
@@ -633,37 +780,46 @@ function Legend() {
 const YOY_EXCLUDE = new Set<string>(["JN"]);
 const YOY_FLAG: Record<string, string> = { DP: "opened Jun ’25" };
 
-function deltaPct(ty: number | null, ly: number | null): number | null {
-  if (ty == null || ly == null || ly === 0) return null;
-  return (ty - ly) / ly;
-}
+/** Compact delta used inside the chart, above each property's bar pair. */
 function DeltaBadge({ ty, ly }: { ty: number | null; ly: number | null }) {
-  const p = deltaPct(ty, ly);
-  if (p == null) return <span className="text-xs text-slate-400">—</span>;
-  const up = p >= 0;
-  return (
-    <span className={"text-xs font-semibold " + (up ? "text-emerald-600" : "text-red-600")}>
-      {up ? "▲" : "▼"} {(Math.abs(p) * 100).toFixed(1)}%
-    </span>
-  );
+  return <DeltaChip current={ty} prior={ly} className="!px-1.5 !text-[10.5px]" />;
 }
 
-function YoyCard({ label, ty, ly, highlight }: { label: string; ty: number; ly: number; highlight?: boolean }) {
+/** One of the two revenue panes inside the "Revenue vs. last year" card. The
+ *  selected period is the one the chart below is drawn for. */
+function YoyPane({
+  label,
+  ty,
+  ly,
+  first,
+  selected,
+}: {
+  label: string;
+  ty: number;
+  ly: number;
+  first?: boolean;
+  selected?: boolean;
+}) {
   return (
     <div
       className={
-        "rounded-xl border bg-white px-4 py-3 shadow-sm transition-colors " +
-        (highlight ? "border-accent ring-1 ring-accent/30" : "border-slate-200")
+        "border-b border-line px-5 py-4 " +
+        (first ? "sm:border-r sm:border-r-line " : "") +
+        (selected ? "bg-accent/[.04]" : "")
       }
     >
-      <div className="flex items-baseline justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
-        <DeltaBadge ty={ty} ly={ly} />
+      <Label>{label}</Label>
+      <div className="mt-2.5 flex items-end gap-2.5">
+        <div className="text-[30px] font-semibold leading-none tracking-[-.03em] text-txt">
+          {fmtCompactCurrency(ty)}
+        </div>
+        <div className="mb-1">
+          <DeltaChip current={ty} prior={ly} />
+        </div>
       </div>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{fmtCompactCurrency(ty)}</p>
-      <p className="mt-0.5 text-xs text-slate-400">
-        last year {fmtCompactCurrency(ly)}
-      </p>
+      <div className="mt-2 text-xs text-txt3">
+        Last year {fmtCompactCurrency(ly)} · Δ {fmtCompactCurrency(ty - ly)}
+      </div>
     </div>
   );
 }
@@ -683,40 +839,42 @@ function YoyChart({ items, period }: { items: YoyItem[]; period: YoyPeriod }) {
   const ty = (x: YoyItem) => (period === "mtd" ? x.mtdTY : x.ytdTY);
   const ly = (x: YoyItem) => (period === "mtd" ? x.mtdLY : x.ytdLY);
   const max = Math.max(1, ...items.flatMap((x) => [ty(x) ?? 0, ly(x) ?? 0]));
-  const H = 130;
+  const H = 186;
   return (
-    <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="mb-3 text-xs text-slate-500">
-        {period === "mtd" ? "Month-to-date" : "Year-to-date"} room revenue — this year vs last year
-      </p>
-      <div className="flex items-end gap-5" style={{ minHeight: H + 40 }}>
+    <div className="overflow-x-auto px-5 pb-4 pt-5">
+      <div className="mb-4 flex gap-5">
+        <span className="flex items-center gap-1.5 text-[11.5px] text-txt2">
+          <span className="inline-block h-[11px] w-[11px] rounded-[2px] bg-navy" /> This year
+        </span>
+        <span className="flex items-center gap-1.5 text-[11.5px] text-txt2">
+          <span className="inline-block h-[11px] w-[11px] rounded-[2px] bg-sky" /> Last year
+        </span>
+      </div>
+      <div className="flex min-w-[720px] items-end gap-4">
         {items.map((x) => (
-          <div key={x.code} className="flex shrink-0 flex-col items-center gap-1">
+          <div key={x.code} className="flex min-w-[64px] flex-1 flex-col items-center">
             <DeltaBadge ty={ty(x)} ly={ly(x)} />
-            <div className="flex items-end gap-1" style={{ height: H }}>
+            <div className="mt-2 flex w-full items-end justify-center gap-[5px]" style={{ height: H }}>
               <div
                 title={`This year ${fmtCompactCurrency(ty(x))}`}
-                className="w-5 rounded-t bg-ink"
-                style={{ height: `${((ty(x) ?? 0) / max) * H}px` }}
+                className="w-[22px] rounded-t-[3px] bg-navy"
+                style={{ height: `${Math.max(2, ((ty(x) ?? 0) / max) * H)}px` }}
               />
               <div
                 title={`Last year ${fmtCompactCurrency(ly(x))}`}
-                className="w-5 rounded-t bg-skyLight"
-                style={{ height: `${((ly(x) ?? 0) / max) * H}px` }}
+                className="w-[22px] rounded-t-[3px] bg-sky"
+                style={{ height: `${Math.max(2, ((ly(x) ?? 0) / max) * H)}px` }}
               />
             </div>
-            <span className="text-[10px] font-medium text-slate-600">{x.code}</span>
-            {x.flag && <span className="text-[9px] text-slate-400">{x.flag}</span>}
+            <span className="mt-2.5 text-[11px] font-semibold text-txt2">{x.code}</span>
+            <span className="mt-[3px] text-[10.5px] text-txt3">{fmtCompactCurrency(ty(x))}</span>
+            {x.flag && (
+              <span className="mt-1 rounded-[4px] bg-warnbg px-1.5 py-px text-[10px] text-warn">
+                {x.flag}
+              </span>
+            )}
           </div>
         ))}
-      </div>
-      <div className="mt-3 flex gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-ink" /> This year
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-skyLight" /> Last year
-        </span>
       </div>
     </div>
   );
@@ -758,44 +916,45 @@ function YoyRevenue({ props }: { props: PropertyActual[] }) {
   if (!hasLY) return null; // no last-year data banked yet
 
   return (
-    <div className="mb-6">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-900">Revenue vs. Last Year</h3>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+    <Card className="mb-3.5 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3.5">
+        <div>
+          <div className="text-[13.5px] font-semibold tracking-[-.01em] text-txt">
+            Revenue vs. last year
+          </div>
+          <div className="mt-0.5 text-[11.5px] text-txt3">Room revenue, all sources</div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <SegTrack>
             {(["mtd", "ytd"] as YoyPeriod[]).map((k) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setPeriod(k)}
-                className={
-                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors " +
-                  (period === k ? "bg-ink text-white" : "text-slate-600 hover:bg-slate-100")
-                }
+                className={segButton(period === k)}
               >
                 {k.toUpperCase()}
               </button>
             ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShow((v) => !v)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-          >
+          </SegTrack>
+          <button type="button" onClick={() => setShow((v) => !v)} className={surfaceButton}>
             {show ? "Hide chart" : "Show chart"}
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <YoyCard label="MTD Room Revenue" ty={mtd.ty} ly={mtd.ly} highlight={period === "mtd"} />
-        <YoyCard label="YTD Room Revenue" ty={ytd.ty} ly={ytd.ly} highlight={period === "ytd"} />
+
+      <div className="grid sm:grid-cols-2">
+        <YoyPane label="Month to date" ty={mtd.ty} ly={mtd.ly} first selected={period === "mtd"} />
+        <YoyPane label="Year to date" ty={ytd.ty} ly={ytd.ly} selected={period === "ytd"} />
       </div>
-      <p className="mt-2 text-xs text-slate-400">
-        Room revenue, this year vs last year. Excludes Jacksonville North (not operated last year).
-        Davenport opened Jun&nbsp;&rsquo;25 (partial last-year comparison).
-      </p>
+
       {show && <YoyChart items={items} period={period} />}
-    </div>
+
+      <p className="border-t border-line px-5 py-3 text-[11px] leading-relaxed text-txt3">
+        Excludes Jacksonville North (not operated last year). Davenport opened
+        Jun&nbsp;&rsquo;25 — its last-year comparison is partial.
+      </p>
+    </Card>
   );
 }
 
@@ -823,36 +982,35 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
   const currentOtb = report.onTheBooks.find((p) => p.code === selected);
 
   if (report.actual.length === 0) {
-    return (
-      <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-        No configured properties reported.
-      </p>
-    );
+    return <Notice>No configured properties reported.</Notice>;
   }
 
+  // Portfolio occupancy for the rail's "All properties" row — same yesterday
+  // roll-up the summary tiles use, so the two never disagree.
+  const portfolioOcc = portfolioSummary(report.actual).pOcc;
+
   return (
-    <>
-      <FreshnessStamp report={report} />
-      <div className="lg:flex lg:gap-6">
-        <Rail items={railItems} selected={selected} onSelect={setSelected} />
-        <div className="min-w-0 flex-1">
-          {selected === "all" || !current ? (
-            <>
-              <PortfolioSummary props={report.actual} />
-              <YoyRevenue props={report.actual} />
-              <p className="mb-3 text-xs text-slate-500">
-                Click a property for its full Actual / On-the-Books detail. Occupancy, ADR and RevPAR
-                shown are yesterday&apos;s; Room Revenue is year-to-date (exact).
-              </p>
-              <Leaderboard items={leaderboardItems} onSelect={setSelected} />
-            </>
-          ) : (
-            <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
-          )}
-          <Legend />
-          <MethodologyFooter />
-        </div>
+    <div className="lg:flex lg:gap-[18px] lg:items-start">
+      <Rail
+        items={railItems}
+        selected={selected}
+        onSelect={setSelected}
+        portfolioOcc={portfolioOcc}
+      />
+      <div className="min-w-0 flex-1">
+        <FreshnessStamp report={report} />
+        {selected === "all" || !current ? (
+          <>
+            <PortfolioSummary props={report.actual} />
+            <YoyRevenue props={report.actual} />
+            <Leaderboard items={leaderboardItems} onSelect={setSelected} />
+          </>
+        ) : (
+          <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
+        )}
+        <Legend />
+        <MethodologyFooter />
       </div>
-    </>
+    </div>
   );
 }

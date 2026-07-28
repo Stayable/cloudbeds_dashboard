@@ -2,6 +2,149 @@
 
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs decision
 
+---
+
+## 07/28/26 (session 3b) — ACCURACY REMEDIATION vs Monica's report
+
+Kyle added her 7/25–7/27 PDFs; a full parity comparison (8 properties × 3 periods
+× 17 metrics) found seven defects. All seven are addressed. Portfolio YTD
+occupancy went **75.8% → 79.7%** against her 79.7%, and every Last-Year column
+now matches her exactly (was −33.4pp on Davenport). YTD room revenue was already
+within +0.06%.
+
+- **[x] Nights source replaced.** Dataset-3 `reservation_status = "In-House"`
+  dropped guests who checked out before the 06:00 capture. Nights now come from
+  the same dataset-1 room-rate query as revenue, de-duplicated on
+  `res_room_identifier`. Verified live: DP 7/24 → 13/83 and 7/26 → 18/82, both
+  exactly her figures (was 11/84 and 7/84). `foldRoomNights` is unit-tested.
+- **[x] Inventory denominators.** `inServiceWindows` in `config/properties.ts`
+  (JN Jan–Apr 2025 + Apr 2026 on; DP Jun 2025 on — each derived two ways that
+  agree exactly); 486 phantom rows cleared; per-day inventory seeded from her
+  workbook, which showed real capacity moves we were flattening (DP 151→150→152→
+  153 during 2026, OR 133→135, KE 196→167 in 2025).
+- **[x] Restatement.** `/api/cron/restate` (11:30 UTC daily) re-derives the
+  trailing 31 days and freezes months 5 days after close. `flash_room_rev` keeps
+  the first capture so the delta is quantifiable. This deliberately relaxes the
+  old capture-once rule — safe now only because nights no longer depend on
+  current reservation status.
+- **[x] JN out-of-order.** `sellableOverrides` (20 sellable of 127) with a
+  `manual override` badge on the report; 122 historical days repaired. JN reads
+  2 available, not 89.
+- **[x] Availability guard.** `findAvailabilityAnomalies` flags ≥25% availability
+  for 7+ consecutive days, surfaced in the report + gaps crons. Unit-tested.
+- **[x] Block-type composition** stored per `roomBlockType`; **new-rate-plan
+  alert** via `known_rate_plan` + the rate-plans audit.
+- **[x] Reconciliation workbook** → `outputs/RevenueVariance_Stayable_072826.xlsx`
+  (Variance tab + Findings & status tab).
+
+**▶ Open items from this work:**
+1. **[?] KE 167 vs 168 rooms** — unresolved, 1 room every day all year. Run
+   `node scripts/audit-room-counts.mjs` where all 8 keys exist (it needs a key
+   per property; only DP is in local `.env.local`). If Cloudbeds lists 168, find
+   the extra room and fix it at source rather than hardcoding 167.
+2. **[ ] Restate the other 7 properties.** Only Davenport could be restated
+   locally. Deploy, then hit `/api/cron/restate?days=31` so 7/24–7/26 counts are
+   re-derived for LL/JW/KE/KW/OR/SA/JN.
+3. **[?] JN sellable room count (20) is INFERRED** from her OOO of 107 — confirm
+   with the property, and delete the override once the rooms are blocked in
+   Cloudbeds.
+4. **[?] $125,911.92 of JN room revenue** sits on May–Nov 2025 days with zero
+   occupancy. Her report excludes it entirely; we kept it with zero inventory so
+   the difference stays visible. Needs a business ruling.
+5. **[ ] KE transient/lease split** — YTD −15.9% transient / +3.8% lease with the
+   total agreeing to 0.3% looks like dollars moving between buckets, not capture
+   timing. Probe with the KE key over ~5 past dates.
+6. **[ ] On-the-books 7-day grid never validated** against her figures — future
+   days post no transactions, so it still uses the dataset-3 path.
+
+> **Pickup — 07/28/26 (session 3). DESIGN REDESIGN APPLIED APP-WIDE — BUILT &
+> VERIFIED LOCALLY, ⚠️ NOT COMMITTED, NOT DEPLOYED.** The Claude-design output came
+> back and is now implemented across every surface. Working tree is **DIRTY**
+> (34 modified + 4 new files, +1713/−1283) on `claude/nifty-thompson-ts8zny`.
+>
+> **▶ START HERE NEXT SESSION:**
+> 1. **Look at it in a browser, light AND dark.** Dark mode was verified only via
+>    the emitted CSS + served HTML, never visually. `npm run build && npx next start`,
+>    log in, toggle the Dark/Light button in the top bar. Check the wide tables
+>    (/report OTB, /ops by-property) don't scroll the page body.
+> 2. **Then commit + push + deploy.** Nothing is committed yet — a `git checkout`
+>    would destroy the whole redesign.
+> 3. Carry-overs still open from session 2: verify `/ops` §6–8 + `/report` on prod;
+>    **ask Elise about the 15 empty views**; the two ops findings (952/3,299 calls
+>    unanswered; "unknown" = 424/472 cancellations).
+>
+> - **[x] Design source of record:** `Property management dashboard system/Stayable
+>   Operating Dashboard.dc.html` (+ `support.js`) — the design-tool export Kyle got
+>   back from the prompt sent 07/27. **UNTRACKED in git — keep the folder**, it is
+>   the spec every value below was transcribed from.
+> - **[x] Token foundation.** `app/globals.css` now holds the ONLY palette in the
+>   app: a light `:root` set and a `[data-theme="dark"]` set (canvas / surface /
+>   surface-2/3 / line / line-strong / txt / txt-2/3 / navy / blue / sky / gold /
+>   pos+bg / neg+bg / warn+bg / chrome+text+line / shadow). Written as
+>   space-separated **RGB channels** so `bg-surface/60` alpha modifiers still work.
+>   `tailwind.config.ts` maps them to semantic names and sets
+>   `darkMode: ["class", '[data-theme="dark"]']`.
+> - **[x] NO default Tailwind palette classes remain** anywhere in `app/` or
+>   `components/` — `slate-*`, `amber-*`, `emerald-*`, `red-*`, `orange-*`,
+>   `purple-*`, `yellow-*` are all gone (grep returns zero). Done as two scripted
+>   ordered-regex sweeps + hand fixes, not by hand-editing 30 files.
+> - **[x] IBM Plex Sans** self-hosted via `next/font/google` (no runtime request to
+>   Google), plus a pre-paint inline script in `app/layout.tsx` that reads
+>   `localStorage.sd_theme` so a dark-mode user never gets a white flash.
+> - **[x] New shared primitives — `components/ui.tsx`.** Card/CardHead, Label, Kpi,
+>   KpiNavy, MiniStat, Chip/DeltaChip/PointChip, Bar, StatusDot, `occColor`,
+>   SegTrack+`segButton`, `thClass`, TableScroll, PageHead, `chromeButton`,
+>   `surfaceButton`, SectionTitle, Rail+`railRowClass`, FreshnessStrip, Notice.
+>   **Use these before writing new markup.** Also new: `components/ThemeToggle.tsx`,
+>   `components/NavLinks.tsx`, `components/ControlBar.tsx`.
+> - **[x] Chrome rebuilt.** 56px navy top bar: lowercase `stayable` + gold dot,
+>   pill nav with an **active-page state** (`NavLinks` is a client child purely for
+>   `usePathname`), role name/title derived from the PIN level, theme toggle, log
+>   out. Nav stays a server component reading the auth cookie.
+> - **[x] Period controls de-duplicated.** They used to be rendered **5× down
+>   `/ops`** and again per per-user page; now there is ONE sticky `ControlBar`
+>   under the nav (`top-14`), and `<ControlBar standalone>` (`top-0`) for `/elise`,
+>   which has no chrome. Section scroll anchors moved to `scroll-mt-32
+>   lg:scroll-mt-28` to clear the taller sticky stack.
+> - **[x] Surfaces restyled:** `/login` (navy gradient + glass PIN card) · `/`
+>   (navy arrivals hero w/ per-property split bar, rooms-in-house card, at-a-glance
+>   grid, property cards w/ dot+bar) · `/report` (rail w/ per-row occupancy bars,
+>   KPI row, revenue-vs-LY card w/ MTD/YTD segmented + two-tone bars, leaderboard
+>   w/ sparklines, area-filled trend, OTB matrix w/ sticky metric column,
+>   methodology accordion, 3-tier availability legend) · `/ops` + `/rob` `/monica`
+>   `/crystal` `/bea` `/elise` `/test` (PageHead, rails, tiles, tables, forms).
+> - **[x] Verified:** `tsc` clean · **170/170 tests pass** · `next build` green ·
+>   production server started and **all 8 gated surfaces fetched 200** with no error
+>   boundaries · both token blocks + the self-hosted woff2 + every arbitrary
+>   utility (`text-[10.5px]`, `repeat(auto-fit,minmax(168px,1fr))`, the inset ring,
+>   `max-w-[1560px]`) confirmed present in the built CSS.
+> - **[x] Two DELIBERATE departures from the mock (don't "fix" these):**
+>   1. The mock's **global property-scope dropdown was not built** — this app has no
+>      global scope state, each surface owns its own filters. Adding one would mean
+>      inventing state that doesn't exist.
+>   2. **Home keeps its section rail** instead of the mock's Properties|Zones
+>      segmented toggle — dropping the rail would lose working navigation.
+> - **[x] No fabricated comparisons.** The mock puts a delta chip on every tile;
+>   chips were wired ONLY where a real last-year figure exists. The portfolio KPI
+>   row on `/report` intentionally has **none**, because the "Revenue vs. last year"
+>   card below it is scoped differently (excludes JN) and two differently-scoped
+>   deltas would read as a contradiction.
+> - **[x] On-navy literals are intentional.** `text-white` and the hex set
+>   (`#7FA8DA`, `#12386B`, `#8FB3DD`, `#6E96C9`, `#5C82B4`, `#2A5C9E`, `#9FC2E8`,
+>   `#FF9BAA`, `#0A7FD1`, `#062B5C`, `#04305C`) only ever sit on navy chrome or the
+>   login gradient, which are navy in BOTH themes — straight from the design source.
+>   Everything else is a token.
+> - **[ ] Not done / open from this session:**
+>   - **Visual check in a browser (light + dark)** — the one real gap.
+>   - Dropped one unverifiable line of mock copy ("PIN rotates monthly") from the
+>     login card; PINs are changed via `ChangePin`, not on a schedule.
+>   - ESLint is not configured in this repo (`next lint` prompts for setup), so
+>     lint was skipped — only `tsc` covers the new code.
+>   - Pre-existing typecheck error in `lib/ops-pdf-ooo.test.ts` (fixture missing 4
+>     `DashboardData` fields) STILL there — confirmed pre-existing against a clean
+>     tree, deliberately untouched.
+> - See memory `design-system` for the rules that now hold repo-wide.
+>
 > **Pickup — 07/27/26 (session 2). ELISE ENRICHMENT + /report POLISH SHIPPED;
 > DESIGN PROMPT SENT.** Commits `2556a62` (Elise data layer), `bf3eb60` (/ops §6–8
 > + Tour→Lease fix), `954a6b0` (/report polish), `2dc46d3` + `1aa3142` (merged
@@ -9,11 +152,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > verified locally against live data.
 >
 > **▶ START HERE NEXT SESSION:**
-> 1. **Kyle SENT the merged design prompt to Claude design (07/27).** When the
->    output comes back, adapt it into the app. Prompt lives at
->    `docs/prompts/dashboard-design-prompt.md` (single canonical prompt — the old
->    dashboard-overhaul + report-redesign files were merged and removed;
->    ASCII-only fallback at `dashboard-design-prompt-ascii.txt`).
+> 1. **[x] DONE 07/28 — design output adapted into the app** (see the session-3
+>    block above). Prompt lived at `docs/prompts/dashboard-design-prompt.md`; the
+>    returned design is `Property management dashboard system/`.
 > 2. **Verify on prod** — `/ops` §6–8 render; `/report` freshness stamp reads
 >    "8 of 8", sparklines, YoY MTD/YTD toggle, Methodology panel; confirm the next
 >    daily Teams card carries the methodology line.

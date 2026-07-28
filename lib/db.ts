@@ -2,6 +2,7 @@
 // persisting /test submissions and exec feedback). Never import from a client
 // component. One table `submissions` (see scripts/db-init.mjs).
 import { neon } from "@neondatabase/serverless";
+import { shiftYmd } from "./dates";
 import type { RowInputs } from "./revenue-report";
 
 function db() {
@@ -290,7 +291,15 @@ export async function upsertEliseMetrics(rows: EliseMetricRow[]): Promise<void> 
 // later cron task; read by the revenue report's MTD/YTD rollups via
 // sumSnapshotRows (lib/revenue-report.ts). See scripts/db-init.mjs for DDL.
 
-export type ReportSnapshotRow = RowInputs & { propertyCode: string; stayDate: string };
+export type ReportSnapshotRow = RowInputs & {
+  propertyCode: string;
+  stayDate: string;
+  /** True once the day's month is closed — the restatement pass skips it. */
+  isFinal?: boolean;
+  /** Total room revenue as FIRST captured (the 06:00 ET flash), never
+   *  overwritten. Null for rows banked before 07/28/26. */
+  flashRoomRev?: number | null;
+};
 
 /** Upsert one day's snapshot for a property. Idempotent — safe to re-run. */
 export async function upsertReportSnapshot(
@@ -333,15 +342,19 @@ export async function bankDailySnapshot(
   inputs: RowInputs,
 ): Promise<void> {
   const sql = db();
+  const roomRev = inputs.transientRev + inputs.leaseRev;
   await sql`
     insert into report_daily_snapshot (
       property_code, stay_date, transient_nights, lease_nights, other_blocks,
-      ooo, transient_rev, lease_rev, inventory
+      ooo, transient_rev, lease_rev, inventory,
+      comp_nights, blocks_by_type, ooo_source, flash_room_rev, first_captured_at
     )
     values (
       ${propertyCode}, ${stayDate}, ${inputs.transientNights}, ${inputs.leaseNights},
       ${inputs.otherBlocks}, ${inputs.ooo}, ${inputs.transientRev}, ${inputs.leaseRev},
-      ${inputs.inventory}
+      ${inputs.inventory},
+      ${inputs.compNights ?? 0}, ${JSON.stringify(inputs.blocksByType ?? {})},
+      ${inputs.oooSource ?? "cloudbeds"}, ${roomRev}, now()
     )
     on conflict (property_code, stay_date) do update set
       transient_nights = excluded.transient_nights,
@@ -351,12 +364,129 @@ export async function bankDailySnapshot(
       transient_rev = excluded.transient_rev,
       lease_rev = excluded.lease_rev,
       inventory = excluded.inventory,
+      comp_nights = excluded.comp_nights,
+      blocks_by_type = excluded.blocks_by_type,
+      ooo_source = excluded.ooo_source,
+      -- The flash is the FIRST capture only. A revenue-only backfill stub may
+      -- already exist with no flash recorded, so fill it; never overwrite one.
+      flash_room_rev = coalesce(report_daily_snapshot.flash_room_rev, excluded.flash_room_rev),
+      first_captured_at = coalesce(report_daily_snapshot.first_captured_at, now()),
       updated_at = now()
     where report_daily_snapshot.transient_nights = 0
       and report_daily_snapshot.lease_nights = 0
       and report_daily_snapshot.other_blocks = 0
       and report_daily_snapshot.ooo = 0
   `;
+}
+
+// --- Restatement (07/28/26) --------------------------------------------------
+// Kyle's decision after the Monica-parity analysis. This DELIBERATELY relaxes
+// the earlier capture-once rule, and the reason it is now safe is specific:
+// capture-once existed because dataset-3 night counts were re-derived from
+// CURRENT reservation status and so drifted when re-queried. Nights now come
+// from dataset-1 room-rate transactions keyed on `service_date`
+// (getPaidNightsByPlanDay), which reproduce a past day faithfully — so a
+// re-query is a correction, not drift.
+//
+// The ledger genuinely keeps moving: re-querying Davenport 7/25 raised transient
+// revenue 48% (our frozen $468.90 vs the settled $693.93, which is exactly
+// Monica's figure), while 7/24 moved DOWN 1.7%. Monica's own footnote says past
+// dates keep changing. So: keep the 06:00 flash, restate nightly over a trailing
+// window, and freeze permanently once the month is closed.
+
+/** Re-derive one day for one property. Updates every figure EXCEPT the flash
+ *  columns, and only while the row is not yet final. Returns true if a row was
+ *  actually updated (false = already finalized, or no such row). */
+export async function restateSnapshot(
+  propertyCode: string,
+  stayDate: string,
+  inputs: RowInputs,
+): Promise<boolean> {
+  const sql = db();
+  const rows = (await sql`
+    update report_daily_snapshot set
+      transient_nights = ${inputs.transientNights},
+      lease_nights = ${inputs.leaseNights},
+      other_blocks = ${inputs.otherBlocks},
+      ooo = ${inputs.ooo},
+      transient_rev = ${inputs.transientRev},
+      lease_rev = ${inputs.leaseRev},
+      inventory = ${inputs.inventory},
+      comp_nights = ${inputs.compNights ?? 0},
+      blocks_by_type = ${JSON.stringify(inputs.blocksByType ?? {})},
+      ooo_source = ${inputs.oooSource ?? "cloudbeds"},
+      flash_room_rev = coalesce(flash_room_rev, ${inputs.transientRev + inputs.leaseRev}),
+      restated_at = now(),
+      updated_at = now()
+    where property_code = ${propertyCode}
+      and stay_date = ${stayDate}
+      and is_final = false
+    returning 1 as ok
+  `) as { ok: number }[];
+  return rows.length > 0;
+}
+
+/** Freeze every day in months that closed more than `graceDays` ago. Idempotent.
+ *  Returns how many rows were newly finalized. */
+export async function finalizeClosedMonths(today: string, graceDays = 5): Promise<number> {
+  const sql = db();
+  const rows = (await sql`
+    update report_daily_snapshot set is_final = true, finalized_at = now()
+    where is_final = false
+      and stay_date < date_trunc('month', (${today}::date - ${graceDays}::int))
+    returning 1 as ok
+  `) as { ok: number }[];
+  return rows.length;
+}
+
+/** Latest stay_date that is finalized (portfolio-wide), or null if none is. */
+export async function getFinalThrough(): Promise<string | null> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select to_char(max(stay_date), 'YYYY-MM-DD') as d
+      from report_daily_snapshot where is_final = true
+    `) as { d: string | null }[];
+    return rows[0]?.d ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type RestatementRow = {
+  propertyCode: string;
+  stayDate: string;
+  flashRoomRev: number;
+  currentRoomRev: number;
+  delta: number;
+};
+
+/** Days in [from, to] whose room revenue has moved since the flash capture, so
+ *  the report can show how much a "final" number differs from what was first
+ *  published. Largest absolute move first. */
+export async function getRestatements(from: string, to: string, minDelta = 0.01): Promise<RestatementRow[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select property_code, to_char(stay_date, 'YYYY-MM-DD') as stay_date,
+             flash_room_rev::float8 as flash,
+             (transient_rev + lease_rev)::float8 as current
+      from report_daily_snapshot
+      where stay_date >= ${from} and stay_date <= ${to}
+        and flash_room_rev is not null
+        and abs((transient_rev + lease_rev) - flash_room_rev) >= ${minDelta}
+      order by abs((transient_rev + lease_rev) - flash_room_rev) desc
+    `) as { property_code: string; stay_date: string; flash: number; current: number }[];
+    return rows.map((r) => ({
+      propertyCode: r.property_code,
+      stayDate: r.stay_date,
+      flashRoomRev: Number(r.flash),
+      currentRoomRev: Number(r.current),
+      delta: Number(r.current) - Number(r.flash),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /** Gap detector: for each `codes` property × each day in [start, end], report
@@ -389,6 +519,96 @@ export async function findSnapshotGaps(
   return rows.map((r) => ({ propertyCode: r.property_code, stayDate: r.stay_date }));
 }
 
+export type AvailabilityAlert = {
+  propertyCode: string;
+  firstDay: string;
+  lastDay: string;
+  days: number;
+  avgAvailablePct: number;
+};
+
+/** Properties showing implausibly high availability for a sustained run of days
+ *  — the signature of an inventory/OOO problem rather than of a quiet week.
+ *
+ *  WHY: Jacksonville North read 89 of 127 rooms available (70%) for months
+ *  because only 20 of its ~107 unsellable renovation rooms were blocked in
+ *  Cloudbeds. Nothing flagged it; it took a manual reconciliation against
+ *  Monica's report to notice. A property that genuinely cannot sell rooms shows
+ *  up here on day one.
+ *
+ *  Returns one entry per maximal run of >= `minDays` consecutive banked days
+ *  where availability >= `thresholdPct` of inventory. Days with no banked row,
+ *  or with no inventory, break a run rather than extending it. */
+export async function findAvailabilityAnomalies(
+  start: string,
+  end: string,
+  thresholdPct = 0.25,
+  minDays = 7,
+): Promise<AvailabilityAlert[]> {
+  const sql = db();
+  const rows = (await sql`
+    select property_code, to_char(stay_date, 'YYYY-MM-DD') as stay_date,
+           ((inventory - (transient_nights + lease_nights + other_blocks) - ooo)::float8
+             / nullif(inventory, 0)) as avail_pct
+    from report_daily_snapshot
+    where stay_date >= ${start} and stay_date <= ${end} and inventory > 0
+    order by property_code, stay_date
+  `) as { property_code: string; stay_date: string; avail_pct: number | null }[];
+  return groupAvailabilityRuns(
+    rows.map((r) => ({ code: r.property_code, day: r.stay_date, availPct: r.avail_pct })),
+    thresholdPct,
+    minDays,
+  );
+}
+
+/** Pure run-detection behind `findAvailabilityAnomalies`: collapse day rows
+ *  (ordered by code then day) into maximal runs of >= `minDays` CONSECUTIVE days
+ *  at or above `thresholdPct` availability. A missing day, a null percentage or a
+ *  day below the threshold breaks a run rather than extending it — a gap must not
+ *  be silently bridged into a longer alert than the data supports. Split out so
+ *  the boundary conditions are unit-tested without a database. */
+export function groupAvailabilityRuns(
+  rows: { code: string; day: string; availPct: number | null }[],
+  thresholdPct = 0.25,
+  minDays = 7,
+): AvailabilityAlert[] {
+  const out: AvailabilityAlert[] = [];
+  let run: { code: string; days: string[]; pcts: number[] } | null = null;
+
+  const flush = () => {
+    if (run && run.days.length >= minDays) {
+      out.push({
+        propertyCode: run.code,
+        firstDay: run.days[0],
+        lastDay: run.days[run.days.length - 1],
+        days: run.days.length,
+        avgAvailablePct: run.pcts.reduce((a, b) => a + b, 0) / run.pcts.length,
+      });
+    }
+    run = null;
+  };
+
+  for (const r of rows) {
+    const pct = r.availPct;
+    const current = run;
+    const contiguous =
+      current != null && current.code === r.code && shiftYmd(current.days[current.days.length - 1], 1) === r.day;
+    if (pct != null && pct >= thresholdPct) {
+      if (contiguous && current) {
+        current.days.push(r.day);
+        current.pcts.push(pct);
+      } else {
+        flush();
+        run = { code: r.code, days: [r.day], pcts: [pct] };
+      }
+    } else {
+      flush();
+    }
+  }
+  flush();
+  return out;
+}
+
 /** Snapshot rows in [start, end] (inclusive), optionally filtered to one
  *  property. Ordered by property_code, stay_date. */
 export async function getReportSnapshots(
@@ -401,7 +621,8 @@ export async function getReportSnapshots(
     select
       property_code, to_char(stay_date, 'YYYY-MM-DD') as stay_date,
       transient_nights, lease_nights, other_blocks, ooo,
-      transient_rev, lease_rev, inventory
+      transient_rev, lease_rev, inventory,
+      comp_nights, blocks_by_type, ooo_source, is_final, flash_room_rev
     from report_daily_snapshot
     where stay_date >= ${start} and stay_date <= ${end}
       and (${propertyCode}::text is null or property_code = ${propertyCode})
@@ -410,6 +631,8 @@ export async function getReportSnapshots(
     property_code: string; stay_date: string;
     transient_nights: number; lease_nights: number; other_blocks: number; ooo: number;
     transient_rev: string; lease_rev: string; inventory: number;
+    comp_nights: number; blocks_by_type: Record<string, number> | null;
+    ooo_source: string | null; is_final: boolean | null; flash_room_rev: string | null;
   }[];
   return rows.map((r) => ({
     propertyCode: r.property_code,
@@ -421,6 +644,11 @@ export async function getReportSnapshots(
     transientRev: Number(r.transient_rev),
     leaseRev: Number(r.lease_rev),
     inventory: Number(r.inventory),
+    compNights: Number(r.comp_nights ?? 0),
+    blocksByType: r.blocks_by_type ?? {},
+    oooSource: r.ooo_source === "override" ? "override" : "cloudbeds",
+    isFinal: r.is_final === true,
+    flashRoomRev: r.flash_room_rev == null ? null : Number(r.flash_room_rev),
   }));
 }
 
@@ -435,6 +663,35 @@ export async function getEarliestSnapshotDate(propertyCode: string | null): Prom
     where ${propertyCode}::text is null or property_code = ${propertyCode}
   `) as { min_date: string | null }[];
   return rows[0]?.min_date ?? null;
+}
+
+// --- Rate-plan drift alerting (07/28/26) ------------------------------------
+// Lease vs transient comes entirely from the rate-plan string, so a plan name
+// nobody has ruled on banks as transient and the snapshot freezes it. Recording
+// the plans we have seen turns that silent failure into an alert the first time
+// a new name appears.
+
+/** Register the plans seen in an audit run and return the ones that are NEW
+ *  (never recorded before this call). Idempotent; safe to run every night. */
+export async function recordAndDiffRatePlans(plans: string[]): Promise<string[]> {
+  if (plans.length === 0) return [];
+  const sql = db();
+  const known = (await sql`select plan from known_rate_plan`) as { plan: string }[];
+  const seen = new Set(known.map((k) => k.plan));
+  const fresh = [...new Set(plans)].filter((p) => !seen.has(p));
+
+  const values: string[] = [];
+  const params: unknown[] = [];
+  [...new Set(plans)].forEach((p, i) => {
+    values.push(`($${i + 1})`);
+    params.push(p);
+  });
+  await sql.query(
+    `insert into known_rate_plan (plan) values ${values.join(",")}
+     on conflict (plan) do update set last_seen = now()`,
+    params,
+  );
+  return fresh;
 }
 
 // --- Historical revenue-only backfill (Kyle's decision — see
