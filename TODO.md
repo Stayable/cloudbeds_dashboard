@@ -220,6 +220,36 @@ KE question and exposed a second, related defect.
 >   the `triggerBody()?['card']` change, the ordered go-live sequence, rollback.
 > - Sizes are a non-issue: ~72 KB pdf + ~24 KB xlsx ≈ 130 KB of base64.
 >
+> **[x] THE OOO GAP IS EXPLAINED — Kyle 07/29/26. Cloudbeds room blocks ERODE.**
+> When a user changes a block, the OOO block **disappears from the days already
+> passed**, because Cloudbeds won't let anyone set a block for a past time. So a
+> past day's OOO **can only ever decrease**, and there is no as-of view.
+>
+> This explains the whole systematic gap — every OOO delta vs her report is
+> negative and ours is always lower (**LL −11, JW −10, SA −11, KE −81** MTD). It
+> also inverts the fix I proposed an hour earlier: **capture EARLIER, not later.**
+> - It **confirms the session-4 freeze is right** — re-querying can only lose
+>   blocks (LL 7/26 fell 6→4, JW 6→5 on re-query). Keep `restateSnapshot` skipping
+>   blocks.
+> - But **our capture is still too late.** The flash banks stay date D at 06:00 ET
+>   on **D+1**, so anything tidied during D or overnight is already gone. Proven on
+>   2026-07-28: banked LL `ooo` = **3** while both her report and a live re-query
+>   read **6** — and the freeze makes that 3 permanent.
+> - She captures earlier in effect (her workbook carries the figure forward from
+>   when the day was current), which is why she is consistently higher.
+>
+> **[?] PROPOSED, NOT BUILT — needs Kyle's go-ahead:**
+> 1. Add an **end-of-day (~23:00 ET) capture of TODAY's blocks** and bank that as
+>    D's OOO, rather than relying on the D+1 morning read.
+> 2. Treat banked OOO as the **maximum ever observed on or after the stay date** —
+>    erosion is one-way, so the highest same-or-later reading is the truest, and a
+>    max also makes the 429-banks-zero hazard (Item 298) self-healing.
+> 3. **Do NOT feed forward/on-the-books observations into that max.** A block on a
+>    future date is a *plan*; if the room is repaired early the day never was out
+>    of order, so pre-date readings would overstate. Only D-or-later counts.
+>
+> See memory `ooo-erodes-in-cloudbeds`.
+>
 > **[x] HEAD-TO-HEAD vs HER REAL 07/29 REPORT — CLOSE. Both files in the repo:**
 > hers at the repo root, ours at `outputs/`, same name, same as-of date, same data
 > day (through 07-28). Diff script pattern: parse both PDFs' ACTUAL pages, split
