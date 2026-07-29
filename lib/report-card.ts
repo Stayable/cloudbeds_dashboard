@@ -5,7 +5,7 @@
 // top level (verified live 2026-07-22 -- anything else 400s). It also 400s
 // on non-ASCII bytes, so every string built here must be ASCII-safe.
 import { PROPERTIES } from "../config/properties";
-import { REPORT_NOTES, reportFileBase, reportGreeting, reportShortName } from "./revenue-report";
+import { REPORT_NOTES, reportFileBase, reportGreeting } from "./revenue-report";
 import type { RevenueReport, PropertyActual, DerivedRow } from "./revenue-report";
 
 const pct = (n: number) => (n * 100).toFixed(1) + "%";
@@ -124,14 +124,6 @@ export function buildReportCard(
   const roomRevMtd = sumRoomRev(report.actual, (p) => p.mtd.actual);
   const mtdPartial = mtdCountsPartial(report.actual);
 
-  const footerParts = [report.sourceNote];
-  if (report.trackingSince) {
-    footerParts.push(`MTD/YTD accumulate from ${report.trackingSince}`);
-  }
-  footerParts.push(
-    "Methodology confirmed by Monica Oco (Revenue Management); see the Methodology & sources panel on /report",
-  );
-
   // Freshness warning. A card that lands on a morning when the cron failed
   // otherwise reads as a genuinely quiet night, so say it in the card itself
   // rather than expecting anyone to open the dashboard to find out.
@@ -173,33 +165,6 @@ export function buildReportCard(
     },
   );
 
-  // Her own availability tiers (see REPORT_NOTES "Legend"), applied to
-  // yesterday's actuals so the message says who needs attention instead of
-  // leaving it to be found in the PDF. Only rendered when non-empty.
-  const tight = report.actual
-    .filter((p) => p.yesterday.actual.pAvail <= 0.15)
-    .map((p) => `${reportShortName(p.code, p.name)} ${pct(p.yesterday.actual.pAvail)}`);
-  const loose = report.actual
-    .filter((p) => p.yesterday.actual.pAvail >= 0.4)
-    .map((p) => `${reportShortName(p.code, p.name)} ${pct(p.yesterday.actual.pAvail)}`);
-  const attention: { type: string; text: string; wrap: boolean; size: string }[] = [];
-  if (tight.length) {
-    attention.push({
-      type: "TextBlock",
-      text: `Nearly sold out yesterday (15% or less left to sell): ${tight.join(", ")}.`,
-      wrap: true,
-      size: "Small",
-    });
-  }
-  if (loose.length) {
-    attention.push({
-      type: "TextBlock",
-      text: `Most room to sell yesterday (40% or more of inventory available): ${loose.join(", ")}.`,
-      wrap: true,
-      size: "Small",
-    });
-  }
-
   const body: unknown[] = [
     {
       // Her post's title, so the daily message reads the way the team is used to.
@@ -238,32 +203,11 @@ export function buildReportCard(
       type: "FactSet",
       facts,
     },
-    {
-      type: "TextBlock",
-      text: "By property (yesterday)",
-      weight: "Bolder",
-      wrap: true,
-      spacing: "Medium",
-    },
-    {
-      type: "FactSet",
-      facts: report.actual.map((p) => {
-        const r = p.yesterday.actual;
-        const ly = p.yesterday.lastYear;
-        // Per-property occupancy variance in points, when a last-year day exists.
-        const delta =
-          ly == null ? "" : ` (${signed((r.pOcc - ly.pOcc) * 100, (v) => v.toFixed(1))} pts vs LY)`;
-        return {
-          // Her name, not the config name — the card read "Orlando OBT" where the
-          // report it links to says "Orlando" (seen live in the test channel).
-          title: reportShortName(p.code, p.name),
-          value:
-            `${pct(r.pOcc)} occ${delta} - ADR ${money(r.adrCombined)} - ` +
-            `RevPAR ${money(r.revpar)} - OOO ${r.ooo}`,
-        };
-      }),
-    },
-    ...attention,
+    // No per-property breakdown and no source/methodology footer: Kyle 07/29/26,
+    // both made the message too crowded to read, and the point is to automate
+    // Monica's post, which carries neither. The per-property detail is in the
+    // attached PDF (page per pair of properties) and on the dashboard; the
+    // methodology is on the PDF's own methodology pages.
     // Her Sources / Notes / Legend, verbatim except the one Yardi line that does
     // not describe how these figures are produced (see REPORT_NOTES). Shared
     // with the PDF's notes page so the message and the file cannot disagree.
@@ -283,13 +227,6 @@ export function buildReportCard(
         spacing: "None",
       },
     ]),
-    {
-      type: "TextBlock",
-      text: footerParts.join(". "),
-      isSubtle: true,
-      wrap: true,
-      size: "Small",
-    },
   ];
 
   // Until the flow attaches the real file, the PDF button IS the attachment

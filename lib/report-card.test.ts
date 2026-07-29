@@ -22,12 +22,17 @@ describe("buildReportCard", () => {
     expect(s).not.toMatch(/[^\x00-\x7F]/);
   });
 
-  it("names properties the way the report does, not the way config does", () => {
-    const orRpt:any = { ...rpt, actual: [{ ...rpt.actual[0], code: "OR", name: "Orlando OBT" }] };
-    const c:any = buildReportCard(orRpt, "https://dashboard.rentstayable.com");
-    const titles = c.body.flatMap((b:any)=>b.type==="FactSet" ? b.facts.map((f:any)=>f.title) : []);
-    expect(titles).toContain("Orlando");
-    expect(titles).not.toContain("Orlando OBT");
+  it("carries no per-property breakdown and no source/methodology footer", () => {
+    // Kyle 07/29/26: both made the message too crowded. The per-property detail
+    // lives in the attached PDF; the methodology on its methodology pages.
+    const c:any = buildReportCard(rpt, "https://dashboard.rentstayable.com");
+    const texts = c.body.map((b:any)=>b.text ?? "").join("\n");
+    expect(texts).not.toContain("By property");
+    expect(texts).not.toContain("Stayable Davenport");
+    expect(texts).not.toContain("Methodology confirmed by Monica Oco");
+    expect(texts).not.toContain(SOURCE_NOTE);
+    const factTitles = c.body.flatMap((b:any)=>b.facts?.map((f:any)=>f.title) ?? []);
+    expect(factTitles).not.toContain("Davenport");
   });
 
   it("drops the PDF button only when the PDF ships as a real attachment", () => {

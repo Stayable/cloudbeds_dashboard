@@ -138,10 +138,14 @@ describe("Teams card parity", () => {
     expect(json).not.toMatch(/[^\x00-\x7F]/);
   });
 
-  it("points at the methodology panel in the footer", () => {
+  // The card deliberately does NOT carry METHODOLOGY or the source blob any more
+  // (Kyle 07/29/26 — too crowded; the point is to automate Monica's post, which
+  // carries neither). The .xlsx and .pdf still do — pinned further down — and the
+  // card keeps her Sources/Notes/Legend, which is where the definitions live.
+  it("keeps the methodology out of the message", () => {
     const card = buildReportCard(baseReport(), "https://x.test") as { body: { text?: string }[] };
     const texts = card.body.map((b) => b.text ?? "").join(" ");
-    expect(texts).toContain("Methodology confirmed by Monica Oco");
+    expect(texts).not.toContain("Methodology confirmed by Monica Oco");
   });
 
   it("does NOT warn when the latest capture covers the report date", () => {
