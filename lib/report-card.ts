@@ -39,6 +39,60 @@ function sumRoomRev(actual: PropertyActual[], pick: (p: PropertyActual) => Deriv
   return total;
 }
 
+/** Same weighting, over the LAST-YEAR rows. Returns null unless EVERY
+ *  aggregate-eligible property has a last-year row: a partial set would weight
+ *  this year's full portfolio against a subset of last year's and read as a
+ *  swing that never happened. */
+function weightedOccLastYear(
+  actual: PropertyActual[],
+  pick: (p: PropertyActual) => { lastYear: DerivedRow | null },
+): number | null {
+  let occupied = 0;
+  let inventory = 0;
+  for (const p of actual) {
+    if (excludeFromAggregate(p.code)) continue;
+    const row = pick(p).lastYear;
+    if (!row) return null;
+    occupied += row.occupied;
+    inventory += row.inventory;
+  }
+  return inventory ? occupied / inventory : null;
+}
+
+/** Last-year room revenue on the same scope, null unless every eligible
+ *  property has a last-year row (see weightedOccLastYear). */
+function sumRoomRevLastYear(
+  actual: PropertyActual[],
+  pick: (p: PropertyActual) => { lastYear: DerivedRow | null },
+): number | null {
+  let total = 0;
+  for (const p of actual) {
+    if (excludeFromAggregate(p.code)) continue;
+    const row = pick(p).lastYear;
+    if (!row) return null;
+    total += row.roomRev;
+  }
+  return total;
+}
+
+const signed = (n: number, fmt: (v: number) => string) => (n >= 0 ? "+" : "-") + fmt(Math.abs(n));
+
+/** "82.4% (LY 71.2%, +11.2 pts)" — occupancy variance in POINTS, not percent of
+ *  a percent, which is the usual way this gets misread. */
+function occWithLastYear(now: number, lastYear: number | null): string {
+  if (lastYear == null) return pct(now);
+  return `${pct(now)} (LY ${pct(lastYear)}, ${signed((now - lastYear) * 100, (v) => v.toFixed(1))} pts)`;
+}
+
+/** "$29,713.84 (LY $27,001.11, +10.0%)" — revenue variance as a percentage
+ *  change, guarded against a zero last-year base. */
+function moneyWithLastYear(now: number, lastYear: number | null): string {
+  if (lastYear == null) return money(now);
+  const change = lastYear === 0 ? null : (now - lastYear) / lastYear;
+  const delta = change == null ? signed(now - lastYear, money) : signed(change * 100, (v) => v.toFixed(1) + "%");
+  return `${money(now)} (LY ${money(lastYear)}, ${delta})`;
+}
+
 /** True if ANY aggregate-eligible property's MTD counts are partial — in that
  *  case the portfolio MTD occupancy % would combine some properties' real
  *  counts with others' ~1-day counts, so it must not be surfaced at all
@@ -90,16 +144,61 @@ export function buildReportCard(
   // counts with ~1-day counts into a garbage figure. Omit the fact entirely
   // when partial; Room Revenue (MTD) is unaffected and always shown.
   const facts: { title: string; value: string }[] = [
-    { title: "Portfolio Occupancy (Yesterday)", value: pct(portfolioOccYesterday) },
+    {
+      title: "Portfolio Occupancy (Yesterday)",
+      value: occWithLastYear(
+        portfolioOccYesterday,
+        weightedOccLastYear(report.actual, (p) => p.yesterday),
+      ),
+    },
   ];
   if (!mtdPartial) {
     const portfolioOccMtd = weightedOcc(report.actual, (p) => p.mtd.actual);
-    facts.push({ title: "Portfolio Occupancy (MTD)", value: pct(portfolioOccMtd) });
+    facts.push({
+      title: "Portfolio Occupancy (MTD)",
+      value: occWithLastYear(portfolioOccMtd, weightedOccLastYear(report.actual, (p) => p.mtd)),
+    });
   }
   facts.push(
-    { title: "Room Revenue (Yesterday)", value: money(roomRevYesterday) },
-    { title: "Room Revenue (MTD)", value: money(roomRevMtd) },
+    {
+      title: "Room Revenue (Yesterday)",
+      value: moneyWithLastYear(
+        roomRevYesterday,
+        sumRoomRevLastYear(report.actual, (p) => p.yesterday),
+      ),
+    },
+    {
+      title: "Room Revenue (MTD)",
+      value: moneyWithLastYear(roomRevMtd, sumRoomRevLastYear(report.actual, (p) => p.mtd)),
+    },
   );
+
+  // Her own availability tiers (see REPORT_NOTES "Legend"), applied to
+  // yesterday's actuals so the message says who needs attention instead of
+  // leaving it to be found in the PDF. Only rendered when non-empty.
+  const tight = report.actual
+    .filter((p) => p.yesterday.actual.pAvail <= 0.15)
+    .map((p) => `${reportShortName(p.code, p.name)} ${pct(p.yesterday.actual.pAvail)}`);
+  const loose = report.actual
+    .filter((p) => p.yesterday.actual.pAvail >= 0.4)
+    .map((p) => `${reportShortName(p.code, p.name)} ${pct(p.yesterday.actual.pAvail)}`);
+  const attention: { type: string; text: string; wrap: boolean; size: string }[] = [];
+  if (tight.length) {
+    attention.push({
+      type: "TextBlock",
+      text: `Nearly sold out yesterday (15% or less left to sell): ${tight.join(", ")}.`,
+      wrap: true,
+      size: "Small",
+    });
+  }
+  if (loose.length) {
+    attention.push({
+      type: "TextBlock",
+      text: `Most room to sell yesterday (40% or more of inventory available): ${loose.join(", ")}.`,
+      wrap: true,
+      size: "Small",
+    });
+  }
 
   const body: unknown[] = [
     {
@@ -148,13 +247,23 @@ export function buildReportCard(
     },
     {
       type: "FactSet",
-      facts: report.actual.map((p) => ({
-        // Her name, not the config name — the card read "Orlando OBT" where the
-        // report it links to says "Orlando" (seen live in the test channel).
-        title: reportShortName(p.code, p.name),
-        value: `${pct(p.yesterday.actual.pOcc)} occ - RevPAR ${money(p.yesterday.actual.revpar)}`,
-      })),
+      facts: report.actual.map((p) => {
+        const r = p.yesterday.actual;
+        const ly = p.yesterday.lastYear;
+        // Per-property occupancy variance in points, when a last-year day exists.
+        const delta =
+          ly == null ? "" : ` (${signed((r.pOcc - ly.pOcc) * 100, (v) => v.toFixed(1))} pts vs LY)`;
+        return {
+          // Her name, not the config name — the card read "Orlando OBT" where the
+          // report it links to says "Orlando" (seen live in the test channel).
+          title: reportShortName(p.code, p.name),
+          value:
+            `${pct(r.pOcc)} occ${delta} - ADR ${money(r.adrCombined)} - ` +
+            `RevPAR ${money(r.revpar)} - OOO ${r.ooo}`,
+        };
+      }),
     },
+    ...attention,
     // Her Sources / Notes / Legend, verbatim except the one Yardi line that does
     // not describe how these figures are produced (see REPORT_NOTES). Shared
     // with the PDF's notes page so the message and the file cannot disagree.
@@ -183,17 +292,21 @@ export function buildReportCard(
     },
   ];
 
-  const actions: object[] = [
-    { type: "Action.OpenUrl", title: "View report", url: `${baseUrl}/report` },
-    { type: "Action.OpenUrl", title: "Download Excel", url: `${baseUrl}/report/latest.xlsx` },
-  ];
+  // Until the flow attaches the real file, the PDF button IS the attachment
+  // (Kyle 07/29/26), so it leads. Both file links are gated behind the MAIN pin
+  // by middleware.ts — anyone in the chat without that pin gets a login wall.
+  const actions: object[] = [];
   if (!opts.pdfAttached) {
     actions.push({
       type: "Action.OpenUrl",
-      title: "Download PDF",
+      title: `${reportFileBase(report.asOf)} (PDF)`,
       url: `${baseUrl}/report/latest.pdf`,
     });
   }
+  actions.push(
+    { type: "Action.OpenUrl", title: "Same report in Excel", url: `${baseUrl}/report/latest.xlsx` },
+    { type: "Action.OpenUrl", title: "Open the dashboard", url: `${baseUrl}/report` },
+  );
 
   return {
     type: "AdaptiveCard",

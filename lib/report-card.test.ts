@@ -30,15 +30,20 @@ describe("buildReportCard", () => {
     expect(titles).not.toContain("Orlando OBT");
   });
 
-  it("drops the Download PDF button when the PDF ships as an attachment", () => {
+  it("drops the PDF button only when the PDF ships as a real attachment", () => {
+    // Keyed off URLs, not titles: the label carries the report date and moves.
     const plain:any = buildReportCard(rpt, "https://x.test");
-    expect(plain.actions.map((a:any)=>a.title)).toContain("Download PDF");
+    expect(plain.actions.map((a:any)=>a.url)).toContain("https://x.test/report/latest.pdf");
+    // Until the flow attaches the file, that button IS the attachment, so it leads.
+    expect(plain.actions[0].url).toBe("https://x.test/report/latest.pdf");
+    expect(plain.actions[0].title).toContain("(PDF)");
+
     const attached:any = buildReportCard(rpt, "https://x.test", { pdfAttached: true });
-    const titles = attached.actions.map((a:any)=>a.title);
-    expect(titles).not.toContain("Download PDF");
+    const urls = attached.actions.map((a:any)=>a.url);
+    expect(urls).not.toContain("https://x.test/report/latest.pdf");
     // The .xlsx is deliberately NOT attached, so its link must survive.
-    expect(titles).toContain("Download Excel");
-    expect(titles).toContain("View report");
+    expect(urls).toContain("https://x.test/report/latest.xlsx");
+    expect(urls).toContain("https://x.test/report");
   });
 
   it("shows Portfolio Occupancy (MTD) when MTD counts are complete", () => {

@@ -95,6 +95,29 @@ describe("REPORT_NOTES", () => {
   });
 });
 
+describe("Teams card last-year variance", () => {
+  it("shows occupancy variance in POINTS and revenue variance in percent", () => {
+    const card = buildReportCard(baseReport(), "https://x.test") as { body: { facts?: { title: string; value: string }[] }[] };
+    const facts = card.body.flatMap((b) => b.facts ?? []);
+    // The fixture gives MTD/YTD a last-year row but not Yesterday, so this
+    // exercises both branches at once.
+    expect(facts.find((f) => f.title === "Portfolio Occupancy (MTD)")?.value).toMatch(/LY .*pts\)$/);
+    expect(facts.find((f) => f.title === "Room Revenue (MTD)")?.value).toMatch(/LY \$.*%\)$/);
+    expect(facts.find((f) => f.title === "Portfolio Occupancy (Yesterday)")?.value).not.toContain("LY");
+  });
+
+  it("omits LY entirely when any aggregate-eligible property lacks a last-year row", () => {
+    // A partial set would weight this year's full portfolio against a subset of
+    // last year's and read as a swing that never happened.
+    const partial = baseReport();
+    partial.actual[1].mtd.lastYear = null;
+    const card = buildReportCard(partial, "https://x.test") as { body: { facts?: { title: string; value: string }[] }[] };
+    const facts = card.body.flatMap((b) => b.facts ?? []);
+    expect(facts.find((f) => f.title === "Portfolio Occupancy (MTD)")?.value).not.toContain("LY");
+    expect(facts.find((f) => f.title === "Room Revenue (MTD)")?.value).not.toContain("LY");
+  });
+});
+
 describe("Teams card parity", () => {
   it("opens with her title and greeting, and carries her notes inline", async () => {
     const { REPORT_NOTES } = await import("./revenue-report");
