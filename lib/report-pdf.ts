@@ -16,6 +16,7 @@ import autoTable from "jspdf-autotable";
 import {
   isCountDependentRow,
   METHODOLOGY,
+  REPORT_NOTES,
   periodHeaderLabels,
   reportDisplayName,
   weekdayName,
@@ -315,25 +316,25 @@ export function renderReportPdf(report: RevenueReport): Buffer {
     );
     y += 4;
 
-    line("Sources:", { bold: true });
-    line("- Transient room nights / revenue and out-of-order counts are from Cloudbeds.", { indent: 8 });
-    line(
-      "- Lease room nights / revenue are from Cloudbeds, classified by rate plan (Monthly Lease and Weekly Lease).",
-      { indent: 8 }
-    );
-    line(`- ${rep.sourceNote}`, { indent: 8 });
-    y += 4;
+    // Her Sources / Notes / Legend, from the shared REPORT_NOTES so this page
+    // and the Teams card always say the same thing.
+    for (const sec of REPORT_NOTES) {
+      line(`${sec.heading}:`, { bold: true });
+      for (const pt of sec.points) line(`- ${pt}`, { indent: 8 });
+      // Our dynamic, report-specific notes belong with her static ones.
+      if (sec.heading === "Notes") renderDynamicNotes(rep, line);
+      y += 4;
+    }
+  }
 
-    line("Notes:", { bold: true });
-    line(
-      "- Other blocks - blocked or occupied rooms other than paid lease / transient rooms (e.g. PM rooms, rooms held for an ongoing leasing contract).",
-      { indent: 8 }
-    );
-    line("- Room Revenue (Transient & Lease) excludes taxes and adjustments.", { indent: 8 });
-    line(
-      "- Results for past dates still change depending on updates in blocks and out-of-order rooms.",
-      { indent: 8 }
-    );
+  /** The notes that depend on this particular run: tracking window, what is
+   *  final, any out-of-order override, and data freshness. No counterpart in
+   *  hers — she has no equivalent machinery to disclose. */
+  function renderDynamicNotes(
+    rep: RevenueReport,
+    line: (text: string, opts?: { bold?: boolean; indent?: number }) => void
+  ) {
+    line(`- ${rep.sourceNote}`, { indent: 8 });
     if (rep.trackingSince) {
       line(`- MTD / YTD accumulate from daily snapshots starting ${rep.trackingSince}.`, { indent: 8 });
     }
@@ -359,14 +360,6 @@ export function renderReportPdf(report: RevenueReport): Buffer {
         { indent: 8 }
       );
     }
-    y += 4;
-
-    line("Legend:", { bold: true });
-    line("- ADR - Average Daily Rate / Average Room Rate", { indent: 8 });
-    line("- RevPar - Revenue per Available Room", { indent: 8 });
-    line("- Highlighted in orange are dates at 20% or less availability left.", { indent: 8 });
-    line("- Highlighted in red are dates at 15% or less availability left.", { indent: 8 });
-    line("- In purple text are dates with at least 40% of the inventory available to sell.", { indent: 8 });
   }
 
   function renderMethodologyPages(d: jsPDF, top: number) {

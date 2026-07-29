@@ -22,6 +22,25 @@ describe("buildReportCard", () => {
     expect(s).not.toMatch(/[^\x00-\x7F]/);
   });
 
+  it("names properties the way the report does, not the way config does", () => {
+    const orRpt:any = { ...rpt, actual: [{ ...rpt.actual[0], code: "OR", name: "Orlando OBT" }] };
+    const c:any = buildReportCard(orRpt, "https://dashboard.rentstayable.com");
+    const titles = c.body.flatMap((b:any)=>b.type==="FactSet" ? b.facts.map((f:any)=>f.title) : []);
+    expect(titles).toContain("Orlando");
+    expect(titles).not.toContain("Orlando OBT");
+  });
+
+  it("drops the Download PDF button when the PDF ships as an attachment", () => {
+    const plain:any = buildReportCard(rpt, "https://x.test");
+    expect(plain.actions.map((a:any)=>a.title)).toContain("Download PDF");
+    const attached:any = buildReportCard(rpt, "https://x.test", { pdfAttached: true });
+    const titles = attached.actions.map((a:any)=>a.title);
+    expect(titles).not.toContain("Download PDF");
+    // The .xlsx is deliberately NOT attached, so its link must survive.
+    expect(titles).toContain("Download Excel");
+    expect(titles).toContain("View report");
+  });
+
   it("shows Portfolio Occupancy (MTD) when MTD counts are complete", () => {
     const c:any = buildReportCard(rpt, "https://dashboard.rentstayable.com");
     const factSet = c.body.find((b:any)=>b.type==="FactSet" && b.facts.some((f:any)=>f.title.startsWith("Portfolio Occupancy")));

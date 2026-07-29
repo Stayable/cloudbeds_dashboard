@@ -71,7 +71,50 @@ describe("METHODOLOGY", () => {
   });
 });
 
+describe("REPORT_NOTES", () => {
+  it("is ASCII-only — the flow 400s on non-ASCII bytes in the card", async () => {
+    const { REPORT_NOTES } = await import("./revenue-report");
+    const all = REPORT_NOTES.flatMap((s) => [s.heading, ...s.points]).join(" ");
+    expect(all).not.toMatch(/[^\x00-\x7F]/);
+  });
+
+  it("carries her three headings and her Other Blocks / ADR / RevPar wording", async () => {
+    const { REPORT_NOTES } = await import("./revenue-report");
+    expect(REPORT_NOTES.map((s) => s.heading)).toEqual(["Sources", "Notes", "Legend"]);
+    const all = REPORT_NOTES.flatMap((s) => s.points).join(" ");
+    expect(all).toContain("Other Blocks - blocked or occupied room other than paid leases/transient rooms");
+    expect(all).toContain("ADR - Average Daily Rate / Average Room Rate");
+    expect(all).toContain("RevPar - Revenue per Available Room");
+  });
+
+  it("does NOT reproduce her Yardi source line, which is not how ours are built", async () => {
+    const { REPORT_NOTES } = await import("./revenue-report");
+    const all = REPORT_NOTES.flatMap((s) => s.points).join(" ");
+    expect(all).not.toMatch(/Yardi/i);
+    expect(all).toContain("classified by rate plan");
+  });
+});
+
 describe("Teams card parity", () => {
+  it("opens with her title and greeting, and carries her notes inline", async () => {
+    const { REPORT_NOTES } = await import("./revenue-report");
+    const card = buildReportCard(baseReport(), "https://x.test") as {
+      body: { text?: string }[];
+    };
+    const texts = card.body.map((b) => b.text ?? "").join("\n");
+    expect(texts).toContain("Occupancy Report as of July 27, 2026");
+    expect(texts).toContain("Good day Team. Please refer to the attached file");
+    for (const sec of REPORT_NOTES) {
+      expect(texts).toContain(`${sec.heading}:`);
+      for (const pt of sec.points) expect(texts).toContain(pt);
+    }
+  });
+
+  it("stays ASCII-safe with the notes embedded", () => {
+    const json = JSON.stringify(buildReportCard(baseReport(), "https://x.test"));
+    expect(json).not.toMatch(/[^\x00-\x7F]/);
+  });
+
   it("points at the methodology panel in the footer", () => {
     const card = buildReportCard(baseReport(), "https://x.test") as { body: { text?: string }[] };
     const texts = card.body.map((b) => b.text ?? "").join(" ");

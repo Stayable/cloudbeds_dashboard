@@ -5,6 +5,7 @@
 // top level (verified live 2026-07-22 -- anything else 400s). It also 400s
 // on non-ASCII bytes, so every string built here must be ASCII-safe.
 import { PROPERTIES } from "../config/properties";
+import { REPORT_NOTES, reportFileBase, reportGreeting, reportShortName } from "./revenue-report";
 import type { RevenueReport, PropertyActual, DerivedRow } from "./revenue-report";
 
 const pct = (n: number) => (n * 100).toFixed(1) + "%";
@@ -102,17 +103,24 @@ export function buildReportCard(
 
   const body: unknown[] = [
     {
+      // Her post's title, so the daily message reads the way the team is used to.
       type: "TextBlock",
-      text: "Stayable - Occupancy & Revenue",
+      text: reportFileBase(report.asOf),
       weight: "Bolder",
       size: "Large",
       wrap: true,
     },
     {
       type: "TextBlock",
-      text: `As of ${report.asOf} - Generated ${report.generatedEastern}`,
+      text: reportGreeting(report.asOf),
+      wrap: true,
+    },
+    {
+      type: "TextBlock",
+      text: `Data through ${report.asOf}. Generated ${report.generatedEastern}.`,
       isSubtle: true,
       wrap: true,
+      size: "Small",
     },
     ...(stale
       ? [
@@ -141,10 +149,31 @@ export function buildReportCard(
     {
       type: "FactSet",
       facts: report.actual.map((p) => ({
-        title: p.name,
+        // Her name, not the config name — the card read "Orlando OBT" where the
+        // report it links to says "Orlando" (seen live in the test channel).
+        title: reportShortName(p.code, p.name),
         value: `${pct(p.yesterday.actual.pOcc)} occ - RevPAR ${money(p.yesterday.actual.revpar)}`,
       })),
     },
+    // Her Sources / Notes / Legend, verbatim except the one Yardi line that does
+    // not describe how these figures are produced (see REPORT_NOTES). Shared
+    // with the PDF's notes page so the message and the file cannot disagree.
+    ...REPORT_NOTES.flatMap((sec) => [
+      {
+        type: "TextBlock",
+        text: `${sec.heading}:`,
+        weight: "Bolder",
+        wrap: true,
+        spacing: "Medium",
+      },
+      {
+        type: "TextBlock",
+        text: sec.points.map((p) => `- ${p}`).join("\n"),
+        wrap: true,
+        size: "Small",
+        spacing: "None",
+      },
+    ]),
     {
       type: "TextBlock",
       text: footerParts.join(". "),

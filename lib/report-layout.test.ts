@@ -7,6 +7,7 @@ import {
   weekdayName,
   reportFileBase,
   reportDisplayName,
+  reportShortName,
 } from "./revenue-report";
 import { actualHead, onTheBooksHead } from "./report-pdf";
 
@@ -48,6 +49,12 @@ describe("reportDisplayName", () => {
 
   it("drops the OBT suffix Orlando carries in config but not in her report", () => {
     expect(reportDisplayName("OR", "Orlando OBT")).toBe("Stayable Orlando");
+  });
+
+  it("gives the card an unprefixed name, still without OBT", () => {
+    // The card read "Orlando OBT" while the report it links to said "Orlando".
+    expect(reportShortName("OR", "Orlando OBT")).toBe("Orlando");
+    expect(reportShortName("LL", "Lakeland")).toBe("Lakeland");
   });
 });
 

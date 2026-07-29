@@ -220,6 +220,62 @@ KE question and exposed a second, related defect.
 >   the `triggerBody()?['card']` change, the ordered go-live sequence, rollback.
 > - Sizes are a non-issue: ~72 KB pdf + ~24 KB xlsx ≈ 130 KB of base64.
 >
+> **[x] POSTED TO THE TEST CHANNEL AND CONFIRMED RENDERING (Kyle, 07/29/26).**
+> Kyle supplied the test flow URL (stored `TEAMS_FLOW_URL` in `.env.local`;
+> checked against `TEAMS_FLOW_URL_REVENUE` first — **different workflow GUID**, so
+> not the Revenue chat). `202`, card rendered, Kyle pasted it back. Note the
+> Graph `chat_message_search` could NOT verify delivery (429 after 5 of 47 chats,
+> and flowbot cards aren't reliably indexed) — Kyle's eyes were the verification.
+>
+> **[x] HER ACTUAL POST FORMAT — five samples reviewed, and it changed the build.**
+> Screenshots of her posts as of Jul 22, 23, 24, 25-27 and 28. Her post is a
+> **plain text message**, not a card:
+> - Fixed template, byte-identical every day except the date: *"Good day Team.
+>   Please refer to the attached file for the Occupancy Report generated as of
+>   `<date>`. Kindly see below additional notes. Thank you."* then **Sources /
+>   Notes / Legend inline in the message body** — the same block as PDF page 5.
+> - **One attached PDF.** Three on catch-up days: her Tue 1:00 AM post reads
+>   "as of July 25-27, 2026" and carries 3 files = Fri/Sat/Sun data batched.
+>   **Our cron runs daily including weekends, so it emits one file per day and
+>   never needs batching.** No code needed; it removes her manual catch-up.
+> - She posts near midnight on day D labelled "as of D", data through D-1. Our
+>   cron produces the same label and data at 06:00 ET — same convention, ~18h
+>   earlier.
+> - **[x] Card rebuilt to match:** her title + greeting, then our KPI/per-property
+>   figures (a real addition — her message carries no numbers), then her Sources /
+>   Notes / Legend. New `REPORT_NOTES` + `reportGreeting` in `lib/revenue-report.ts`
+>   are the single source shared by the card AND the PDF notes page, so the message
+>   and the file can't drift. ASCII-only, pinned by a test (the flow 400s otherwise).
+> - **[!] ONE DELIBERATE WORDING DEPARTURE — Kyle should sanity-check with Monica.**
+>   Her Sources says *"Lease Room Nights/ Revenue are combination of Cloudbeds and
+>   Yardi from January - August and Cloudbeds solely for September onwards."* That
+>   is her 2025 Yardi transition and is NOT how ours are produced (100% Cloudbeds,
+>   classified by rate plan). Ours says so instead. A test asserts the Yardi line
+>   never comes back. Everything else in the block is hers verbatim.
+> - Her message Legend omits the purple/40% line that her PDF page 5 has; ours
+>   keeps all three tiers, because our PDF actually applies purple.
+> - **[x] Card also fixed to say "Orlando", not "Orlando OBT"** — caught by seeing
+>   it live in the test channel. `reportShortName` now feeds the card, and
+>   `reportDisplayName` (= "Stayable " + that) feeds the report blocks.
+>
+> **[!] NEW HAZARD FOUND — Cloudbeds 429 silently zeroes out-of-order.**
+> Under repeated local runs, `getRoomBlocks` returned HTTP 429 and the code logs
+> and **treats it as 0 OOO** (`[revenue-report] block fetch failed for <id> —
+> treated as 0`). Seen on LL / KW / OR. Why it matters: **room blocks are frozen
+> at first capture and deliberately never restated** (session-4 finding), so a 429
+> during the 10:00 flash cron would bank OOO = 0 for that property-day
+> **permanently**. `findAvailabilityAnomalies` would catch a sustained run of it,
+> not a one-day blip.
+> - **No evidence production has hit this** — 07-28 banked non-zero OOO for all 8,
+>   and this was provoked by 4-5 full report builds inside 20 minutes. But the
+>   production cron makes the same burst (8 properties x 7 forward days), so it is
+>   not impossible. **Unfixed, flagged. Smartsheet Item 298.**
+> - Practical note for future sessions: **do not build the report repeatedly in
+>   quick succession** — check OOO is non-zero for all 8 before trusting a render.
+> - The PDF in `outputs/` has correct OOO on all 8 ACTUAL blocks (verified
+>   LL:6 JN:107 JW:7 KE:24 KW:5 OR:9 SA:15 DP:3), but some ON-THE-BOOKS forward
+>   days for LL/KW/OR may read 0 OOO from this same 429 — a local artefact only.
+>
 > **[x] THE CRONS FIRE UNATTENDED — session-4 open item 4 is CLOSED.** Observed
 > incidentally while rendering from live data: 2026-07-28 has real counts for
 > **8 of 8** properties and `lastBankedAt` = **2026-07-29 11:30:40 UTC**, i.e.
@@ -228,20 +284,13 @@ KE question and exposed a second, related defect.
 > `finalThrough` = 2026-06-30, as expected five days after June closed.
 >
 > **▶ START HERE NEXT SESSION:**
-> 1. **[!] COULD NOT POST TO THE TEST CHANNEL — two blockers, both need Kyle.**
->    Kyle authorised a test-channel post this session; it could not be done:
->    - **`.env.local` has NO `TEAMS_FLOW_URL`** — only `TEAMS_FLOW_URL_REVENUE`.
->      The test-channel flow URL exists solely in Vercel Production, so there is
->      nothing to post to from here. (Using the Revenue URL was not an option.)
->    - **The flow has not been edited yet**, so even with the URL the PDF cannot
->      land: `TEAMS_FLOW_ATTACHMENTS=1` sends `{card, files}` into a post step
->      that still feeds `triggerBody()` straight to the card, which fails the run
->      and posts nothing. The flow edit must come first, always.
->
->    Routes, in order of preference: (a) deploy, edit the flow, set
->    `TEAMS_FLOW_ATTACHMENTS=1`, then Vercel → Cron Jobs → **Run** on
->    `revenue-report` — the Vercel env already points at the test channel;
->    (b) paste the test flow URL and Claude posts from here after the flow edit.
+> 1. **[ ] THE ATTACHMENT IS THE ONLY UNPROVEN LEG. It needs Kyle's flow edit.**
+>    The card posts and renders in the test channel. The PDF cannot land until the
+>    flow has the SharePoint Create-file step: `TEAMS_FLOW_ATTACHMENTS=1` sends
+>    `{card, files}` into a post step that still feeds `triggerBody()` straight to
+>    the card, which fails the run and posts nothing. **Flow edit first, always.**
+>    Then re-post from here (the test URL is in `.env.local`) or via Vercel → Cron
+>    Jobs → Run. `docs/TEAMS-ATTACHMENTS.md` has the steps.
 > 2. **[ ] Push + deploy** (not done — pushing this branch deploys to production).
 >    Safe: attachments off by default, so Teams behaviour is byte-identical. The
 >    visible change is the `/report/latest.pdf|.xlsx` layout.

@@ -218,15 +218,23 @@ export function sortByReportOrder<T extends { code: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => rank(a.code) - rank(b.code) || a.code.localeCompare(b.code));
 }
 
-/** The property heading Monica uses on each block of her report. Mostly
- *  "Stayable " + our `config/properties.ts` name, but Orlando is the exception:
- *  she writes "Stayable Orlando" where our config says "Orlando OBT". Keyed by
- *  code so a config rename can't silently change the report heading. */
-const REPORT_DISPLAY_NAME: Record<string, string> = {
-  OR: "Stayable Orlando",
+/** Property names as they appear in Monica's report, where they differ from
+ *  `config/properties.ts`. Only Orlando does: she writes "Orlando", our config
+ *  says "Orlando OBT". Keyed by code so a config rename can't silently change
+ *  what the report says. */
+const REPORT_NAME_OVERRIDE: Record<string, string> = {
+  OR: "Orlando",
 };
+
+/** Her name for the property, unprefixed — for the Teams card's per-property
+ *  list, where "Stayable" on all eight lines is just noise. */
+export function reportShortName(code: string, name: string): string {
+  return REPORT_NAME_OVERRIDE[code] ?? name;
+}
+
+/** Her block heading on the report itself: "Stayable Lakeland". */
 export function reportDisplayName(code: string, name: string): string {
-  return REPORT_DISPLAY_NAME[code] ?? `Stayable ${name}`;
+  return `Stayable ${reportShortName(code, name)}`;
 }
 
 const MONTHS_SHORT = [
@@ -297,6 +305,65 @@ export function reportFileBase(asOf: string): string {
   return (
     `Occupancy Report as of ${MONTHS_LONG[run.getUTCMonth()]} ` +
     `${run.getUTCDate()}, ${run.getUTCFullYear()}`
+  );
+}
+
+/**
+ * The Sources / Notes / Legend block Monica puts in the BODY of her daily Teams
+ * post, and on page 5 of the PDF. Verified byte-for-byte against five of her
+ * posts (as of Jul 22, 23, 24, 25-27 and 28, 2026) — the wording is identical
+ * every day; only the date changes.
+ *
+ * Single source for both the Teams card and the PDF notes page, so the two can
+ * never drift. **Must stay ASCII-only**: the flow 400s on non-ASCII bytes in the
+ * card (see lib/report-card.ts), so no en-dashes, arrows or division signs here.
+ *
+ * ONE DELIBERATE DEPARTURE from her wording, under Sources. She writes:
+ *   "Lease Room Nights/ Revenue are combination of Cloudbeds and Yardi from
+ *    January - August and Cloudbeds solely for September onwards."
+ * That describes her 2025 Yardi transition and is NOT how these figures are
+ * produced — ours are 100% Cloudbeds, classified by rate plan (see METHODOLOGY,
+ * "Lease vs. Transient"). Reproducing her line would state a data lineage we do
+ * not use, so it is replaced with what is actually true. Everything else is hers.
+ */
+export const REPORT_NOTES: { heading: string; points: string[] }[] = [
+  {
+    heading: "Sources",
+    points: [
+      "Transient Room Nights / Revenue and OOO count are from Cloudbeds.",
+      "Lease Room Nights / Revenue are from Cloudbeds, classified by rate plan (Monthly Lease and Weekly Lease).",
+    ],
+  },
+  {
+    heading: "Notes",
+    points: [
+      "Other Blocks - blocked or occupied room other than paid leases/transient rooms (ex. PM rooms, blocked for ongoing leasing contract, etc.)",
+      "Room Revenue (Transient & Lease) excludes taxes and adjustments.",
+      "Results for the past dates still change depending on the updates in blocks and out-of-order rooms.",
+    ],
+  },
+  {
+    heading: "Legend",
+    points: [
+      "ADR - Average Daily Rate / Average Room Rate",
+      "RevPar - Revenue per Available Room",
+      "Highlighted in Orange are dates at 20% or less availability left.",
+      "Highlighted in Red are dates at 15% or less availability left.",
+      "In Purple text are dates with at least 40% of the inventory available to sell.",
+    ],
+  },
+];
+
+/**
+ * Her opening line, with the report date substituted. She dates the post by the
+ * RUN date, one day after the last day of data — same convention as the file
+ * name, so this reuses it. Verbatim otherwise.
+ */
+export function reportGreeting(asOf: string): string {
+  const title = reportFileBase(asOf).replace(/^Occupancy Report as of /, "");
+  return (
+    `Good day Team. Please refer to the attached file for the Occupancy Report ` +
+    `generated as of ${title}. Kindly see below additional notes. Thank you.`
   );
 }
 
