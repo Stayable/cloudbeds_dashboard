@@ -220,6 +220,48 @@ KE question and exposed a second, related defect.
 >   the `triggerBody()?['card']` change, the ordered go-live sequence, rollback.
 > - Sizes are a non-issue: ~72 KB pdf + ~24 KB xlsx ≈ 130 KB of base64.
 >
+> **[x] HEAD-TO-HEAD vs HER REAL 07/29 REPORT — CLOSE. Both files in the repo:**
+> hers at the repo root, ours at `outputs/`, same name, same as-of date, same data
+> day (through 07-28). Diff script pattern: parse both PDFs' ACTUAL pages, split
+> each page's text on the `Occupied` lines, read metrics positionally.
+>
+> | measure (YTD) | Monica | ours | delta |
+> |---|---|---|---|
+> | Room revenue | $6,605,704.58 | $6,610,695.78 | **+0.08%** |
+> | Occupied room-nights | 185,789 | 185,827 | **+0.02%** |
+> | Inventory room-days | 233,113 | 233,127 | +0.01% (all DP) |
+>
+> MTD room revenue: $863,253.08 vs $860,272.82 = **-0.35%**. Every property inside
+> ±0.8% YTD; the MTD outliers are JW -1.5% and DP -2.3%.
+>
+> **The four real disagreements, all already-open items — nothing new:**
+> 1. **JN out-of-order YTD 7,937 vs 12,733 (+60%).** Entirely the renovation
+>    override (open item 2). It is the whole of the portfolio's +16% OOO gap;
+>    every other property is within ±1.5%.
+> 2. **Transient/lease revenue SPLIT, not the total.** Ours puts less in transient
+>    and more in lease at every property, and the two nearly cancel: KE is
+>    transient -$27,425 / lease +$30,160 / net +$2,735. A classification
+>    difference on history, not a data difference (open item: her Yardi-blended
+>    lease on 2025). Worth showing Monica this table specifically.
+> 3. **Other blocks YTD +46 (+2.4%)**, concentrated at KE (14 vs 27) and OR (3 vs
+>    12) — exactly open item 4, the block-type -> "Other blocks" mapping.
+> 4. **[?] NEW, small, unexplained: DP inventory YTD 31,632 vs 31,646 = +14
+>    room-days.** The only property where inventory does not match exactly, and
+>    inventory was supposedly exact on every property as of session 4. 14 days x
+>    1 room, or a couple of days at the wrong capacity — DP moved 151->150->152->153
+>    during 2026, so a boundary is probably a day off. Worth chasing: it also
+>    carries the largest MTD revenue gap (-2.3%).
+>
+> **[x] Formatting fidelity fix found by the diff: negative currency.** She writes
+> `-$30,663.31`, we wrote `$-31,949.68`. `fmtCurrency` now puts the sign outside
+> the symbol; verified 22 occurrences of `-$` and zero of `$-` in the re-render.
+>
+> **[!] The "Yesterday" column moves between runs.** Two renders ~10 minutes apart
+> gave LL 127 then 126 occupied; the first matched her exactly. 07-28 is
+> preliminary (`finalThrough` = 2026-06-30) and nights are derived from revenue
+> rows that are still posting, so a same-day re-render is not reproducible. Do not
+> treat a single yesterday-column mismatch as a defect.
+>
 > **[x] POSTED TO THE TEST CHANNEL AND CONFIRMED RENDERING (Kyle, 07/29/26).**
 > Kyle supplied the test flow URL (stored `TEAMS_FLOW_URL` in `.env.local`;
 > checked against `TEAMS_FLOW_URL_REVENUE` first — **different workflow GUID**, so

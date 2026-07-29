@@ -83,10 +83,14 @@ const METRIC_ROWS: MetricRow[] = [
 function fmtCount(n: number): string {
   return n.toLocaleString("en-US");
 }
+/** Sign OUTSIDE the currency symbol, as she formats it: "-$30,663.31", not
+ *  "$-30,663.31". Only shows up in the Variance columns. */
 function fmtCurrency(n: number): string {
-  return (
-    "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  );
+  const abs = Math.abs(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return (n < 0 ? "-$" : "$") + abs;
 }
 function fmtPercent(n: number): string {
   return (n * 100).toFixed(1) + "%";
