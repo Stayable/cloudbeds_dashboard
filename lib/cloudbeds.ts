@@ -27,6 +27,7 @@ import {
   getFinalThrough,
   getReportSnapshots,
   getSnapshotFreshness,
+  observeBlocks,
   restateSnapshot,
   upsertRevenueSnapshot,
   type ReportSnapshotRow,
@@ -1655,6 +1656,9 @@ export async function persistDailySnapshots(asOf: string): Promise<{ written: nu
         // The FLASH capture: first write wins, and its room-revenue total is kept
         // in flash_room_rev forever so the later restatement delta is visible.
         // Corrections arrive via restateSnapshots (below), not by re-banking.
+        // OOO is the exception — bankDailySnapshot only ever RAISES it, because
+        // the end-of-day pass on the stay date itself sees blocks this
+        // next-morning read has already lost (see captureEndOfDayBlocks).
         await bankDailySnapshot(property.code, asOf, inputs);
         written++;
       } catch (e) {
@@ -1663,6 +1667,72 @@ export async function persistDailySnapshots(asOf: string): Promise<{ written: nu
     }),
   );
   return { written };
+}
+
+/**
+ * END-OF-DAY room-block capture for a single stay date (07/30/26).
+ *
+ * Cloudbeds room blocks erode: changing a block drops it from the days already
+ * gone and a past block cannot be re-added, so a day's OOO can only decrease on
+ * re-query and the earliest reading is the truest. The 06:00 ET flash runs the
+ * MORNING AFTER the stay date, by which point anything tidied up during the day
+ * is already lost — banked Lakeland read 3 for 2026-07-28 where both Monica and a
+ * live re-query said 6. This pass runs at 23:00 ET on the stay date ITSELF and
+ * `observeBlocks` keeps whichever reading is higher.
+ *
+ * Blocks ONLY. Nights, revenue and inventory are untouched — they come from
+ * `service_date`-keyed queries that reproduce faithfully, so they have no reason
+ * to be captured early, and the flash still owns them.
+ *
+ * A property whose block fetch FAILS is skipped, never written as 0. A
+ * rate-limited zero would otherwise be banked and, because blocks freeze,
+ * permanently understate the day.
+ *
+ * Deliberately NOT fed by the on-the-books grid: a block on a FUTURE date is a
+ * plan, and if the room is repaired early that day never was out of order, so a
+ * pre-date reading would overstate. Only same-day-or-later readings count.
+ */
+export async function captureEndOfDayBlocks(stayDate: string): Promise<{
+  observed: { code: string; ooo: number; source: "cloudbeds" | "override" }[];
+  skipped: { code: string; reason: string }[];
+}> {
+  const observed: { code: string; ooo: number; source: "cloudbeds" | "override" }[] = [];
+  const skipped: { code: string; reason: string }[] = [];
+
+  await Promise.all(
+    PROPERTIES.map(async (property) => {
+      const key = readKey(property.code);
+      if (!key || !property.apiPropertyId) return; // unconfigured — not a failure
+      try {
+        const rooms = await getPhysicalRoomCount(key);
+        const blocks = await getBlockNights(key, stayDate, stayDate);
+        if (!blocks.ok) {
+          skipped.push({ code: property.code, reason: `block fetch failed: ${blocks.error}` });
+          return;
+        }
+        const overrideOoo = overrideOooNights(property, stayDate, stayDate, rooms.count);
+        const ooo = Math.max(blocks.data.ooo, overrideOoo);
+        await observeBlocks(property.code, stayDate, {
+          ooo,
+          blocksByType: blocks.data.byType,
+          oooSource: overrideOoo > blocks.data.ooo ? "override" : "cloudbeds",
+          pass: "eod",
+        });
+        observed.push({
+          code: property.code,
+          ooo,
+          source: overrideOoo > blocks.data.ooo ? "override" : "cloudbeds",
+        });
+      } catch (e) {
+        skipped.push({ code: property.code, reason: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  return {
+    observed: observed.sort((a, b) => a.code.localeCompare(b.code)),
+    skipped: skipped.sort((a, b) => a.code.localeCompare(b.code)),
+  };
 }
 
 /** Re-derive every non-final banked day in [start, end] and write the

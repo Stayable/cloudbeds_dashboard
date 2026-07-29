@@ -164,6 +164,19 @@ for (const [column, ddl] of [
   ["flash_room_rev", "numeric"],
   ["first_captured_at", "timestamptz"],
   ["restated_at", "timestamptz"],
+  // Added 07/30/26. Cloudbeds room blocks ERODE for past dates: changing a block
+  // drops it from the days already gone, and a past block cannot be re-added
+  // (confirmed by Kyle 07/29/26). So a day's OOO can only ever decrease on
+  // re-query, and `ooo` is now kept as the MAXIMUM observed on or after the stay
+  // date rather than whatever the latest read said. These two columns record
+  // which observation each figure came from, so the improvement is measurable
+  // the same way flash_room_rev makes the revenue restatement measurable:
+  //   ooo_eod    what the 23:00 ET end-of-day pass saw (its own day)
+  //   ooo_flash  what the 06:00 ET next-morning flash saw
+  // `ooo` = greatest(the two, plus any config override).
+  ["ooo_eod", "int"],
+  ["ooo_flash", "int"],
+  ["ooo_observed_at", "timestamptz"],
 ]) {
   await sql.query(`alter table report_daily_snapshot add column if not exists ${column} ${ddl}`);
 }

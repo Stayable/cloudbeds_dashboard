@@ -330,6 +330,86 @@ export async function upsertReportSnapshot(
   `;
 }
 
+// --- Room-block observations (07/30/26) --------------------------------------
+// Cloudbeds room blocks ERODE for past dates: changing a block drops it from the
+// days already gone, and a past block cannot be re-added (confirmed by Kyle
+// 07/29/26). So a stay date's OOO can only ever DECREASE on re-query, there is no
+// as-of view, and the EARLIEST reading is the truest one.
+//
+// Two things follow. Blocks must never be restated downward (already true — see
+// restateSnapshot), and our 06:00 ET next-morning flash is too late: anything
+// tidied up during the day itself is already gone. Proven on 2026-07-28, where
+// the banked Lakeland figure was 3 while both Monica's report and a live
+// re-query read 6. That is the whole systematic gap against her report (every
+// delta negative, ours always lower: LL -11, JW -10, SA -11, KE -81 MTD).
+//
+// So `ooo` is now the MAXIMUM observed on or after the stay date, fed by an
+// end-of-day pass during the day itself plus the morning flash.
+
+export type BlockObservation = {
+  /** OOO room-nights for the day: Cloudbeds `out_of_service` blocks, or the
+   *  config sellable-override where that is larger. */
+  ooo: number;
+  blocksByType: Record<string, number>;
+  oooSource: "cloudbeds" | "override";
+  /** Which pass saw it. `eod` = the 23:00 ET run on the stay date itself;
+   *  `flash` = the 06:00 ET run the next morning. */
+  pass: "eod" | "flash";
+};
+
+/**
+ * Record a block observation for a stay date, keeping the HIGHEST OOO seen.
+ *
+ * Never lowers a stored figure — erosion is one-way, so a smaller later reading
+ * is a loss of information, not a correction. `blocks_by_type` and `ooo_source`
+ * move only when the new observation actually raises `ooo`, so the composition
+ * always describes the figure being shown.
+ *
+ * Creates the row if the day has no snapshot yet (the end-of-day pass runs
+ * before the morning flash). Such a row carries zero nights and zero revenue
+ * until the flash fills them — which is why `bankDailySnapshot`'s "still empty"
+ * test looks at NIGHTS only and no longer at `ooo`.
+ *
+ * ONLY call this with a real reading. A failed/rate-limited block fetch must be
+ * skipped, never passed in as 0: a `greatest()` makes a zero harmless, but it
+ * would still stamp `ooo_eod`/`ooo_flash` misleadingly.
+ */
+export async function observeBlocks(
+  propertyCode: string,
+  stayDate: string,
+  obs: BlockObservation,
+): Promise<void> {
+  const sql = db();
+  const eod = obs.pass === "eod" ? obs.ooo : null;
+  const flash = obs.pass === "flash" ? obs.ooo : null;
+  await sql`
+    insert into report_daily_snapshot (
+      property_code, stay_date, ooo, blocks_by_type, ooo_source,
+      ooo_eod, ooo_flash, ooo_observed_at
+    )
+    values (
+      ${propertyCode}, ${stayDate}, ${obs.ooo},
+      ${JSON.stringify(obs.blocksByType)}, ${obs.oooSource},
+      ${eod}, ${flash}, now()
+    )
+    on conflict (property_code, stay_date) do update set
+      ooo = greatest(report_daily_snapshot.ooo, excluded.ooo),
+      blocks_by_type = case
+        when excluded.ooo > report_daily_snapshot.ooo then excluded.blocks_by_type
+        else report_daily_snapshot.blocks_by_type
+      end,
+      ooo_source = case
+        when excluded.ooo > report_daily_snapshot.ooo then excluded.ooo_source
+        else report_daily_snapshot.ooo_source
+      end,
+      ooo_eod = coalesce(${eod}, report_daily_snapshot.ooo_eod),
+      ooo_flash = coalesce(${flash}, report_daily_snapshot.ooo_flash),
+      ooo_observed_at = now(),
+      updated_at = now()
+    where report_daily_snapshot.is_final = false
+  `;
+}
+
 /** CAPTURE-ONCE daily bank (the store is our source of truth going forward, so
  *  a captured day must FREEZE — never drift from a later CB re-query). Inserts a
  *  fresh row; on conflict it fills ONLY a still-empty (all-count-zero) row and
@@ -360,22 +440,34 @@ export async function bankDailySnapshot(
       transient_nights = excluded.transient_nights,
       lease_nights = excluded.lease_nights,
       other_blocks = excluded.other_blocks,
-      ooo = excluded.ooo,
+      -- Blocks erode (see observeBlocks): the end-of-day pass on the stay date
+      -- itself sees more than this next-morning read can, so never lower it.
+      ooo = greatest(report_daily_snapshot.ooo, excluded.ooo),
+      ooo_flash = excluded.ooo,
       transient_rev = excluded.transient_rev,
       lease_rev = excluded.lease_rev,
       inventory = excluded.inventory,
       comp_nights = excluded.comp_nights,
-      blocks_by_type = excluded.blocks_by_type,
-      ooo_source = excluded.ooo_source,
+      blocks_by_type = case
+        when excluded.ooo > report_daily_snapshot.ooo then excluded.blocks_by_type
+        else report_daily_snapshot.blocks_by_type
+      end,
+      ooo_source = case
+        when excluded.ooo > report_daily_snapshot.ooo then excluded.ooo_source
+        else report_daily_snapshot.ooo_source
+      end,
       -- The flash is the FIRST capture only. A revenue-only backfill stub may
       -- already exist with no flash recorded, so fill it; never overwrite one.
       flash_room_rev = coalesce(report_daily_snapshot.flash_room_rev, excluded.flash_room_rev),
       first_captured_at = coalesce(report_daily_snapshot.first_captured_at, now()),
       updated_at = now()
+    -- "Still empty" = no real occupancy capture yet, judged on NIGHTS ONLY.
+    -- It used to require ooo = 0 and other_blocks = 0 too, which would now block
+    -- every day the end-of-day block pass had already touched (that pass runs
+    -- BEFORE this one and legitimately pre-populates ooo), leaving the day with
+    -- no nights or revenue forever.
     where report_daily_snapshot.transient_nights = 0
       and report_daily_snapshot.lease_nights = 0
-      and report_daily_snapshot.other_blocks = 0
-      and report_daily_snapshot.ooo = 0
   `;
 }
 
@@ -433,7 +525,13 @@ export async function restateSnapshot(
           then greatest(other_blocks - comp_nights, 0) + ${inputs.compNights ?? 0}
         else ${inputs.otherBlocks}
       end,
-      ooo = case when transient_nights + lease_nights > 0 then ooo else ${inputs.ooo} end,
+      -- Frozen once the day has real nights, and even before that only ever
+      -- raised: blocks erode, so a smaller re-read is lost information rather
+      -- than a correction (see observeBlocks).
+      ooo = case
+        when transient_nights + lease_nights > 0 then ooo
+        else greatest(ooo, ${inputs.ooo})
+      end,
       blocks_by_type = case
         when transient_nights + lease_nights > 0 then blocks_by_type
         else ${JSON.stringify(inputs.blocksByType ?? {})}

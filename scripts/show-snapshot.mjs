@@ -19,6 +19,7 @@ const rows = day
              other_blocks, ooo, ooo_source, inventory,
              transient_rev::float8 as transient_rev, lease_rev::float8 as lease_rev,
              flash_room_rev::float8 as flash_room_rev, is_final,
+             ooo_eod, ooo_flash, ooo_observed_at::text,
              first_captured_at::text, restated_at::text, updated_at::text
       from report_daily_snapshot where stay_date = ${day}
       order by property_code`
@@ -27,6 +28,7 @@ const rows = day
              other_blocks, ooo, ooo_source, inventory,
              transient_rev::float8 as transient_rev, lease_rev::float8 as lease_rev,
              flash_room_rev::float8 as flash_room_rev, is_final,
+             ooo_eod, ooo_flash, ooo_observed_at::text,
              first_captured_at::text, restated_at::text, updated_at::text
       from report_daily_snapshot where stay_date >= current_date - 2
       order by stay_date, property_code`;
@@ -41,6 +43,15 @@ for (const r of rows) {
       ` inv=${String(r.inventory).padStart(4)} rev=${rev.toFixed(2).padStart(11)}` +
       ` flash=${(r.flash_room_rev ?? 0).toFixed(2).padStart(11)} drift=${String(drift).padStart(9)}` +
       ` final=${r.is_final}`,
+  );
+  // ooo_eod = the 23:00 ET pass on the stay date itself; ooo_flash = the 06:00 ET
+  // pass the next morning. `ooo` is the max. A positive gain is the erosion the
+  // end-of-day capture recovered.
+  const gain =
+    r.ooo_eod != null && r.ooo_flash != null ? ` gain=${r.ooo_eod - r.ooo_flash}` : "";
+  console.log(
+    `        ooo_eod=${r.ooo_eod ?? "-"} ooo_flash=${r.ooo_flash ?? "-"}${gain}` +
+      ` observed=${r.ooo_observed_at ?? "-"}`,
   );
   console.log(
     `        first_captured=${r.first_captured_at} restated=${r.restated_at} updated=${r.updated_at}`,

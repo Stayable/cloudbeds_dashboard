@@ -150,6 +150,15 @@ KE question and exposed a second, related defect.
 
 ---
 
+## 07/30/26 (session 6 cont.) — HANDOFF TIMELINE
+
+> **Kyle 07/30/26: compare notes with Monica through Friday 07/31, complete the
+> handoff by Monday 08/03 — earlier (Friday) if possible.** So the remaining work
+> is scoped to that: the OOO capture fix landed 07/30 specifically so tonight's
+> 03:00 UTC run gives Friday's comparison a day of better data. What still has to
+> happen before handoff is the flow edit (item 1 below) and a push/deploy —
+> everything else is comparison and sign-off.
+
 ## 07/29/26 (session 6) — MONICA'S REPORT REPRODUCED + ATTACHMENT PATH BUILT
 
 > **Pickup — 07/29/26 (session 6). BUILT, TESTED, COMMITTED LOCALLY. NOT PUSHED,
@@ -238,15 +247,49 @@ KE question and exposed a second, related defect.
 > - She captures earlier in effect (her workbook carries the figure forward from
 >   when the day was current), which is why she is consistently higher.
 >
-> **[?] PROPOSED, NOT BUILT — needs Kyle's go-ahead:**
-> 1. Add an **end-of-day (~23:00 ET) capture of TODAY's blocks** and bank that as
->    D's OOO, rather than relying on the D+1 morning read.
-> 2. Treat banked OOO as the **maximum ever observed on or after the stay date** —
->    erosion is one-way, so the highest same-or-later reading is the truest, and a
->    max also makes the 429-banks-zero hazard (Item 298) self-healing.
-> 3. **Do NOT feed forward/on-the-books observations into that max.** A block on a
->    future date is a *plan*; if the room is repaired early the day never was out
->    of order, so pre-date readings would overstate. Only D-or-later counts.
+> **[x] BUILT AND RUNNING 07/30/26 — Kyle approved all three.**
+> 1. **`/api/cron/capture-blocks` at 03:00 UTC** (`vercel.json`) →
+>    `captureEndOfDayBlocks(easternToday())`. 03:00 UTC is 23:00 EDT / 22:00 EST on
+>    the day being captured, so `easternToday()` returns the day just ending in
+>    both halves of the year. **Blocks only** — nights/revenue still belong to the
+>    06:00 flash. A property whose block fetch fails is **skipped, never written as
+>    0** (that is the 429 hazard, Item 298 — a zero would freeze permanently).
+>    `?date=` allows a manual catch-up and **refuses a future date**.
+> 2. **`ooo` is now the MAXIMUM observed on or after the stay date.** New
+>    `observeBlocks` in `lib/db.ts` upserts with `greatest()`;
+>    `blocks_by_type`/`ooo_source` move only when `ooo` actually rises, so the
+>    composition always describes the figure shown. `bankDailySnapshot` and
+>    `restateSnapshot` were both changed to raise-only as well.
+> 3. Forward/on-the-books readings are excluded **by construction** —
+>    `upsertRevenueSnapshot` (the only path that writes future days) touches
+>    revenue and inventory only, never `ooo`. Verified by reading the code.
+>
+> **[!] ONE NON-OBVIOUS KNOCK-ON, fixed:** `bankDailySnapshot`'s "still empty"
+> guard required `ooo = 0 and other_blocks = 0` as well as zero nights. The
+> end-of-day pass runs BEFORE the flash and legitimately pre-populates `ooo`, which
+> would have made that guard reject every day and leave it with no nights or
+> revenue forever. The guard is now **nights-only**, which also matches its own
+> documented intent ("stays open for re-capture until it lands real counts").
+>
+> **New columns** (additive, `scripts/db-init.mjs`): `ooo_eod`, `ooo_flash`,
+> `ooo_observed_at` — the same pattern as `flash_room_rev`, so the gain the
+> end-of-day pass recovers is measurable rather than asserted. Migration applied.
+>
+> **Verified, not just built:**
+> - Monotonic invariant proven against the real Neon schema on a throwaway
+>   `ZZTEST` row (since deleted): 6 then 3 stays **6** with `ooo_eod=6`,
+>   `ooo_flash=3` and composition still pointing at the 6; a later 9 does move it.
+> - First real capture ran for **2026-07-29**, 8/8 properties, 0 skipped:
+>   `DP=3 JN=107[override] JW=7 KE=24 KW=5 LL=6 OR=9 SA=13`. **LL banked 6** — the
+>   same property that banked 3 for 07-28 under the old flow, which is the fix
+>   working on its first run.
+> - `scripts/show-snapshot.mjs` prints `ooo_eod` / `ooo_flash` / gain.
+>   `scripts/capture-blocks.mjs` hits the route the way the cron does.
+>
+> **[!] THIS CANNOT REPAIR HISTORY.** Already-banked days are frozen at whatever
+> was caught and the true figures are gone from Cloudbeds. The only source for past
+> OOO is Monica's workbook — a backfill from it is a separate decision, the way the
+> 2025/2026 counts were done.
 >
 > See memory `ooo-erodes-in-cloudbeds`.
 >
