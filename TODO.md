@@ -150,6 +150,137 @@ KE question and exposed a second, related defect.
 
 ---
 
+## 07/29/26 (session 6) — MONICA'S REPORT REPRODUCED + ATTACHMENT PATH BUILT
+
+> **Pickup — 07/29/26 (session 6). BUILT, TESTED, COMMITTED LOCALLY. NOT PUSHED,
+> NOTHING POSTED TO TEAMS.** 225/225 tests, `tsc --noEmit` clean, `next build`
+> green. Attachments are OFF by default, so a deploy changes no Teams behaviour.
+>
+> **Her layout is now fully specified and matched.** Read off
+> `Occupancy Report as of July 27, 2026.pdf` (repo root, hers): 10 pages —
+> 4× ACTUAL two properties per page, a Sources/Notes/Legend page, 4× ON-THE-BOOKS
+> two per page, in the order **LL, JN, JW, KE, OR, KW, SA, DP**. Our PDF now
+> renders the same 9 pages + a methodology page, verified by extracting text from
+> a real 8-property render.
+>
+> - **[x] Property order was NONDETERMINISTIC and is now hers.**
+>   `getRevenueReportInputs` builds properties concurrently and `push`ed as each
+>   resolved, so page order changed run to run. `sortByReportOrder` +
+>   `REPORT_PROPERTY_ORDER` fix it. This is the one real defect found this session.
+> - **[x] Headers match hers:** period name over value/`Last Year`/`Variance`, then
+>   a `History` row of concrete ranges (`26-Jul-26`, `Jul 1 - 26, 2026`,
+>   `Jan 1 - Jul 26, 2026`). On-the-books gains her weekday row
+>   (`Monday`…`Sunday`) over the dates. Both in the .pdf and the .xlsx.
+> - **[x] The .xlsx no longer says "SAMPLE".** Its banner read
+>   `SAMPLE / Cloudbeds-sourced - differs from Monica's Yardi-blended lease…` —
+>   unshippable on a file that replaces hers, and the Yardi half is stale anyway
+>   (2026 is 100% Cloudbeds). Now a plain title row; the caveat stays on the Notes
+>   sheet via `report.sourceNote`.
+> - **[x] Sources/Notes/Legend page** in her wording where it still holds. Her
+>   Yardi line is deliberately NOT reproduced — we don't use that source for 2026,
+>   and copying it would state a lineage we can't stand behind. Our
+>   freshness / final-through / OOO-override lines fold in.
+> - **[x] Attachment delivery, env-gated.** `postAdaptiveCard(card, files)` posts
+>   `{card, files:[{name, contentBase64}]}` **only** when
+>   `TEAMS_FLOW_ATTACHMENTS=1`; otherwise byte-identical to today's body. This
+>   deliberately replaces the old "the code change and the flow edit MUST land
+>   together" plan — the gate makes them independent and the rollback instant.
+> - **[x] Files named exactly as she names hers** —
+>   `Occupancy Report as of July 27, 2026.pdf|.xlsx`, title date = run date =
+>   `asOf + 1` (verified against her file, whose Yesterday column is 26-Jul-26).
+>   Both formats attach, so the open question below can't block.
+> - **[x] Gated-download side finding FIXED.** With files in the channel the card
+>   drops its Download Excel/PDF buttons — they pointed at `/report/latest.*`,
+>   which `middleware.ts` gates behind the MAIN pin, i.e. a login wall for anyone
+>   in the Revenue chat without it.
+> - **[x] Runbook: `docs/TEAMS-ATTACHMENTS.md`** — the SharePoint Create-file step,
+>   the `triggerBody()?['card']` change, the ordered go-live sequence, rollback.
+> - Sizes are a non-issue: ~72 KB pdf + ~24 KB xlsx ≈ 130 KB of base64.
+>
+> **▶ START HERE NEXT SESSION:**
+> 1. **[?] STILL UNANSWERED (no longer blocking): does Monica attach a file or
+>    paste the numbers?** Inferred "file" from the six
+>    `Occupancy Report as of <date>.pdf` files Kyle collected + her `.xlsx`
+>    archive, and BOTH are attached, so the build is covered either way. If she
+>    pastes numbers, simply never set `TEAMS_FLOW_ATTACHMENTS`.
+> 2. **[ ] Push + deploy** (not done — pushing this branch deploys to production).
+>    Safe: attachments off by default. The visible change is the .pdf/.xlsx layout
+>    on `/report/latest.*`.
+> 3. **[ ] Kyle: edit the Power Automate flow**, then run the cron against the
+>    **test** channel and check `attached: 2` + both files in its Files tab.
+>    Only after that swap `TEAMS_FLOW_URL` to the Revenue URL — that swap IS the
+>    first live post. `docs/TEAMS-ATTACHMENTS.md` §Go-live.
+> 4. **[!] Not verified and not verifiable without posting:** that the newer
+>    `*.powerplatform.com` trigger accepts this body. Same POST contract as far as
+>    our code is concerned, but untested against that endpoint.
+> 5. **[ ] Regenerate the Revenue trigger URL** — pasted in plaintext into a
+>    transcript 07/29.
+> 6. **Everything from the session-4/5 pickups is still open** — the DI-occupancy
+>    decision (item 6), sending the Cloudbeds capacity write-up, the room-type-change
+>    date from Monica, and confirming the crons fire unattended.
+
+---
+
+## 07/29/26 (session 5) — REAL REVENUE-CHANNEL FLOW RECEIVED; NOT YET LIVE
+
+> **Pickup — 07/29/26 (session 5 close). NO CODE CHANGED, NOTHING POSTED TO TEAMS.**
+> Short session. Kyle supplied the Power Automate HTTP-trigger URL for the **real
+> Revenue chat** — the one Monica posts to by hand. Intent: this automation
+> replaces her manual daily post. **Explicit instruction: do not send one to the
+> channel yet.** No commit was made; the only tracked change is this TODO block.
+>
+> - **[x] URL stored as `TEAMS_FLOW_URL_REVENUE`** in `.env.local` (gitignored,
+>   verified). Deliberately **NOT** `TEAMS_FLOW_URL`: `postAdaptiveCard()`
+>   (`lib/teams.ts:2`) reads only that name and posts unconditionally, so the
+>   distinct name makes an accidental live post impossible. Never commit either URL.
+> - **Vercel Production still holds the TEST-channel flow under `TEAMS_FLOW_URL`.**
+>   Changing that value IS the go-live switch — the next 10:00 UTC
+>   `/api/cron/revenue-report` run then posts to the real chat.
+>   `app/api/cron/revenue-report/route.ts:34` has **no dry-run flag**, so the swap
+>   and the first live post are the same action.
+> - **[!] The new URL is a SAS-signed secret pasted in plaintext into a Claude Code
+>   transcript.** Anyone holding it can trigger the flow. Regenerating the trigger
+>   URL in Power Automate is cheap insurance — flagged to Kyle, his call.
+> - Newer host style (`*.environment.api.powerplatform.com/powerautomate/
+>   automations/direct/…`, not `*.logic.azure.com`). Same POST contract as far as
+>   our code is concerned (`ok` accepts 202 **or** any 2xx) — but **unverified
+>   against this endpoint**, and it cannot be verified without posting.
+> - **[x] Smartsheet Action Items Staging — Item 292** logged (owner Kyle, Not
+>   Started): "Cut the daily revenue Teams card over to the live Revenue channel."
+>   Task Sheet + Priority left blank rather than guessed (Priority is locked to Rob).
+> - **[x] Memory `teams-report-delivery` updated** with the two-flow situation.
+>
+> **▶ START HERE NEXT SESSION:**
+> 1. **[?] BLOCKING QUESTION TO KYLE, asked and unanswered:** does Monica **attach
+>    a file** to her daily post, or **paste the numbers** into the message? If
+>    numbers, the existing Adaptive Card already covers it and no build is needed.
+>    If a file, which — `.xlsx`, `.pdf`, or both?
+> 2. **[ ] Attachment support, IF the answer is "a file".** An Adaptive Card has no
+>    attachment slot; a Teams file attachment is a pointer to a file already in the
+>    channel's SharePoint library. Working design, costed this session:
+>    - cron POSTs `{ card, fileName, fileBase64 }` instead of a bare card;
+>    - flow step 1 = SharePoint **Create file** into the Revenue channel's Files
+>      folder, `base64ToBinary(triggerBody()?['fileBase64'])`;
+>    - flow step 2 = post the card (now `triggerBody()?['card']`) linking it.
+>    - Size is a non-issue: report `.xlsx` ~24 KB, `.pdf` ~72 KB (~33/97 KB b64).
+>    - **[!] The code change and the flow edit MUST land together** — changing the
+>      body shape breaks the flow instantly, because it currently feeds the raw
+>      request body straight into the card. The flow edit is Kyle's; Claude has no
+>      Power Automate access.
+>    - **Unverified:** whether the current Teams connector version exposes a file
+>      attachment field on "Post message in a chat or channel". 30 seconds to check
+>      in the flow designer; connectors change, so don't take it from memory.
+> 3. **[!] SIDE FINDING, worth fixing whichever way item 1 goes:** the card's
+>    "Download Excel" / "Download PDF" buttons point at `/report/latest.xlsx|.pdf`,
+>    and `middleware.ts:27` gates BOTH. Anyone in the Revenue chat without the MAIN
+>    pin hits a login wall today. Putting the file in the channel removes this;
+>    otherwise the links need a token-authenticated download route.
+> 4. **Everything from the session-4 pickup below is still open and untouched** —
+>    the DI-occupancy decision (item 6), sending the Cloudbeds capacity write-up,
+>    the room-type-change date from Monica, and confirming the crons fire unattended.
+
+---
+
 ## 07/28/26 (session 4) — INVENTORY SOURCE FIXED APP-WIDE; CAPACITY BUG ROOT-CAUSED
 
 > **Pickup — 07/28/26 (session 4 close). DEPLOYED AND VERIFIED.**

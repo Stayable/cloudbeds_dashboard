@@ -1,7 +1,15 @@
 // Excel renderer for the daily occupancy/revenue report (Monica's layout).
+// Headers mirror her published PDF: the period name over value/Last Year/
+// Variance, then a "History" row carrying the concrete date range.
 // Consumes only lib/revenue-report.ts model types -- no network, no fs.
 import ExcelJS from "exceljs";
-import { isCountDependentRow, METHODOLOGY } from "./revenue-report";
+import {
+  isCountDependentRow,
+  METHODOLOGY,
+  periodHeaderLabels,
+  weekdayName,
+  fmtDayHeader,
+} from "./revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
@@ -19,9 +27,13 @@ const RED_FILL = "FFF4B0B0";
 const ORANGE_FILL = "FFFCE4B6";
 const PURPLE_FONT = "FF7030A0";
 
-const BANNER_TEXT =
-  "SAMPLE / Cloudbeds-sourced - differs from Monica's Yardi-blended lease for Jan-Aug. " +
-  "MTD/YTD counts accumulate from daily snapshots.";
+/** Sheet title row. This used to read "SAMPLE / ..." from when the workbook was
+ *  a prototype next to Monica's; it now IS the daily deliverable, so it states
+ *  what the sheet covers instead of disclaiming itself. The Cloudbeds-vs-Yardi
+ *  caveat lives on the Notes sheet, where `report.sourceNote` carries it. */
+function titleText(sheet: string, asOf: string, generatedEastern: string): string {
+  return `Stayable - Occupancy & Revenue - ${sheet} - data through ${asOf} - generated ${generatedEastern} Eastern`;
+}
 
 const COUNT_FMT = "#,##0";
 const CURRENCY_FMT = "$#,##0.00;[Red]($#,##0.00)";
@@ -66,14 +78,14 @@ const METRIC_ROWS: MetricRow[] = [
   { label: "RevPar", fmt: CURRENCY_FMT, key: "revpar", get: (r) => r.revpar },
 ];
 
-function applyBanner(ws: ExcelJS.Worksheet, colCount: number) {
+function applyTitle(ws: ExcelJS.Worksheet, colCount: number, text: string) {
   ws.mergeCells(1, 1, 1, colCount);
   const cell = ws.getCell(1, 1);
-  cell.value = BANNER_TEXT;
+  cell.value = text;
   cell.font = { name: FONT, bold: true };
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BANNER_FILL } };
   cell.alignment = { vertical: "middle", wrapText: true };
-  ws.getRow(1).height = 30;
+  ws.getRow(1).height = 24;
 }
 
 function applyPageSetup(ws: ExcelJS.Worksheet) {
@@ -130,7 +142,8 @@ function styledCell(
 function renderActualBlock(
   ws: ExcelJS.Worksheet,
   startRow: number,
-  property: PropertyActual
+  property: PropertyActual,
+  asOf: string
 ): number {
   const totalCols = 1 + 3 * 3; // label col + 3 groups x 3 cols
   let row = startRow;
@@ -146,30 +159,33 @@ function renderActualBlock(
   ws.getRow(row).height = 20;
   row++;
 
-  // Group header row: Yesterday / Month-to-date / Year-to-date
-  const groups: Array<{ label: string; block: PeriodBlock }> = [
-    { label: "Yesterday", block: property.yesterday },
-    { label: "Month-to-date", block: property.mtd },
-    { label: "Year-to-date", block: property.ytd },
+  // Header rows, in Monica's shape: the period name over
+  // <period> / Last Year / Variance, then "History" over the concrete dates.
+  const labels = periodHeaderLabels(asOf);
+  const groups: Array<{ label: string; dates: { current: string; lastYear: string }; block: PeriodBlock }> = [
+    { label: "Yesterday", dates: labels.yesterday, block: property.yesterday },
+    { label: "Month-to-date", dates: labels.mtd, block: property.mtd },
+    { label: "Year-to-date", dates: labels.ytd, block: property.ytd },
   ];
+
   styledCell(ws, row, 1, "", { fill: GROUP_HEADER_FILL });
   groups.forEach((g, gi) => {
     const startCol = 2 + gi * 3;
-    ws.mergeCells(row, startCol, row, startCol + 2);
-    styledCell(ws, row, startCol, g.label, {
-      bold: true,
-      fill: GROUP_HEADER_FILL,
-      fontColor: "FFFFFFFF",
-      align: "center",
+    [g.label, "Last Year", "Variance"].forEach((label, li) => {
+      styledCell(ws, row, startCol + li, label, {
+        bold: true,
+        fill: GROUP_HEADER_FILL,
+        fontColor: "FFFFFFFF",
+        align: "center",
+      });
     });
   });
   row++;
 
-  // Date/label row: "History" then Actual / Last Year / Variance per group
   styledCell(ws, row, 1, "History", { bold: true, fill: LABEL_ROW_FILL });
-  groups.forEach((_, gi) => {
+  groups.forEach((g, gi) => {
     const startCol = 2 + gi * 3;
-    ["Actual", "Last Year", "Variance"].forEach((label, li) => {
+    [g.dates.current, g.dates.lastYear, ""].forEach((label, li) => {
       styledCell(ws, row, startCol + li, label, {
         bold: true,
         fill: LABEL_ROW_FILL,
@@ -254,10 +270,21 @@ function renderOnTheBooksBlock(
   ws.getRow(row).height = 20;
   row++;
 
-  // Header row: day labels
-  styledCell(ws, row, 1, "Date", { bold: true, fill: LABEL_ROW_FILL });
+  // Header rows: weekday names over the forward dates, as in hers.
+  styledCell(ws, row, 1, "", { fill: GROUP_HEADER_FILL });
   property.days.forEach((d, di) => {
-    styledCell(ws, row, 2 + di, d.date, {
+    styledCell(ws, row, 2 + di, weekdayName(d.date), {
+      bold: true,
+      fill: GROUP_HEADER_FILL,
+      fontColor: "FFFFFFFF",
+      align: "center",
+    });
+  });
+  row++;
+
+  styledCell(ws, row, 1, "On-the-books", { bold: true, fill: LABEL_ROW_FILL });
+  property.days.forEach((d, di) => {
+    styledCell(ws, row, 2 + di, fmtDayHeader(d.date), {
       bold: true,
       fill: LABEL_ROW_FILL,
       align: "center",
@@ -342,14 +369,14 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
   // --- ACTUAL sheet ---
   const actualCols = 1 + 3 * 3;
   const wsActual = wb.addWorksheet("ACTUAL");
-  applyBanner(wsActual, actualCols);
+  applyTitle(wsActual, actualCols, titleText("ACTUAL", report.asOf, report.generatedEastern));
   applyPageSetup(wsActual);
 
   let row = 2;
   const actualPctAvailRanges: string[] = [];
   for (const property of report.actual) {
     const blockStart = row;
-    row = renderActualBlock(wsActual, row, property);
+    row = renderActualBlock(wsActual, row, property, report.asOf);
     // Locate the "% Available" row for conditional formatting ranges (Actual col only
     // per group, i.e. columns 2, 5, 8 -- but we highlight the whole Actual/LY/Variance
     // trio's Actual cell set for simplicity: all numeric % Available cells).
@@ -368,7 +395,7 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
   // --- ON-THE-BOOKS sheet ---
   const wsOtb = wb.addWorksheet("ON-THE-BOOKS");
   const maxDays = Math.max(1, ...report.onTheBooks.map((p) => p.days.length));
-  applyBanner(wsOtb, 1 + maxDays);
+  applyTitle(wsOtb, 1 + maxDays, titleText("ON-THE-BOOKS", report.asOf, report.generatedEastern));
   applyPageSetup(wsOtb);
 
   row = 2;
@@ -378,7 +405,8 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
     row = renderOnTheBooksBlock(wsOtb, row, property);
     const pctAvailRowIndex = findMetricRowIndexOtb(property, "% Available");
     if (pctAvailRowIndex != null) {
-      const pctAvailRow = blockStart + 2 + pctAvailRowIndex;
+      // title bar + weekday row + date row, then the metric rows
+      const pctAvailRow = blockStart + 3 + pctAvailRowIndex;
       const lastCol = colLetter(1 + property.days.length);
       otbPctAvailRanges.push(`B${pctAvailRow}:${lastCol}${pctAvailRow}`);
     }
@@ -392,7 +420,7 @@ export async function renderReportXlsx(report: RevenueReport): Promise<Buffer> {
   const wsNotes = wb.addWorksheet("Notes & Sources");
   wsNotes.getColumn(1).width = 100;
   let nrow = 1;
-  styledCell(wsNotes, nrow, 1, BANNER_TEXT, {
+  styledCell(wsNotes, nrow, 1, titleText("Notes & Sources", report.asOf, report.generatedEastern), {
     bold: true,
     fill: BANNER_FILL,
   });

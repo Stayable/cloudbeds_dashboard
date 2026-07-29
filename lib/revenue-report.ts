@@ -186,6 +186,101 @@ export const SOURCE_NOTE =
   "Cloudbeds-sourced. Transient nights/revenue and OOO from Cloudbeds; lease classified by rate plan. " +
   "Differs from Monica's Yardi-blended lease figures for Jan-Aug. Room Revenue excludes taxes and adjustments.";
 
+/** Property display order in the daily report, matching Monica Oco's published
+ *  PDF page for page (verified against "Occupancy Report as of July 27, 2026":
+ *  Lakeland, Jacksonville North, Jacksonville West, Kissimmee East, Orlando,
+ *  Kissimmee West, St. Augustine, Davenport). This is deliberately NOT the
+ *  `config/properties.ts` order — that one is grouped by how the keys were
+ *  added. Reading the two reports side by side every morning is the whole point
+ *  of this automation, so the order has to be hers, and it has to be stable:
+ *  `getRevenueReportInputs` builds properties concurrently and pushes as each
+ *  resolves, so without this the order changed run to run. */
+export const REPORT_PROPERTY_ORDER: readonly string[] = [
+  "LL", "JN", "JW", "KE", "OR", "KW", "SA", "DP",
+];
+
+/** Sort report rows into REPORT_PROPERTY_ORDER. Any code not in that list
+ *  (a property added to config but not yet to Monica's report) sorts last,
+ *  alphabetically, rather than disappearing. */
+export function sortByReportOrder<T extends { code: string }>(rows: T[]): T[] {
+  const rank = (code: string) => {
+    const i = REPORT_PROPERTY_ORDER.indexOf(code);
+    return i === -1 ? REPORT_PROPERTY_ORDER.length : i;
+  };
+  return [...rows].sort((a, b) => rank(a.code) - rank(b.code) || a.code.localeCompare(b.code));
+}
+
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const WEEKDAYS = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+];
+
+/** "2026-07-26" -> "26-Jul-26" (Monica's single-day column header format). */
+export function fmtDayHeader(ymd: string): string {
+  const [y, m, d] = ymd.split("-");
+  return `${Number(d)}-${MONTHS_SHORT[Number(m) - 1]}-${y.slice(2)}`;
+}
+
+/** Weekday name for a YYYY-MM-DD. Parsed as UTC so it never shifts by locale —
+ *  these are calendar dates, not instants. */
+export function weekdayName(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
+export type PeriodHeaderLabels = {
+  yesterday: { current: string; lastYear: string };
+  mtd: { current: string; lastYear: string };
+  ytd: { current: string; lastYear: string };
+};
+
+/**
+ * The date labels under each period heading, in Monica's wording:
+ *   Yesterday      26-Jul-26            26-Jul-25
+ *   Month-to-date  Jul 1 - 26, 2026     Jul 1 - 26, 2025
+ *   Year-to-date   Jan 1 - Jul 26, 2026 Jan 1 - Jul 26, 2025
+ * Pure function of `asOf` (the last day the report covers, i.e. yesterday), so
+ * the renderers can't disagree about what period a column represents.
+ */
+export function periodHeaderLabels(asOf: string): PeriodHeaderLabels {
+  const year = Number(asOf.slice(0, 4));
+  const month = MONTHS_SHORT[Number(asOf.slice(5, 7)) - 1];
+  const day = Number(asOf.slice(8, 10));
+  const ly = (ymd: string) => `${Number(ymd.slice(0, 4)) - 1}${ymd.slice(4)}`;
+  return {
+    yesterday: { current: fmtDayHeader(asOf), lastYear: fmtDayHeader(ly(asOf)) },
+    mtd: {
+      current: `${month} 1 - ${day}, ${year}`,
+      lastYear: `${month} 1 - ${day}, ${year - 1}`,
+    },
+    ytd: {
+      current: `Jan 1 - ${month} ${day}, ${year}`,
+      lastYear: `Jan 1 - ${month} ${day}, ${year - 1}`,
+    },
+  };
+}
+
+/**
+ * Monica's file-name convention for the daily report, e.g.
+ * "Occupancy Report as of July 27, 2026". Her title date is the RUN date, one
+ * day after the last day of data (`asOf`) — verified against her July 27 file,
+ * whose Yesterday column is 26-Jul-26. Callers append the extension.
+ */
+export function reportFileBase(asOf: string): string {
+  const [y, m, d] = asOf.split("-").map(Number);
+  const run = new Date(Date.UTC(y, m - 1, d + 1));
+  const MONTHS_LONG = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  return (
+    `Occupancy Report as of ${MONTHS_LONG[run.getUTCMonth()]} ` +
+    `${run.getUTCDate()}, ${run.getUTCFullYear()}`
+  );
+}
+
 /** Methodology confirmed by Monica Oco (Revenue Management) — 2026-07-24, with
  *  the rate-plan classification re-confirmed 2026-07-27 after a full audit of
  *  all 57 rate plans in use. Mirrors outputs/RevenueReportMethodology_Stayable_

@@ -35,6 +35,7 @@ import {
   classifyForReport,
   derive,
   sumSnapshotRows,
+  sortByReportOrder,
   SOURCE_NOTE,
   type DerivedRow,
   type PeriodBlock,
@@ -1617,7 +1618,14 @@ export async function getRevenueReportInputs(
   );
 
   const trackingSince = await getEarliestSnapshotDate(null);
-  return { actual, onTheBooks, trackingSince };
+  // Both arrays were filled by concurrent pushes, so their order was whatever
+  // order Cloudbeds happened to answer in. Sort into Monica's published order
+  // so the report is stable run to run and lines up with hers page for page.
+  return {
+    actual: sortByReportOrder(actual),
+    onTheBooks: sortByReportOrder(onTheBooks),
+    trackingSince,
+  };
 }
 
 /** Persist ONE day's exact snapshot for every configured property (Task 10

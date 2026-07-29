@@ -51,7 +51,18 @@ function mtdCountsPartial(actual: PropertyActual[]): boolean {
  * Build the Adaptive Card (v1.4) POST body for the Teams daily report post.
  * Pure function: no I/O, JSON-serializable, ASCII-only output.
  */
-export function buildReportCard(report: RevenueReport, baseUrl: string): object {
+export function buildReportCard(
+  report: RevenueReport,
+  baseUrl: string,
+  opts: {
+    /** True when the .xlsx/.pdf ship as real channel attachments. The
+     *  "Download Excel"/"Download PDF" buttons point at /report/latest.*,
+     *  which middleware.ts gates behind the MAIN pin — so for anyone in the
+     *  chat without that pin they are a login wall, not a download. When the
+     *  files are in the channel the buttons are redundant, so drop them. */
+    filesAttached?: boolean;
+  } = {}
+): object {
   const portfolioOccYesterday = weightedOcc(report.actual, (p) => p.yesterday.actual);
   const roomRevYesterday = sumRoomRev(report.actual, (p) => p.yesterday.actual);
   const roomRevMtd = sumRoomRev(report.actual, (p) => p.mtd.actual);
@@ -142,11 +153,15 @@ export function buildReportCard(report: RevenueReport, baseUrl: string): object 
     },
   ];
 
-  const actions = [
+  const actions: object[] = [
     { type: "Action.OpenUrl", title: "View report", url: `${baseUrl}/report` },
-    { type: "Action.OpenUrl", title: "Download Excel", url: `${baseUrl}/report/latest.xlsx` },
-    { type: "Action.OpenUrl", title: "Download PDF", url: `${baseUrl}/report/latest.pdf` },
   ];
+  if (!opts.filesAttached) {
+    actions.push(
+      { type: "Action.OpenUrl", title: "Download Excel", url: `${baseUrl}/report/latest.xlsx` },
+      { type: "Action.OpenUrl", title: "Download PDF", url: `${baseUrl}/report/latest.pdf` },
+    );
+  }
 
   return {
     type: "AdaptiveCard",
