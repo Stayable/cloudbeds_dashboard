@@ -4,6 +4,84 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 07/30/26 (session 6 close) — CHECKPOINT · HANDOFF DUE MONDAY 08/03
+
+> **Pickup — 07/30/26. PUSHED AND DEPLOYING.** Branch level with `origin` at
+> **`bffde91`**; production deploy `dpl_4nBVVmMSDWYLvQMxN1wuGwT5NbhS` triggered
+> for it (previous READY release was `dpl_C7VaenTK5C5ijoaz3AobtrnxEz5U` /
+> `6ea740e` — that is the rollback target). Working tree clean apart from two
+> intentionally-untracked items: `Property management dashboard system/` (the
+> design source of record) and `outputs/Occupancy Report as of July 29, 2026.pdf`.
+>
+> **▶ DEADLINE: compare notes with Monica through Friday 07/31, complete the
+> handoff by Monday 08/03 — earlier if possible (Kyle, 07/30).**
+>
+> **▶ START HERE — the three things that block handoff:**
+> 1. **[ ] Confirm the 03:00 UTC `capture-blocks` cron fired.** It only exists in
+>    production as of this deploy. Tomorrow morning run
+>    `node scripts/show-snapshot.mjs 2026-07-30` and check `ooo_eod` is populated
+>    for 8 properties and `gain` where the flash read lower. **This is the whole
+>    point of Friday's comparison being better than today's.**
+> 2. **[ ] Kyle: edit the Power Automate flow** so the PDF lands as a real channel
+>    attachment — SharePoint **Create file** on `triggerBody()?['files'][0]`, then
+>    post step reads `triggerBody()?['card']`, then set
+>    `TEAMS_FLOW_ATTACHMENTS=1`. Runbook: `docs/TEAMS-ATTACHMENTS.md`. Until then
+>    the card's PDF button stands in, and **it is gated behind the MAIN pin** — so
+>    either do this or distribute the pin before handoff. Smartsheet **296**.
+> 3. **[?] Decide whether historical OOO gets backfilled from Monica's workbook.**
+>    The 07/30 fix is forward-only; banked days are frozen and the true past
+>    figures are gone from Cloudbeds. Without a backfill, history keeps showing our
+>    lower OOO (LL −11, JW −10, SA −11, KE −81 MTD) and will never reconcile.
+>    Same mechanism as the 2025/2026 count backfill, so it is a known quantity.
+>
+> **▶ Then, in rough priority:**
+> 4. **[?] DP inventory YTD +14 room-days** — the only property where inventory
+>    does not match hers, and it carries the largest MTD revenue gap (−2.3%).
+>    A capacity-change boundary is probably a day off (DP moved 151→150→152→153).
+> 5. **[ ] Show Monica the transient/lease split table.** Ours puts less in
+>    transient and more in lease at every property and the two nearly cancel
+>    (KE: −$27,425 / +$30,160 / net +$2,735). One classification rule, not eight
+>    problems — the most efficient thing to resolve with her.
+> 6. **[ ] Agree the block-type → "Other blocks" mapping** (KE 14 vs 27, OR 3 vs
+>    12). `blocks_by_type` is stored per Cloudbeds type, so it is answerable now.
+> 7. **[ ] Regenerate the Revenue-chat trigger URL** — pasted in plaintext into a
+>    transcript 07/29. Smartsheet **297**.
+> 8. **[ ] Harden the block fetch against 429** (Smartsheet **298**). Partly
+>    mitigated already: `ooo` is raise-only, so a rate-limited zero can no longer
+>    overwrite a real figure.
+> 9. **[?] Item 6 of session 3b is still undecided** — should home/`/exec`
+>    occupancy stop using Data Insights and compute nights ÷ inventory the way
+>    `/report` does? DI is the only place Cloudbeds' inflated denominator still
+>    reaches us. Also **send** `outputs/CloudbedsCapacityDefect_2295-6802_072826.md`,
+>    and get the room-type-change date from Monica.
+>
+> **What this session delivered** (9 commits, `6ea740e..bffde91`):
+> - Monica's daily report **reproduced page-for-page** — her 10-page layout, her
+>   property order, her header wording, her negative-currency format, her
+>   Sources/Notes/Legend, her file name, her greeting.
+> - **Teams message body** matched to hers (5 real posts reviewed), with our
+>   portfolio figures + last-year variance added on top. Posted to the TEST channel
+>   three times and confirmed rendering.
+> - **Attachment path built, env-gated** (`TEAMS_FLOW_ATTACHMENTS`), so the code
+>   deploy and the flow edit are independent and rollback is one variable.
+> - **Head-to-head vs her real 07/29 report: YTD revenue +0.08%, room-nights
+>   +0.02%.** Every remaining difference traced to a named open item.
+> - **The OOO gap root-caused and fixed forward** — Cloudbeds blocks erode for past
+>   dates, so `ooo` is now the max observed on or after the stay date, fed by a new
+>   end-of-day capture cron.
+> - **Confirmed the crons fire unattended** (session-4 open item, now closed).
+> - Two real defects found and fixed that nobody had reported: nondeterministic
+>   property order in the report, and the `.xlsx` branding itself "SAMPLE".
+>
+> **Corrections I made to my own earlier claims this session** — worth knowing so
+> they are not re-derived: the Yesterday column moving is NOT ledger settlement
+> (the banked row shows drift $0.00; it was rate-limit-induced data loss); the
+> property order was NOT LL/JN/JW/KE/**OR/KW**/SA/DP (reading pypdf text order is
+> unreliable — use label y-coordinates); the payload is NOT ~72 KB (580 KB); and
+> the OOO fix is capture EARLIER, not later.
+
+---
+
 ## 07/28/26 (session 3b) — ACCURACY REMEDIATION vs Monica's report
 
 Kyle added her 7/25–7/27 PDFs; a full parity comparison (8 properties × 3 periods
@@ -149,15 +227,6 @@ KE question and exposed a second, related defect.
    tests pass; `next build` green.
 
 ---
-
-## 07/30/26 (session 6 cont.) — HANDOFF TIMELINE
-
-> **Kyle 07/30/26: compare notes with Monica through Friday 07/31, complete the
-> handoff by Monday 08/03 — earlier (Friday) if possible.** So the remaining work
-> is scoped to that: the OOO capture fix landed 07/30 specifically so tonight's
-> 03:00 UTC run gives Friday's comparison a day of better data. What still has to
-> happen before handoff is the flow edit (item 1 below) and a push/deploy —
-> everything else is comparison and sign-off.
 
 ## 07/29/26 (session 6) — MONICA'S REPORT REPRODUCED + ATTACHMENT PATH BUILT
 
