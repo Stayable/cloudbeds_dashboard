@@ -4,7 +4,6 @@ import { persistDailySnapshots, buildRevenueReport } from "@/lib/cloudbeds";
 import { findAvailabilityAnomalies, findSnapshotGaps } from "@/lib/db";
 import { PROPERTIES } from "@/config/properties";
 import { buildReportCard } from "@/lib/report-card";
-import { renderReportXlsx } from "@/lib/report-xlsx";
 import { renderReportPdf } from "@/lib/report-pdf";
 import { reportFileBase } from "@/lib/revenue-report";
 import { attachmentsEnabled, postAdaptiveCard, type TeamsAttachment } from "@/lib/teams";
@@ -35,25 +34,23 @@ export async function GET(req: Request) {
     const report = await buildRevenueReport(asOf);
     const base = process.env.PUBLIC_BASE_URL || "https://dashboard.rentstayable.com";
 
-    // Attachments: the .pdf and .xlsx are named exactly the way Monica names
-    // her manual post's file ("Occupancy Report as of July 27, 2026"), so the
-    // channel's file history stays continuous when this takes over from her.
-    // Only rendered when the flow is ready for them — see lib/teams.ts.
+    // Attachment: the PDF only (Kyle, 07/29/26 — that is what Monica posts; the
+    // .xlsx is her working model, not her post). Named exactly the way she names
+    // hers ("Occupancy Report as of July 27, 2026.pdf"), so the channel's file
+    // history stays continuous when this takes over. The .xlsx stays available
+    // on /report/latest.xlsx. Only rendered when the flow is ready for it —
+    // see lib/teams.ts.
     const files: TeamsAttachment[] = [];
     if (attachmentsEnabled()) {
-      const fileBase = reportFileBase(report.asOf);
-      const [xlsx, pdf] = await Promise.all([
-        renderReportXlsx(report),
-        Promise.resolve(renderReportPdf(report)),
-      ]);
-      files.push(
-        { name: `${fileBase}.pdf`, contentBase64: pdf.toString("base64") },
-        { name: `${fileBase}.xlsx`, contentBase64: xlsx.toString("base64") },
-      );
+      const pdf = renderReportPdf(report);
+      files.push({
+        name: `${reportFileBase(report.asOf)}.pdf`,
+        contentBase64: pdf.toString("base64"),
+      });
     }
 
     const posted = await postAdaptiveCard(
-      buildReportCard(report, base, { filesAttached: files.length > 0 }),
+      buildReportCard(report, base, { pdfAttached: files.length > 0 }),
       files,
     );
 

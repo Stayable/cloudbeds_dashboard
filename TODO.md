@@ -186,9 +186,32 @@ KE question and exposed a second, related defect.
 >   deliberately replaces the old "the code change and the flow edit MUST land
 >   together" plan — the gate makes them independent and the rollback instant.
 > - **[x] Files named exactly as she names hers** —
->   `Occupancy Report as of July 27, 2026.pdf|.xlsx`, title date = run date =
->   `asOf + 1` (verified against her file, whose Yesterday column is 26-Jul-26).
->   Both formats attach, so the open question below can't block.
+>   `Occupancy Report as of July 29, 2026.pdf`, title date = run date = `asOf + 1`
+>   (verified against her file, whose Yesterday column is 26-Jul-26).
+> - **[x] PDF ONLY (Kyle, 07/29/26).** The `.xlsx` is NOT attached — that is her
+>   working model, not her post. It stays on `/report/latest.xlsx` and keeps its
+>   card button; only the now-redundant "Download PDF" button is dropped.
+> - **[x] TWO fidelity defects found by checking her file properly, not by eye:**
+>   1. **Property order was wrong in my first pass.** Reading pypdf's extracted
+>      text order gave `… OR, KW …`; her real order is **KW before OR**. pypdf
+>      emits the two labels on a page in arbitrary order (page 1 lists JN before
+>      Lakeland). Correct method: the **y-coordinate** of each `Stayable <name>`
+>      label. Her Jul 24 and Jul 27 files agree, ACTUAL and ON-THE-BOOKS both.
+>      Confirmed independently by inventory — her page-3 first table is 160 rooms
+>      (= KW live) and the second is 135 with a 133→135 move (= OR live).
+>      **Final order: LL, JN, JW, KE, KW, OR, SA, DP.**
+>   2. **Block headings read `Lakeland`, hers read `Stayable Lakeland`** — and
+>      Orlando is `Orlando OBT` in our config but `Stayable Orlando` in hers.
+>      `reportDisplayName(code, name)` fixes both, keyed by code so a config
+>      rename can't silently change the heading.
+> - **[x] Verified by position, not by eye:** our render's label y-coordinates now
+>   match hers page-for-page and block-for-block, including page 1's shift for the
+>   `ACTUAL` header. 10 pages either side.
+> - **[x] Real PDF from LIVE data:** `outputs/Occupancy Report as of July 29,
+>   2026.pdf` (asOf 2026-07-28, 8/8 properties). **Review this against hers.**
+> - **[!] Size estimate in the first pass was wrong.** ~72 KB came from a
+>   single-property export; the real 8-property PDF is **580 KB → 773 KB base64**.
+>   Still fine (hers are 150–620 KB), but corrected in the docs.
 > - **[x] Gated-download side finding FIXED.** With files in the channel the card
 >   drops its Download Excel/PDF buttons — they pointed at `/report/latest.*`,
 >   which `middleware.ts` gates behind the MAIN pin, i.e. a login wall for anyone
@@ -197,17 +220,33 @@ KE question and exposed a second, related defect.
 >   the `triggerBody()?['card']` change, the ordered go-live sequence, rollback.
 > - Sizes are a non-issue: ~72 KB pdf + ~24 KB xlsx ≈ 130 KB of base64.
 >
+> **[x] THE CRONS FIRE UNATTENDED — session-4 open item 4 is CLOSED.** Observed
+> incidentally while rendering from live data: 2026-07-28 has real counts for
+> **8 of 8** properties and `lastBankedAt` = **2026-07-29 11:30:40 UTC**, i.e.
+> today's 11:30 restate cron, following the 10:00 flash. Nobody ran anything —
+> session 5 changed no code and executed nothing, and this session only read.
+> `finalThrough` = 2026-06-30, as expected five days after June closed.
+>
 > **▶ START HERE NEXT SESSION:**
-> 1. **[?] STILL UNANSWERED (no longer blocking): does Monica attach a file or
->    paste the numbers?** Inferred "file" from the six
->    `Occupancy Report as of <date>.pdf` files Kyle collected + her `.xlsx`
->    archive, and BOTH are attached, so the build is covered either way. If she
->    pastes numbers, simply never set `TEAMS_FLOW_ATTACHMENTS`.
+> 1. **[!] COULD NOT POST TO THE TEST CHANNEL — two blockers, both need Kyle.**
+>    Kyle authorised a test-channel post this session; it could not be done:
+>    - **`.env.local` has NO `TEAMS_FLOW_URL`** — only `TEAMS_FLOW_URL_REVENUE`.
+>      The test-channel flow URL exists solely in Vercel Production, so there is
+>      nothing to post to from here. (Using the Revenue URL was not an option.)
+>    - **The flow has not been edited yet**, so even with the URL the PDF cannot
+>      land: `TEAMS_FLOW_ATTACHMENTS=1` sends `{card, files}` into a post step
+>      that still feeds `triggerBody()` straight to the card, which fails the run
+>      and posts nothing. The flow edit must come first, always.
+>
+>    Routes, in order of preference: (a) deploy, edit the flow, set
+>    `TEAMS_FLOW_ATTACHMENTS=1`, then Vercel → Cron Jobs → **Run** on
+>    `revenue-report` — the Vercel env already points at the test channel;
+>    (b) paste the test flow URL and Claude posts from here after the flow edit.
 > 2. **[ ] Push + deploy** (not done — pushing this branch deploys to production).
->    Safe: attachments off by default. The visible change is the .pdf/.xlsx layout
->    on `/report/latest.*`.
+>    Safe: attachments off by default, so Teams behaviour is byte-identical. The
+>    visible change is the `/report/latest.pdf|.xlsx` layout.
 > 3. **[ ] Kyle: edit the Power Automate flow**, then run the cron against the
->    **test** channel and check `attached: 2` + both files in its Files tab.
+>    **test** channel and check `attached: 1` + the PDF in its Files tab.
 >    Only after that swap `TEAMS_FLOW_URL` to the Revenue URL — that swap IS the
 >    first live post. `docs/TEAMS-ATTACHMENTS.md` §Go-live.
 > 4. **[!] Not verified and not verifiable without posting:** that the newer
@@ -215,9 +254,9 @@ KE question and exposed a second, related defect.
 >    our code is concerned, but untested against that endpoint.
 > 5. **[ ] Regenerate the Revenue trigger URL** — pasted in plaintext into a
 >    transcript 07/29.
-> 6. **Everything from the session-4/5 pickups is still open** — the DI-occupancy
->    decision (item 6), sending the Cloudbeds capacity write-up, the room-type-change
->    date from Monica, and confirming the crons fire unattended.
+> 6. **Still open from sessions 4/5** — the DI-occupancy decision (item 6),
+>    sending the Cloudbeds capacity write-up, and the room-type-change date from
+>    Monica. Cron confirmation is now DONE (above).
 
 ---
 

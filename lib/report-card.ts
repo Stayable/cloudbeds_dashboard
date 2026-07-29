@@ -55,12 +55,13 @@ export function buildReportCard(
   report: RevenueReport,
   baseUrl: string,
   opts: {
-    /** True when the .xlsx/.pdf ship as real channel attachments. The
-     *  "Download Excel"/"Download PDF" buttons point at /report/latest.*,
-     *  which middleware.ts gates behind the MAIN pin — so for anyone in the
-     *  chat without that pin they are a login wall, not a download. When the
-     *  files are in the channel the buttons are redundant, so drop them. */
-    filesAttached?: boolean;
+    /** True when the report PDF ships as a real channel attachment, in which
+     *  case the "Download PDF" button is redundant and is dropped. It pointed
+     *  at /report/latest.pdf, which middleware.ts gates behind the MAIN pin —
+     *  a login wall rather than a download for anyone in the chat without it.
+     *  "Download Excel" stays: the .xlsx is deliberately NOT attached (Monica
+     *  posts only the PDF), so that link is its only route. */
+    pdfAttached?: boolean;
   } = {}
 ): object {
   const portfolioOccYesterday = weightedOcc(report.actual, (p) => p.yesterday.actual);
@@ -155,12 +156,14 @@ export function buildReportCard(
 
   const actions: object[] = [
     { type: "Action.OpenUrl", title: "View report", url: `${baseUrl}/report` },
+    { type: "Action.OpenUrl", title: "Download Excel", url: `${baseUrl}/report/latest.xlsx` },
   ];
-  if (!opts.filesAttached) {
-    actions.push(
-      { type: "Action.OpenUrl", title: "Download Excel", url: `${baseUrl}/report/latest.xlsx` },
-      { type: "Action.OpenUrl", title: "Download PDF", url: `${baseUrl}/report/latest.pdf` },
-    );
+  if (!opts.pdfAttached) {
+    actions.push({
+      type: "Action.OpenUrl",
+      title: "Download PDF",
+      url: `${baseUrl}/report/latest.pdf`,
+    });
   }
 
   return {

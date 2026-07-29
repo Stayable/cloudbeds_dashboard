@@ -8,7 +8,10 @@
 //       "post card" step feeds triggerBody() straight into the card).
 //   TEAMS_FLOW_ATTACHMENTS="1"        ->  POST { card, files: [...] }, so the
 //       flow can save each file into the channel's SharePoint library
-//       (base64ToBinary(...)) and then post the card.
+//       (base64ToBinary(...)) and then post the card. In practice `files` holds
+//       exactly one entry, the report PDF (Kyle, 07/29/26 — that is what Monica
+//       posts), but the shape is a list so a second file needs no flow change.
+//       Measured payload: ~580 KB PDF -> ~773 KB base64.
 //
 // The gate exists because changing the body shape unconditionally would break
 // the live daily post the moment this deploys, before the flow is edited. With

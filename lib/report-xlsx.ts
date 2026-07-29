@@ -7,6 +7,7 @@ import {
   isCountDependentRow,
   METHODOLOGY,
   periodHeaderLabels,
+  reportDisplayName,
   weekdayName,
   fmtDayHeader,
 } from "./revenue-report";
@@ -150,7 +151,7 @@ function renderActualBlock(
 
   // Title bar
   ws.mergeCells(row, 1, row, totalCols);
-  styledCell(ws, row, 1, property.name, {
+  styledCell(ws, row, 1, reportDisplayName(property.code, property.name), {
     bold: true,
     fill: TITLE_BAR_FILL,
     fontColor: "FFFFFFFF",
@@ -261,7 +262,7 @@ function renderOnTheBooksBlock(
   let row = startRow;
 
   ws.mergeCells(row, 1, row, Math.max(totalCols, 2));
-  styledCell(ws, row, 1, property.name, {
+  styledCell(ws, row, 1, reportDisplayName(property.code, property.name), {
     bold: true,
     fill: TITLE_BAR_FILL,
     fontColor: "FFFFFFFF",

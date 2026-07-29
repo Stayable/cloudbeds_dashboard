@@ -6,6 +6,7 @@ import {
   fmtDayHeader,
   weekdayName,
   reportFileBase,
+  reportDisplayName,
 } from "./revenue-report";
 import { actualHead, onTheBooksHead } from "./report-pdf";
 
@@ -14,8 +15,11 @@ import { actualHead, onTheBooksHead } from "./report-pdf";
 // report replaces. If a value here changes, the two stop lining up.
 
 describe("property order", () => {
+  // Verified by label y-coordinate in her July 24 and July 27 files, both
+  // sections. Kissimmee WEST precedes Orlando — reading the extracted text
+  // order instead suggests the opposite, and it is wrong.
   it("is Monica's published page order", () => {
-    expect([...REPORT_PROPERTY_ORDER]).toEqual(["LL", "JN", "JW", "KE", "OR", "KW", "SA", "DP"]);
+    expect([...REPORT_PROPERTY_ORDER]).toEqual(["LL", "JN", "JW", "KE", "KW", "OR", "SA", "DP"]);
   });
 
   it("sorts an arbitrarily-ordered array into it", () => {
@@ -33,6 +37,17 @@ describe("property order", () => {
     const input = [{ code: "DP" }, { code: "LL" }];
     sortByReportOrder(input);
     expect(input.map((p) => p.code)).toEqual(["DP", "LL"]);
+  });
+});
+
+describe("reportDisplayName", () => {
+  it("prefixes Stayable, as her block headings do", () => {
+    expect(reportDisplayName("LL", "Lakeland")).toBe("Stayable Lakeland");
+    expect(reportDisplayName("SA", "St. Augustine")).toBe("Stayable St. Augustine");
+  });
+
+  it("drops the OBT suffix Orlando carries in config but not in her report", () => {
+    expect(reportDisplayName("OR", "Orlando OBT")).toBe("Stayable Orlando");
   });
 });
 

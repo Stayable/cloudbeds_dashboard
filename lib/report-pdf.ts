@@ -17,6 +17,7 @@ import {
   isCountDependentRow,
   METHODOLOGY,
   periodHeaderLabels,
+  reportDisplayName,
   weekdayName,
   fmtDayHeader,
 } from "./revenue-report";
@@ -256,7 +257,14 @@ export function renderReportPdf(report: RevenueReport): Buffer {
   pairs(report.actual).forEach((page, pageIndex) => {
     let y = startPage(pageIndex === 0 ? "ACTUAL" : undefined);
     page.forEach((property) => {
-      y = drawBlock(doc, y, property.name, head, actualBody(property)) + 18;
+      y =
+        drawBlock(
+          doc,
+          y,
+          reportDisplayName(property.code, property.name),
+          head,
+          actualBody(property),
+        ) + 18;
     });
   });
 
@@ -268,8 +276,13 @@ export function renderReportPdf(report: RevenueReport): Buffer {
     let y = startPage(pageIndex === 0 ? "ON-THE-BOOKS" : undefined);
     page.forEach((property) => {
       y =
-        drawBlock(doc, y, property.name, onTheBooksHead(property), onTheBooksBody(property)) +
-        18;
+        drawBlock(
+          doc,
+          y,
+          reportDisplayName(property.code, property.name),
+          onTheBooksHead(property),
+          onTheBooksBody(property),
+        ) + 18;
     });
   });
 

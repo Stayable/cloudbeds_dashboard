@@ -187,16 +187,24 @@ export const SOURCE_NOTE =
   "Differs from Monica's Yardi-blended lease figures for Jan-Aug. Room Revenue excludes taxes and adjustments.";
 
 /** Property display order in the daily report, matching Monica Oco's published
- *  PDF page for page (verified against "Occupancy Report as of July 27, 2026":
- *  Lakeland, Jacksonville North, Jacksonville West, Kissimmee East, Orlando,
- *  Kissimmee West, St. Augustine, Davenport). This is deliberately NOT the
+ *  PDF page for page: Lakeland, Jacksonville North, Jacksonville West,
+ *  Kissimmee East, Kissimmee WEST, Orlando, St. Augustine, Davenport.
+ *
+ *  Verified by the y-coordinate of each "Stayable <name>" label in her files
+ *  (July 24 AND July 27, ACTUAL and ON-THE-BOOKS sections all agree) — NOT by
+ *  reading extracted text order, which puts the two labels on a page in an
+ *  arbitrary order and made this look like ...Orlando, Kissimmee West...
+ *  The inventories confirm it independently: her page-3 first table is 160
+ *  rooms = Kissimmee West and the second is 135 with a 133->135 move = Orlando.
+ *
+ *  This is deliberately NOT the
  *  `config/properties.ts` order — that one is grouped by how the keys were
  *  added. Reading the two reports side by side every morning is the whole point
  *  of this automation, so the order has to be hers, and it has to be stable:
  *  `getRevenueReportInputs` builds properties concurrently and pushes as each
  *  resolves, so without this the order changed run to run. */
 export const REPORT_PROPERTY_ORDER: readonly string[] = [
-  "LL", "JN", "JW", "KE", "OR", "KW", "SA", "DP",
+  "LL", "JN", "JW", "KE", "KW", "OR", "SA", "DP",
 ];
 
 /** Sort report rows into REPORT_PROPERTY_ORDER. Any code not in that list
@@ -208,6 +216,17 @@ export function sortByReportOrder<T extends { code: string }>(rows: T[]): T[] {
     return i === -1 ? REPORT_PROPERTY_ORDER.length : i;
   };
   return [...rows].sort((a, b) => rank(a.code) - rank(b.code) || a.code.localeCompare(b.code));
+}
+
+/** The property heading Monica uses on each block of her report. Mostly
+ *  "Stayable " + our `config/properties.ts` name, but Orlando is the exception:
+ *  she writes "Stayable Orlando" where our config says "Orlando OBT". Keyed by
+ *  code so a config rename can't silently change the report heading. */
+const REPORT_DISPLAY_NAME: Record<string, string> = {
+  OR: "Stayable Orlando",
+};
+export function reportDisplayName(code: string, name: string): string {
+  return REPORT_DISPLAY_NAME[code] ?? `Stayable ${name}`;
 }
 
 const MONTHS_SHORT = [
