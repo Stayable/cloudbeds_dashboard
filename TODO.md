@@ -4,6 +4,98 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/02/26 (session 8) — ROB HEADER LINKS SHIPPED · HANDOFF DEADLINE IS TOMORROW
+
+> **Pickup — 08/02/26. SHIPPED AND LIVE.** Branch level with `origin` at
+> **`97515f0`**; production deploy **`dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1` READY**,
+> aliased to `dashboard.rentstayable.com`. Rollback target is
+> **`dpl_AWt9zKVFGF1QY1QAKmxNGtgrvWB4`** (`3d29785`). Working tree clean apart from
+> the two intentionally-untracked items (`Property management dashboard system/`,
+> `outputs/Occupancy Report as of July 29, 2026.pdf`).
+>
+> **▶ THE HANDOFF IS DUE MONDAY 08/03 — TOMORROW. Nothing on that list moved this
+> session.** All three blockers below are exactly where session 6 left them. The
+> compare-notes-with-Monica window (through Fri 07/31) has now passed unused.
+>
+> **What this session did** (one small feature, start to finish):
+> - **[x] Four external system links in the `/rob` header.** Rendered as
+>   `chromeButton` pills in the navy `PageHead`, top-right of "Rob's View":
+>   **Checklist** → `ops.rentstayable.com` · **Rewards** → `rewards.rentstayable.com`
+>   · **Invest** → `invest.rise8companies.com` · **Lock** → `lock.rentstayable.com`.
+>   New tab + `rel="noopener noreferrer"` so Rob never loses dashboard state.
+>   `EXTERNAL_LINKS` at `app/rob/page.tsx:32`.
+> - **[x] Label is "Checklist", not "Ops" (Kyle, 08/02).** The href is unchanged —
+>   `ops.rentstayable.com` is the checklist app. Renamed before the commit.
+> - **Scoped to `/rob` only.** The shared nav (`components/NavLinks.tsx`) is
+>   untouched, so no other surface changed. Deliberate: "header of Rob's Dashboard"
+>   means his page, and the chrome is shared by all eight gated surfaces.
+> - Verified: `tsc --noEmit` exit 0 · `next build` green · **237/237 tests**.
+>
+> **[x] The four link targets are real projects in the same Vercel team** —
+> `checklist-app`, `rewards`, `investor-portal`, `lock-app` (plus `lock-middleware`).
+> That is what corroborated the Checklist rename.
+> **[ ] NOT verified: that the custom domains are aliased to those projects.** Only
+> `dashboard.rentstayable.com` was confirmed as a live alias (it is on our own
+> deployment). If a pill 404s, the subdomain is unassigned — a Vercel Domains fix,
+> not a code fix.
+>
+> **▶ START HERE NEXT SESSION — unchanged from session 6, and now overdue:**
+> 1. **[ ] Confirm the 03:00 UTC `capture-blocks` cron fired.** Three nights have
+>    now passed since it deployed and **nobody has looked**. Run
+>    `node scripts/show-snapshot.mjs 2026-07-30` (also 07-31, 08-01) and check
+>    `ooo_eod` is populated for 8 properties, with `gain` where the flash read
+>    lower. This is the evidence that the OOO fix works in production.
+> 2. **[ ] Kyle: edit the Power Automate flow** for real PDF attachments, then set
+>    `TEAMS_FLOW_ATTACHMENTS=1`. `docs/TEAMS-ATTACHMENTS.md`. Until then the card's
+>    PDF button is gated behind the MAIN pin.
+> 3. **[?] Decide on the historical-OOO backfill from Monica's workbook.** The
+>    07/30 fix is forward-only; without this, history never reconciles.
+> 4. **[ ] Regenerate the Revenue-chat trigger URL** (plaintext in a 07/29
+>    transcript). Cheap, and it should not keep ageing.
+> 5. Then the session-6 list: DP inventory +14 room-days, the transient/lease split
+>    table for Monica, the block-type mapping, the 429 hardening, the DI-occupancy
+>    decision.
+
+---
+
+## 07/30/26 (session 7) — PROCESS DECISION: no more Smartsheet auto-push
+
+> No code changed this session. One standing decision, recorded so it is not
+> re-litigated:
+>
+> **[x] Stop writing action items to the Smartsheet Action Items Staging Sheet
+> (1981210199805828).** Kyle found rows created unprompted by prior Claude Code
+> sessions on this repo and said do not do it again. Effective now: **no Smartsheet
+> writes and no reads** from this project unless Kyle asks in the moment. Surfaced
+> action items go in this file or in chat instead. Saved to project memory as
+> `no-smartsheet-autopush.md`.
+>
+> **The five rows already created are left in place, untouched** — 288, 292, 296,
+> 297, 298 (07/28–07/29/26). References to them elsewhere in this file (e.g.
+> "Smartsheet 296") are still valid pointers; they were not deleted.
+>
+> **[?] OPEN — Kyle only: the org-level instruction still says to auto-push.**
+> The RISE8 organization instructions state the staging sheet "receives any task
+> surfaced in any session, without being asked," and org instructions override
+> individual preferences. So every new session is told to do the thing we just
+> stopped doing. Project memory holds the line, but the conflict is structural.
+> - Editing org settings affects **all RISE8 users**, not just Kyle. Personal
+>   `~/.claude/CLAUDE.md` does *not* win against org text, so it is not a fix.
+> - Recommendation: **narrow, don't delete** — the auto-push is plausibly useful
+>   for ops/legal/finance sessions; it is engineering sessions that generate the
+>   noise. Reword to fire *when asked* or *when the task has a named human owner
+>   outside the session*, rather than "without being asked."
+> - Claude cannot see or edit org settings. Kyle does this in the admin console.
+>   Offer to draft replacement wording was left on the table, not yet drafted.
+>
+> Also noted while reviewing the existing rows (not acted on):
+> - Row **292**'s source tag reads 07/29/26 but it was created 07/28 3:20 PM.
+> - Row **297** is a live security item — a SAS-signed Power Automate trigger URL
+>   was pasted in plaintext into a transcript on 07/29. Still Not Started. That one
+>   should not age; rotating it is cheap.
+
+---
+
 ## 07/30/26 (session 6 close) — CHECKPOINT · HANDOFF DUE MONDAY 08/03
 
 > **Pickup — 07/30/26. PUSHED AND DEPLOYING.** Branch level with `origin` at
