@@ -1,7 +1,7 @@
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import ControlBar, { ControlLabel } from "@/components/ControlBar";
-import { PageHead } from "@/components/ui";
+import { PageHead, chromeButton } from "@/components/ui";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import FinanceSection from "@/components/FinanceSection";
@@ -26,6 +26,15 @@ const NAV: NavItem[] = [
   { id: "reservations", label: "Reservations", n: 4 },
   { id: "finance", label: "Finance", n: 5 },
   { id: "notes", label: "Notes", n: null },
+];
+
+// External systems Rob wants one click away from this dashboard. Not part of this
+// app — plain outbound links, opened in a new tab so his view is never replaced.
+const EXTERNAL_LINKS: { label: string; href: string }[] = [
+  { label: "Checklist", href: "https://ops.rentstayable.com" },
+  { label: "Rewards", href: "https://rewards.rentstayable.com" },
+  { label: "Invest", href: "https://invest.rise8companies.com/" },
+  { label: "Lock", href: "https://lock.rentstayable.com" },
 ];
 
 // Section header. The step number ties back to the numbered rail on the left.
@@ -78,7 +87,20 @@ export default async function RobPage({
         title={<>Rob&apos;s View</>}
         sub={<>Tailored to the metrics you selected — live ops, occupancy, revenue, and
           reservation financials.</>}
-      />
+      >
+        {EXTERNAL_LINKS.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={chromeButton}
+          >
+            {l.label}
+            <span aria-hidden className="ml-1.5 text-[10px] opacity-60">↗</span>
+          </a>
+        ))}
+      </PageHead>
 
       <div className="mt-4 lg:flex lg:items-start lg:gap-[18px]">
         <SectionNav items={NAV} />
