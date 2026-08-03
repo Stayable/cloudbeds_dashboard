@@ -4,6 +4,125 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/03/26 (session 9) — 3-DAY CATCH-UP RENDERED · OOO GAP IS NOW **KE ONLY**
+
+> **Pickup — 08/03/26. Three PDFs generated for today's comparison with Monica.**
+> Kyle's plan: check our 3 files against the 3 she posts today, compare notes,
+> improve, launch tomorrow.
+>
+> **The files, in `outputs/` (her naming — label date = stay date + 1):**
+> | our file | stay date | weekday |
+> |---|---|---|
+> | `Occupancy Report as of August 1, 2026.pdf` | 2026-07-31 | Friday |
+> | `Occupancy Report as of August 2, 2026.pdf` | 2026-08-01 | Saturday |
+> | `Occupancy Report as of August 3, 2026.pdf` | 2026-08-02 | Sunday |
+>
+> `Occupancy Report as of July 31, 2026.pdf` (stay date 07-30) was also rendered
+> because **hers for that day was already in the repo root**, so it could be
+> diffed immediately rather than waiting.
+>
+> **[x] TWO NEW TOOLS, both reusable and committed:**
+> - `npx tsx scripts/render-report.mts <asOf> [asOf...]` — renders the real PDF
+>   for any past stay date through the same builder the cron uses.
+> - `python scripts/diff-reports.py "<hers.pdf>" "<ours.pdf>"` — metric-by-metric
+>   delta per property × period, plus a portfolio roll-up, with per-metric
+>   tolerances. `parse-monica-pdf.py` was refactored to expose `parse_report()`
+>   so **one parser reads both sides**. Validated by reproducing the session-6
+>   head-to-head exactly (YTD +0.08% / +0.02% / +0.01%).
+>
+> **▶ THE HEADLINE FINDING — the OOO gap is not erosion, and it is KE alone.**
+> Day-level OOO, hers vs ours, on the Yesterday column of two independent days:
+>
+> | | LL | JN | JW | **KE** | KW | OR | SA | DP |
+> |---|---|---|---|---|---|---|---|---|
+> | stay 07-28 | 0 | 0 | 0 | **−8** | 0 | 0 | 0 | 0 |
+> | stay 07-30 | 0 | 0 | 0 | **−7** | 0 | 0 | 0 | −1 |
+>
+> **Seven of eight match exactly.** KE is short by a near-constant ~7 rooms every
+> single day, which is what produces its MTD −95: 7 × ~13 days. That is
+> structural, not a capture-timing artifact.
+> - **This contradicts the erosion hypothesis for KE** (session 6). The 03:00 UTC
+>   end-of-day capture has now run five consecutive nights and **`gain` is 0 on
+>   every property-day** — the earlier read never once beat the flash. KE's
+>   banked 07-30 figure is 24 from BOTH the eod capture and the flash, while she
+>   reports 31. Capturing earlier cannot close a gap that is the same at 23:00 ET
+>   as it is at 06:00 ET the next morning.
+> - **The remaining explanation is definitional, and it is the same class of
+>   thing as JN's 107 override:** rooms Monica counts as unsellable that are not
+>   blocked in Cloudbeds. Memory `monica-occupancy-workbook` already records that
+>   her OOO is an *operational* count. **Ask her directly today: which 7 KE rooms,
+>   and are they blocked in Cloudbeds?** This is the highest-value question on
+>   the list and it is answerable in one message.
+> - **The LL −10 / JW −10 / SA −11 MTD gaps are pre-fix residue** on days banked
+>   before 07/30, not a live defect. They are exactly what the backfill decision
+>   (below) is about, and nothing else now feeds them.
+> - Also: JN "Other blocks" is −2 on both days (hers 2, ours 0), and DP was −1 on
+>   07-30. Small, but consistent enough to name.
+>
+> **[x] 429 HARDENING SHIPPED — the old open item, and it was blocking today.**
+> The first render produced 33 of 56 on-the-books OOO cells as ZERO at LL/KW/OR
+> because `getRoomBlocks` was 429ing and the caller treats a failure as 0. Added
+> a bounded retry to `cbGet` itself (`retryDelayMs`, 3 attempts, honours
+> `Retry-After` capped at 10s, exponential 0.5/1/2s otherwise, jittered so eight
+> concurrent property fetches don't retry in lockstep) — one central fix rather
+> than per-caller. Re-rendered: **zero 429s**, and the only remaining zero cells
+> are LL and DP tapering to 0 at the far end of the forward window, which is real
+> (no blocks scheduled that far out) and identical across all three files.
+> 5 new tests in `lib/cloudbeds-retry.test.ts`. **This also closes the production
+> hazard**: a 429 during the flash cron could previously bank OOO = 0 permanently.
+>
+> **[x] The end-of-day cron IS firing — but it is skipping properties.**
+> Verified by observed-at timestamps, five nights running:
+> | stay date | properties with an eod capture | skipped |
+> |---|---|---|
+> | 07-29 | 8/8 | — |
+> | 07-30 | 8/8 | — |
+> | 07-31 | 5/8 | KE, LL, SA |
+> | 08-01 | 4/8 | JW, KW, LL, SA |
+> | 08-02 | 8/8 | — |
+> The skip path is working as designed (a failed fetch is skipped, never written
+> as 0), but **12 property-days in five have no end-of-day reading at all** —
+> almost certainly the same 429. The retry above should fix this too; **check the
+> next few nights before calling it closed.**
+>
+> **[!] Observation, not yet a decision: the report's Yesterday column is always
+> a LIVE fetch**, even when `asOf` is a past date (`getRevenueReportInputs`,
+> `lib/cloudbeds.ts:1596`). So it never reads the banked max-observed `ooo` that
+> the 07/30 fix exists to maintain — the fix protects the MTD/YTD roll-ups only.
+> On the production path (asOf = actual yesterday) the live read is the intended
+> earliest source, so this is not currently costing anything, and the 7-of-8
+> match above shows the live read is accurate. But it is why re-rendering a past
+> date drifts a room or two from `show-snapshot.mjs` (OR −1, SA −1, KW +1 on
+> 08-01). Worth deciding, not worth rushing.
+>
+> **Portfolio parity is stable across both compared days:**
+> | | stay 07-28 | stay 07-30 |
+> |---|---|---|
+> | YTD room revenue | +0.08% | +0.08% |
+> | YTD occupied room-nights | +0.02% | +0.03% |
+> | YTD inventory room-days | +0.01% | +0.01% |
+>
+> **▶ FOR TODAY'S COMPARISON WITH MONICA — in priority order:**
+> 1. **[ ] Ask about the 7 KE rooms.** The one question that closes the last
+>    live per-day gap. See above.
+> 2. **[ ] Show her the transient/lease split table** (carried over, still the
+>    most efficient thing to resolve — one classification rule, not eight
+>    problems).
+> 3. **[ ] Agree the block-type → "Other blocks" mapping** (JN 2 vs 0 is the
+>    live instance; KE 14 vs 27 and OR 3 vs 12 are the historical ones).
+> 4. **[?] DP inventory YTD +14 room-days** — unchanged and still unexplained.
+> 5. **[?] The historical-OOO backfill decision** is now better framed: it is
+>    LL/JW/SA pre-07/30 days only, plus whatever KE turns out to be.
+> 6. **[ ] Kyle: the Power Automate flow edit** + `TEAMS_FLOW_ATTACHMENTS=1`.
+>    Still the only unproven leg of delivery, and launch is tomorrow.
+> 7. **[ ] Regenerate the Revenue-chat trigger URL** — five days old in plaintext
+>    now.
+>
+> Verified this session: `tsc --noEmit` exit 0 · `next build` green ·
+> **242/242 tests**.
+
+---
+
 ## 08/02/26 (session 8) — ROB HEADER LINKS SHIPPED · HANDOFF DEADLINE IS TOMORROW
 
 > **Pickup — 08/02/26. SHIPPED AND LIVE.** Branch level with `origin` at

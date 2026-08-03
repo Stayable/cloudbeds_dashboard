@@ -68,6 +68,23 @@ export function readKey(code: string): string | null {
   return null;
 }
 
+/** Bounded retry for HTTP 429. A rate-limited call is NOT a data answer, but
+ *  several call sites (notably the room-block fetch) turn a failure into 0 —
+ *  and out-of-order is frozen at first capture, so a 429 during the flash cron
+ *  banks a permanent zero. Retrying here fixes every caller at once rather
+ *  than case-by-case. Bounded and short: a report build fans out 8 properties x
+ *  ~8 date windows, so the ceiling matters more than persistence. */
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 3;
+/** Backoff before attempt n (1-indexed), in ms, before jitter. */
+export function retryDelayMs(attempt: number, retryAfterHeader?: string | null): number {
+  const secs = retryAfterHeader == null ? NaN : Number(retryAfterHeader);
+  // Honour Retry-After when the server sends a sane one; cap it so a bad header
+  // can't stall a cron.
+  if (Number.isFinite(secs) && secs > 0) return Math.min(secs * 1000, 10_000);
+  return Math.min(500 * 2 ** (attempt - 1), 4_000);
+}
+
 async function cbGet<T = unknown>(
   apiKey: string,
   path: string,
@@ -77,13 +94,19 @@ async function cbGet<T = unknown>(
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
   let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
-      next: { revalidate: REVALIDATE_SECONDS },
-    });
-  } catch (e) {
-    return { ok: false, status: 0, error: `Network error reaching Cloudbeds: ${String(e)}` };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+        next: { revalidate: REVALIDATE_SECONDS },
+      });
+    } catch (e) {
+      return { ok: false, status: 0, error: `Network error reaching Cloudbeds: ${String(e)}` };
+    }
+    if (!RETRY_STATUSES.has(res.status) || attempt > MAX_RETRIES) break;
+    const wait = retryDelayMs(attempt, res.headers.get("retry-after"));
+    // Jitter so 8 concurrent property fetches don't retry in lockstep.
+    await new Promise((r) => setTimeout(r, wait + Math.floor(Math.random() * 250)));
   }
 
   const text = await res.text();

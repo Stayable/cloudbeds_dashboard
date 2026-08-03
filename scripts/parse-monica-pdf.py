@@ -17,12 +17,13 @@
 #      before tokenising.
 #
 # Usage: python scripts/parse-monica-pdf.py "<report.pdf>" [out.json]
+#
+# Also importable: `from parse_monica_pdf import parse_report` (see
+# scripts/diff-reports.py) — the layout traps above are the reason both the
+# reconciliation and the daily diff share one parser instead of two.
 import sys, re, json, datetime
 
 import pypdf
-
-PDF = sys.argv[1]
-OUT = sys.argv[2] if len(sys.argv) > 2 else "monica-figures.json"
 
 NAMES = {
     "Stayable Lakeland", "Stayable Jacksonville North", "Stayable Jacksonville West",
@@ -77,66 +78,81 @@ def nums(s):
     return out
 
 
-reader = pypdf.PdfReader(PDF)
-lines = []
-for page in reader.pages:
-    lines += [l.rstrip() for l in (page.extract_text() or "").split("\n")]
+def parse_report(pdf_path):
+    """-> {"source", "asOf", "properties": {CODE: {period: {metric: value}}}}.
 
-blocks = []
-cur = None
-for l in lines:
-    if l.startswith("History "):
-        if cur:
-            blocks.append(cur)
-        cur = {"kind": "actual", "header": l, "lines": []}
-    elif l.startswith("On-the-books "):
-        if cur:
-            blocks.append(cur)
-        cur = {"kind": "otb", "header": l, "lines": []}
-    elif l.strip() in NAMES or cur is None:
-        continue
-    else:
-        cur["lines"].append(l)
-if cur:
-    blocks.append(cur)
+    Works on either side of the comparison — hers and ours render the same
+    layout, which is the point of the layout work in session 6."""
+    reader = pypdf.PdfReader(pdf_path)
+    lines = []
+    for page in reader.pages:
+        lines += [l.rstrip() for l in (page.extract_text() or "").split("\n")]
 
-actual = [b for b in blocks if b["kind"] == "actual"]
-if not actual:
-    sys.exit("No ACTUAL blocks found — the PDF layout may have changed.")
-
-m = re.search(r"History\s+(\d{1,2})-([A-Za-z]{3})-(\d{2})", actual[0]["header"])
-as_of = datetime.datetime.strptime(f"{m.group(1)}-{m.group(2)}-20{m.group(3)}", "%d-%b-%Y").date().isoformat()
-
-properties = {}
-for b in actual:
-    vals, i = {}, 0
-    for key, label in ROWS:
-        found = None
-        for j in range(i, len(b["lines"])):
-            if b["lines"][j].startswith(label):
-                found = j
-                break
-        if found is None:
+    blocks = []
+    cur = None
+    for l in lines:
+        if l.startswith("History "):
+            if cur:
+                blocks.append(cur)
+            cur = {"kind": "actual", "header": l, "lines": []}
+        elif l.startswith("On-the-books "):
+            if cur:
+                blocks.append(cur)
+            cur = {"kind": "otb", "header": l, "lines": []}
+        elif l.strip() in NAMES or cur is None:
             continue
-        vals[key] = nums(b["lines"][found][len(label):])
-        i = found + 1
+        else:
+            cur["lines"].append(l)
+    if cur:
+        blocks.append(cur)
 
-    inv = (vals.get("inventory") or [None])[0]
-    code = INV2CODE.get(int(inv)) if inv else None
-    if not code:
-        print(f"  !! unmapped block, inventory={inv}", file=sys.stderr)
-        continue
+    actual = [b for b in blocks if b["kind"] == "actual"]
+    if not actual:
+        raise SystemExit(f"No ACTUAL blocks found in {pdf_path} — the PDF layout may have changed.")
 
-    entry = properties.setdefault(code, {})
-    for pi, period in enumerate(PERIODS):
-        # Each metric line holds 9 values: 3 periods x (actual, last year, variance).
-        entry[period] = {k: v[pi * 3] for k, v in vals.items() if len(v) > pi * 3}
-        entry[period + " LY"] = {k: v[pi * 3 + 1] for k, v in vals.items() if len(v) > pi * 3 + 1}
+    m = re.search(r"History\s+(\d{1,2})-([A-Za-z]{3})-(\d{2})", actual[0]["header"])
+    as_of = datetime.datetime.strptime(
+        f"{m.group(1)}-{m.group(2)}-20{m.group(3)}", "%d-%b-%Y"
+    ).date().isoformat()
 
-with open(OUT, "w") as f:
-    json.dump({"source": PDF, "asOf": as_of, "properties": properties}, f, indent=1)
+    properties = {}
+    for b in actual:
+        vals, i = {}, 0
+        for key, label in ROWS:
+            found = None
+            for j in range(i, len(b["lines"])):
+                if b["lines"][j].startswith(label):
+                    found = j
+                    break
+            if found is None:
+                continue
+            vals[key] = nums(b["lines"][found][len(label):])
+            i = found + 1
 
-print(f"Parsed {len(properties)} properties from {PDF} (as of {as_of}) -> {OUT}")
-missing = [c for c in INV2CODE.values() if c not in properties]
-if set(missing) - set(properties):
-    print(f"  properties not found: {sorted(set(missing) - set(properties))}", file=sys.stderr)
+        inv = (vals.get("inventory") or [None])[0]
+        code = INV2CODE.get(int(inv)) if inv else None
+        if not code:
+            print(f"  !! unmapped block in {pdf_path}, inventory={inv}", file=sys.stderr)
+            continue
+
+        entry = properties.setdefault(code, {})
+        for pi, period in enumerate(PERIODS):
+            # Each metric line holds 9 values: 3 periods x (actual, last year, variance).
+            entry[period] = {k: v[pi * 3] for k, v in vals.items() if len(v) > pi * 3}
+            entry[period + " LY"] = {k: v[pi * 3 + 1] for k, v in vals.items() if len(v) > pi * 3 + 1}
+
+    return {"source": str(pdf_path), "asOf": as_of, "properties": properties}
+
+
+if __name__ == "__main__":
+    PDF = sys.argv[1]
+    OUT = sys.argv[2] if len(sys.argv) > 2 else "monica-figures.json"
+    parsed = parse_report(PDF)
+    with open(OUT, "w") as f:
+        json.dump(parsed, f, indent=1)
+
+    properties = parsed["properties"]
+    print(f"Parsed {len(properties)} properties from {PDF} (as of {parsed['asOf']}) -> {OUT}")
+    missing = [c for c in INV2CODE.values() if c not in properties]
+    if set(missing) - set(properties):
+        print(f"  properties not found: {sorted(set(missing) - set(properties))}", file=sys.stderr)

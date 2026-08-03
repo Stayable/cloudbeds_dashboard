@@ -31,3 +31,6 @@ outputs/EliseDataAccess_Email_070226.md
 # snapshots kept locally for reconciliation. Far too large for git; the derived
 # outputs (reconciliation + methodology in outputs/) are versioned instead.
 /Occupancy Report/
+
+# Python bytecode from scripts/
+__pycache__/
