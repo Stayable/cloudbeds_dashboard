@@ -7,6 +7,7 @@
 // they sit beside. Every function guards empty input and returns a single
 // friendly string instead of throwing.
 import type { OccProperty } from "@/components/OccupancyView";
+import { displayOcc } from "@/lib/occupancy";
 import type { LeasingView } from "@/lib/leasing";
 import type { ReviewsView } from "@/lib/reviews";
 import { summarizeOoo, type PropertyOoo } from "@/lib/cloudbeds";
@@ -16,15 +17,9 @@ const LOW_OCC_THRESHOLD = 65; // percent -- OccProperty occupancy fields are 0-1
 const OOO_DRAG_THRESHOLD = 0.1; // fraction of capacity out of service
 const UNSPECIFIED_REASON = "Unspecified";
 
-/** Effective occupancy % (post capacityAdjustment) -- mirrors effOcc() in
- *  components/OccupancyView.tsx so the PDF and dashboard agree. null when the
- *  property has no reading for the period. */
-function effOcc(p: OccProperty): number | null {
-  if (p.rawOcc === null) return null;
-  const eff = p.capacity + p.adjustment;
-  if (p.adjustment !== 0 && p.capacity > 0 && eff > 0) return p.rawOcc * (p.capacity / eff);
-  return p.rawOcc;
-}
+/** The displayed occupancy %. Single definition in lib/occupancy.ts — this was
+ *  a third copy of the same formula and they drifted; see displayOcc(). */
+const effOcc = displayOcc;
 
 /** Occupancy leader/laggard, sub-threshold flags, OOO-drag flags, and the
  *  capacity-weighted portfolio occupancy. Excludes properties flagged

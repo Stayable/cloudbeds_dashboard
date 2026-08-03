@@ -1,26 +1,38 @@
-// Shared builder for the OccupancyView's per-property props. Used by both the
-// base `/` dashboard and Rob's `/exec` view (which embeds the same operational
-// explorer). Server-safe (no client runtime; the OccProperty import is a type).
+// Shared builder for the OccupancyView's per-property props. Used by the base
+// `/` dashboard, `/exec`, `/ops`, `/crystal`, `/monica` and `/rob` — every
+// surface that shows an occupancy figure. Server-safe (no client runtime; the
+// OccProperty import is a type).
 
 import type { OccProperty } from "@/components/OccupancyView";
-import type { PropertyDashboard, PropertyInsights } from "@/lib/cloudbeds";
+import type { PropertyDashboard } from "@/lib/cloudbeds";
+import type { OccupancyRollup } from "@/lib/db";
 
 /**
- * Combine the live portfolio snapshot (getPortfolio) with the date-ranged
- * occupancy insights (getPortfolioInsights) into the OccProperty[] that
- * OccupancyView renders: range-avg occupancy, daily bars, and the "Today"
- * live-snapshot cards per property.
+ * Combine the live portfolio snapshot (getPortfolio) with the banked
+ * occupancy rollup (getOccupancyRollup) into the OccProperty[] that
+ * OccupancyView renders: range occupancy, ADR/RevPAR, daily bars, and the
+ * "Today" live-snapshot cards per property.
+ *
+ * SOURCE RULE (Kyle, 08/03/26): Cloudbeds is the source for PRIMITIVES —
+ * transactions, the room list, blocks as observed at capture time. We own
+ * every DERIVATION. Nothing here consumes Cloudbeds' pre-computed percentages,
+ * because those are the one thing measurement showed to be wrong: DI divides
+ * rooms *sold* by a capacity that reads 168 at KE (real 167) and 134 at JW
+ * (real 133), and it excludes the "other blocks" that both `/report` and
+ * Monica count as occupied. That put every property 0.6–4.2pp adrift of its
+ * own figure on `/report`.
+ *
+ * The live "Today" card still comes straight from getDashboard — those are
+ * primitives (arrivals, departures, in-house), not derivations.
  */
 export function buildOccProperties(
   portfolio: PropertyDashboard[],
-  insights: PropertyInsights[],
+  rollup: OccupancyRollup[],
 ): OccProperty[] {
-  const insByCode = new Map(insights.map((i) => [i.property.code, i]));
+  const byCode = new Map(rollup.map((r) => [r.code, r]));
 
   return portfolio.map((pd) => {
-    const ins = insByCode.get(pd.property.code);
-    const rows = ins?.result?.ok ? ins.result.data : [];
-    const rawOcc = rows.length ? rows.reduce((s, r) => s + r.occupancy, 0) / rows.length : null;
+    const roll = byCode.get(pd.property.code);
     const d = pd.result?.ok ? pd.result.data : null;
     // Room count comes from the room list, NOT getDashboard.capacity, which
     // over-reports by one at some properties (KE 168 vs 167, JW 134 vs 133 —
@@ -30,6 +42,12 @@ export function buildOccProperties(
     // let it wipe out a dashboard figure we did get.
     const roomCount = pd.physicalRooms?.count ?? 0;
     const capacity = roomCount > 0 ? roomCount : d ? d.capacity : 0;
+
+    // Ratio of sums, matching /report's MTD/YTD roll-up exactly.
+    const rawOcc = roll && roll.inventory > 0 ? (roll.occupied / roll.inventory) * 100 : null;
+    const adr = roll && roll.occupied > 0 ? roll.roomRev / roll.occupied : null;
+    const revpar = roll && roll.inventory > 0 ? roll.roomRev / roll.inventory : null;
+
     const live = d
       ? {
           roomsOccupied: d.roomsOccupied,
@@ -59,9 +77,44 @@ export function buildOccProperties(
       adjustmentNote: pd.property.adjustmentNote,
       excludeDefault: !!pd.property.excludeFromAggregate,
       rawOcc,
-      daily: rows.map((r) => ({ date: r.date, occupancy: r.occupancy })),
+      adr,
+      revpar,
+      occupiedNights: roll?.occupied ?? 0,
+      inventoryNights: roll?.inventory ?? 0,
+      roomRev: roll?.roomRev ?? 0,
+      daily: (roll?.days ?? []).map((p) => ({ date: p.day, occupancy: p.pOcc * 100 })),
       live,
-      error: ins?.result && !ins.result.ok ? ins.result.error : null,
+      // A property with no banked days in range is not an error — it may be
+      // out of service for the whole window (JN before April 2026).
+      error: null,
     };
   });
+}
+
+/** The occupancy percentage every surface displays.
+ *
+ * Deliberately does NOT re-base onto post-adjustment capacity. It used to, in
+ * three separately-maintained copies (OccupancyView, ops-insights,
+ * ops-pdf-occupancy), which is how KE came to read 83.0% on `/ops` and 73.7%
+ * on `/report` for the same period. The −20 at KE is an INTERPRETATION, not a
+ * measurement, so it belongs in its own clearly-labelled line the way
+ * `/report` does it ("% Occupied Adjusted (less 20 rms)") — never folded into
+ * a headline that gets compared against other properties.
+ *
+ * Kept as a function, and as the single definition, so the next person who
+ * wants to change the rule changes it once. */
+export function displayOcc(p: Pick<OccProperty, "rawOcc">): number | null {
+  return p.rawOcc;
+}
+
+/** The adjusted figure, for surfaces that want to show it ALONGSIDE the
+ *  headline — e.g. KE's "less 20 rooms" view. Null when the property carries
+ *  no adjustment, so callers can simply omit the line. */
+export function adjustedOcc(
+  p: Pick<OccProperty, "rawOcc" | "capacity" | "adjustment">,
+): number | null {
+  if (p.rawOcc === null || !p.adjustment) return null;
+  const eff = p.capacity + p.adjustment;
+  if (p.capacity <= 0 || eff <= 0) return null;
+  return p.rawOcc * (p.capacity / eff);
 }

@@ -9,7 +9,8 @@ import EvictionsSection from "@/components/EvictionsSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
+import { getOccupancyRollup } from "@/lib/db";
+import { getPortfolio, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
 import { getEvictions } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
@@ -52,17 +53,17 @@ export default async function MonicaPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights, reservations, finance, evictions] = await Promise.all([
+  const [portfolio, rollup, reservations, finance, evictions] = await Promise.all([
     getPortfolio(),
-    getPortfolioInsights(start, end),
+    getOccupancyRollup(start, end),
     getPortfolioReservations(start, end),
     getPortfolioFinance(start, end),
     getEvictions(),
   ]);
 
-  const properties = buildOccProperties(portfolio, insights);
+  const properties = buildOccProperties(portfolio, rollup);
   const days = dayCount(start, end);
-  const revenue = buildRevenueSummary(portfolio, insights, days);
+  const revenue = buildRevenueSummary(portfolio, rollup, days);
   const reservationViews = buildReservationViews(reservations);
   const financeViews = buildFinanceViews(finance);
   const rangeLabel = start === end ? start : `${start} → ${end}`;

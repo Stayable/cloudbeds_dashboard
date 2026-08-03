@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import ExportMenu from "@/components/ExportMenu";
+// Pure helpers, no server runtime — safe in a client component.
+import { displayOcc } from "@/lib/occupancy";
 import {
   Bar,
   Card,
@@ -41,7 +43,21 @@ export type OccProperty = {
   adjustment: number; // capacityAdjustment, e.g. -20 renovation
   adjustmentNote?: string;
   excludeDefault: boolean; // default-off in the average (e.g. JN)
-  rawOcc: number | null; // avg occupancy over the range, vs full capacity
+  /** Occupied ÷ inventory over the range, as a percentage, from the banked
+   *  snapshot store — the same derivation `/report` uses. NOT Data Insights.
+   *  See lib/occupancy.ts for why. */
+  rawOcc: number | null;
+  /** Room revenue ÷ occupied nights over the range. Same source as rawOcc, so
+   *  a page can never mix a snapshot occupancy with a Data Insights rate. */
+  adr?: number | null;
+  /** Room revenue ÷ inventory room-days over the range. */
+  revpar?: number | null;
+  /** The raw sums behind rawOcc/adr/revpar, so any consumer can aggregate a
+   *  PORTFOLIO figure correctly (Σrev ÷ Σnights) instead of averaging
+   *  per-property averages — which silently over-weighted small properties. */
+  occupiedNights?: number;
+  inventoryNights?: number;
+  roomRev?: number;
   daily: Daily[];
   live: Live;
   error?: string | null;
@@ -55,14 +71,10 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
   return <Kpi label={label} value={value} sub={sub} />;
 }
 
-// Re-base occupancy onto effective (post-adjustment) capacity:
-// occ = sold/cap, so occ_adj = occ × cap/(cap+adj).
-function effOcc(p: OccProperty): number | null {
-  if (p.rawOcc === null) return null;
-  const eff = p.capacity + p.adjustment;
-  if (p.adjustment !== 0 && p.capacity > 0 && eff > 0) return p.rawOcc * (p.capacity / eff);
-  return p.rawOcc;
-}
+// The displayed occupancy. Single definition in lib/occupancy.ts — this used
+// to be re-implemented here, in ops-insights and in ops-pdf-occupancy, and the
+// three drifted (KE read 83.0% on /ops against 73.7% on /report).
+const effOcc = displayOcc;
 
 function DailyBars({ daily }: { daily: Daily[] }) {
   if (!daily.length) return null;

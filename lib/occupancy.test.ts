@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildOccProperties } from "@/lib/occupancy";
-import type { DashboardData, PropertyDashboard, PropertyInsights } from "@/lib/cloudbeds";
+import { buildOccProperties, displayOcc, adjustedOcc } from "@/lib/occupancy";
+import type { DashboardData, PropertyDashboard } from "@/lib/cloudbeds";
+import type { OccupancyRollup } from "@/lib/db";
 import type { Property } from "@/config/properties";
 
 // Kissimmee East is the live case: /getRooms lists 167 rooms, but
@@ -42,11 +43,19 @@ function dashboard(capacity: number): DashboardData {
   };
 }
 
-const insights: PropertyInsights[] = [
+// One banked day: 123 occupied of 167 inventory, $4,363.55 room revenue.
+// These are KE's real 2026-07-30 figures, so the derived percentages below are
+// the ones /report publishes for that day.
+const rollup: OccupancyRollup[] = [
   {
-    property: KE,
-    configured: true,
-    result: { ok: true, data: [{ date: "2026-07-27", occupancy: 73.81, adr: 90, revpar: 66 }] },
+    code: "KE",
+    occupied: 123,
+    inventory: 167,
+    transientNights: 26,
+    leaseNights: 96,
+    roomRev: 4363.55,
+    ooo: 24,
+    days: [{ day: "2026-07-30", pOcc: 123 / 167 }],
   },
 ];
 
@@ -61,7 +70,7 @@ describe("buildOccProperties inventory source", () => {
       },
     ];
 
-    const [ke] = buildOccProperties(portfolio, insights);
+    const [ke] = buildOccProperties(portfolio, rollup);
     expect(ke.capacity).toBe(167);
     expect(ke.live?.capacity).toBe(167);
   });
@@ -76,7 +85,7 @@ describe("buildOccProperties inventory source", () => {
       },
     ];
 
-    const [ke] = buildOccProperties(portfolio, insights);
+    const [ke] = buildOccProperties(portfolio, rollup);
     expect(ke.capacity).toBe(168);
   });
 
@@ -85,8 +94,63 @@ describe("buildOccProperties inventory source", () => {
       { property: KE, configured: false, result: null, physicalRooms: null },
     ];
 
-    const [ke] = buildOccProperties(portfolio, insights);
+    const [ke] = buildOccProperties(portfolio, rollup);
     expect(ke.capacity).toBe(0);
     expect(ke.live).toBeNull();
+  });
+});
+
+describe("occupancy is derived from snapshots, not Data Insights", () => {
+  const portfolio: PropertyDashboard[] = [
+    {
+      property: KE,
+      configured: true,
+      result: { ok: true, data: dashboard(168) },
+      physicalRooms: { count: 167, source: "getRooms" },
+    },
+  ];
+
+  it("computes occupancy as occupied / inventory, matching /report", () => {
+    const [ke] = buildOccProperties(portfolio, rollup);
+    // 123/167 = 73.65%. Data Insights reported 73.81% for the same day because
+    // it divides rooms SOLD by a capacity of 168. That 0.6pp is the bug.
+    expect(ke.rawOcc).toBeCloseTo((123 / 167) * 100, 6);
+  });
+
+  it("derives ADR and RevPAR from the same banked revenue", () => {
+    const [ke] = buildOccProperties(portfolio, rollup);
+    expect(ke.adr).toBeCloseTo(4363.55 / 123, 6);
+    expect(ke.revpar).toBeCloseTo(4363.55 / 167, 6);
+  });
+
+  it("carries the raw sums so a portfolio figure can be weighted correctly", () => {
+    const [ke] = buildOccProperties(portfolio, rollup);
+    expect(ke.occupiedNights).toBe(123);
+    expect(ke.inventoryNights).toBe(167);
+    expect(ke.roomRev).toBeCloseTo(4363.55, 6);
+  });
+
+  it("does NOT bake KE's -20 adjustment into the headline occupancy", () => {
+    // This is the regression that made /ops read 83.0% where /report read 73.7%.
+    const [ke] = buildOccProperties(portfolio, rollup);
+    expect(displayOcc(ke)).toBe(ke.rawOcc);
+  });
+
+  it("exposes the adjusted figure separately, as /report's own extra row does", () => {
+    const [ke] = buildOccProperties(portfolio, rollup);
+    // 123 / (167 - 20) = 83.67%
+    expect(adjustedOcc(ke)).toBeCloseTo((123 / 147) * 100, 4);
+  });
+
+  it("returns null adjusted occupancy for a property with no adjustment", () => {
+    expect(adjustedOcc({ rawOcc: 80, capacity: 157, adjustment: 0 })).toBeNull();
+  });
+
+  it("yields nulls, not zeros, for a property with no banked days in range", () => {
+    const [ke] = buildOccProperties(portfolio, []);
+    expect(ke.rawOcc).toBeNull();
+    expect(ke.adr).toBeNull();
+    expect(ke.revpar).toBeNull();
+    expect(ke.daily).toEqual([]);
   });
 });

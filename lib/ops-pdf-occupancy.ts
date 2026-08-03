@@ -1,13 +1,14 @@
 // Renderer for the Occupancy category PDF (`/ops/occupancy.pdf`). Consumes the
 // SAME OccProperty[] the on-screen /ops Occupancy view renders (via
 // lib/occupancy.ts's buildOccProperties), so the PDF's occupancy numbers always
-// match the dashboard. ADR/RevPAR are not on OccProperty -- those come from
-// PropertyInsights (lib/cloudbeds.ts getPortfolioInsights), averaged per
-// property over the range. Rooms sold/available/OOO/inventory come from the
+// match the dashboard. ADR/RevPAR now ride on OccProperty too (derived from the
+// same banked snapshots, Kyle 08/03/26) instead of being averaged out of Data
+// Insights -- so the PDF cannot show a snapshot occupancy beside a DI rate.
+// Rooms sold/available/OOO/inventory come from the
 // live getPortfolio snapshot carried on OccProperty.live (a point-in-time
 // count, not range-based -- called out in the footer). ASCII-safe, PII-free.
 import type { OccProperty } from "@/components/OccupancyView";
-import type { PropertyInsights } from "@/lib/cloudbeds";
+import { displayOcc } from "@/lib/occupancy";
 import { occupancyInsights } from "@/lib/ops-insights";
 import {
   newOpsDoc,
@@ -27,15 +28,10 @@ const MID_SHADE = 0.75; // fraction -- below this (and >= LOW_SHADE), amber
 const RED: [number, number, number] = [248, 214, 214];
 const AMBER: [number, number, number] = [252, 232, 196];
 
-/** Re-base occupancy onto effective (post-adjustment) capacity. Mirrors
- *  effOcc() in components/OccupancyView.tsx and lib/ops-insights.ts so the
- *  PDF, the dashboard, and the insights bullets all agree on the same number. */
-function effOcc(p: OccProperty): number | null {
-  if (p.rawOcc === null) return null;
-  const eff = p.capacity + p.adjustment;
-  if (p.adjustment !== 0 && p.capacity > 0 && eff > 0) return p.rawOcc * (p.capacity / eff);
-  return p.rawOcc;
-}
+/** The displayed occupancy %. Single definition in lib/occupancy.ts — the PDF,
+ *  the dashboard and the insights bullets now share one implementation instead
+ *  of three copies that drifted apart. */
+const effOcc = displayOcc;
 
 function avg(nums: number[]): number | null {
   if (nums.length === 0) return null;
@@ -44,7 +40,6 @@ function avg(nums: number[]): number | null {
 
 export function renderOccupancyPdf(
   props: OccProperty[],
-  insights: PropertyInsights[],
   range: { start: string; end: string },
 ): Buffer {
   const doc = newOpsDoc();
@@ -70,27 +65,22 @@ export function renderOccupancyPdf(
   }
   const portfolioOcc = occDen > 0 ? occNum / occDen : null;
 
-  // ADR/RevPAR: average each configured property's daily OccupancyRow over the
-  // range, then mean those per-property averages across configured properties.
-  const insByCode = new Map(insights.map((i) => [i.property.code, i]));
-  const adrByCode = new Map<string, number | null>();
-  const revparByCode = new Map<string, number | null>();
+  // ADR/RevPAR come straight off OccProperty (snapshot-derived). The portfolio
+  // figures are revenue-weighted -- Sum revenue / Sum nights -- not a mean of
+  // per-property means, which silently over-weighted small properties.
+  const adrByCode = new Map(props.map((p) => [p.code, p.adr ?? null]));
+  const revparByCode = new Map(props.map((p) => [p.code, p.revpar ?? null]));
+  let revSum = 0,
+    occSum = 0,
+    invSum = 0;
   for (const p of props) {
-    const ins = insByCode.get(p.code);
-    const rows = ins?.result?.ok ? ins.result.data : [];
-    adrByCode.set(p.code, avg(rows.map((r) => r.adr)));
-    revparByCode.set(p.code, avg(rows.map((r) => r.revpar)));
+    if (!p.configured) continue;
+    revSum += p.roomRev ?? 0;
+    occSum += p.occupiedNights ?? 0;
+    invSum += p.inventoryNights ?? 0;
   }
-  const configuredAdrs = props
-    .filter((p) => p.configured)
-    .map((p) => adrByCode.get(p.code))
-    .filter((n): n is number => n !== null && n !== undefined);
-  const configuredRevpars = props
-    .filter((p) => p.configured)
-    .map((p) => revparByCode.get(p.code))
-    .filter((n): n is number => n !== null && n !== undefined);
-  const portfolioAdr = avg(configuredAdrs);
-  const portfolioRevpar = avg(configuredRevpars);
+  const portfolioAdr = occSum > 0 ? revSum / occSum : null;
+  const portfolioRevpar = invSum > 0 ? revSum / invSum : null;
 
   y = summaryTiles(doc, y, [
     { label: "Portfolio Occupancy", value: portfolioOcc === null ? "-" : pct(portfolioOcc / 100) },

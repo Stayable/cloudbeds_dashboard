@@ -237,6 +237,81 @@ export async function getDailyOccSeries(from: string, to: string): Promise<Daily
   }
 }
 
+/** One property's occupancy + rate rollup over a date range, derived entirely
+ *  from banked snapshots. */
+export type OccupancyRollup = {
+  code: string;
+  /** Σ occupied (transient + lease + other blocks) — the same definition
+   *  `/report` and Monica both use. */
+  occupied: number;
+  /** Σ inventory room-days, honouring in-service windows and per-day capacity
+   *  changes (a property out of service contributes 0, not today's capacity). */
+  inventory: number;
+  transientNights: number;
+  leaseNights: number;
+  roomRev: number;
+  ooo: number;
+  /** Days with a real capture, oldest first. A cron gap is a gap. */
+  days: { day: string; pOcc: number }[];
+};
+
+/** Per-property occupancy/ADR/RevPAR inputs over [from, to], from the snapshot
+ *  store rather than Data Insights.
+ *
+ *  WHY NOT DATA INSIGHTS (Kyle's decision, 08/03/26): DI returns Cloudbeds'
+ *  OWN derivation — rooms sold over a capacity figure that is demonstrably
+ *  wrong (168 at KE against a real 167, 134 at JW against 133), and its
+ *  numerator excludes the "other blocks" that both `/report` and Monica count
+ *  as occupied. Measured over 2026-07-05..08-02 that put every property
+ *  between 0.6pp and 4.2pp away from the same property's figure on `/report`.
+ *  The rule now is: Cloudbeds is the source for primitives, we own every
+ *  derivation, and nothing consumes Cloudbeds' pre-computed percentages.
+ *
+ *  Ratio of sums, NOT mean of daily ratios — a 30%-occupied day at a 153-room
+ *  property must not weigh the same as one at a 127-room property. This also
+ *  matches how `/report` rolls MTD/YTD, which is the point. */
+export async function getOccupancyRollup(from: string, to: string): Promise<OccupancyRollup[]> {
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select property_code,
+             to_char(stay_date, 'YYYY-MM-DD') as day,
+             (transient_nights + lease_nights + other_blocks)::float8 as occupied,
+             transient_nights::float8 as transient_nights,
+             lease_nights::float8 as lease_nights,
+             ooo::float8 as ooo,
+             inventory::float8 as inventory,
+             (transient_rev + lease_rev)::float8 as room_rev
+      from report_daily_snapshot
+      where stay_date >= ${from} and stay_date <= ${to}
+        and transient_nights + lease_nights > 0
+        and inventory > 0
+      order by stay_date
+    `) as Record<string, any>[];
+
+    const byCode = new Map<string, OccupancyRollup>();
+    for (const r of rows) {
+      const code = r.property_code as string;
+      let e = byCode.get(code);
+      if (!e) {
+        e = { code, occupied: 0, inventory: 0, transientNights: 0, leaseNights: 0, roomRev: 0, ooo: 0, days: [] };
+        byCode.set(code, e);
+      }
+      const occupied = Number(r.occupied), inventory = Number(r.inventory);
+      e.occupied += occupied;
+      e.inventory += inventory;
+      e.transientNights += Number(r.transient_nights);
+      e.leaseNights += Number(r.lease_nights);
+      e.roomRev += Number(r.room_rev);
+      e.ooo += Number(r.ooo);
+      e.days.push({ day: r.day as string, pOcc: occupied / inventory });
+    }
+    return [...byCode.values()];
+  } catch {
+    return [];
+  }
+}
+
 // --- EliseAI enrichment metrics (generic daily aggregate) -------------------
 // One table for every extra Elise dimension (lead source, channel, AI-booked,
 // after-hours, tour type, cancellation reason, voice answered/transfer,

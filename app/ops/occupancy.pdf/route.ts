@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getPortfolio, getPortfolioInsights } from "@/lib/cloudbeds";
+import { getOccupancyRollup } from "@/lib/db";
+import { getPortfolio } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import { resolveRange } from "@/lib/dates";
 import { renderOccupancyPdf } from "@/lib/ops-pdf-occupancy";
@@ -17,9 +18,9 @@ export async function GET(req: Request) {
     url.searchParams.get("end") ?? undefined,
   );
 
-  const [portfolio, insights] = await Promise.all([getPortfolio(), getPortfolioInsights(start, end)]);
-  const properties = buildOccProperties(portfolio, insights);
-  const buf = renderOccupancyPdf(properties, insights, { start, end });
+  const [portfolio, rollup] = await Promise.all([getPortfolio(), getOccupancyRollup(start, end)]);
+  const properties = buildOccProperties(portfolio, rollup);
+  const buf = renderOccupancyPdf(properties, { start, end });
 
   const mmddyy = `${end.slice(5, 7)}${end.slice(8, 10)}${end.slice(2, 4)}`;
   return new NextResponse(buf as any, {

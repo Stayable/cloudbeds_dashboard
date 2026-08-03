@@ -10,14 +10,14 @@ import EliseInsightsSection from "@/components/EliseInsightsSection";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange, easternToday, shiftYmd } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights, getPortfolioOoo } from "@/lib/cloudbeds";
+import { getPortfolio, getPortfolioOoo } from "@/lib/cloudbeds";
 import { PROPERTIES } from "@/config/properties";
 import { getEvictions, getOneStarReviews } from "@/lib/smartsheet";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildReviewsView } from "@/lib/reviews";
 import { buildLeasingViews } from "@/lib/leasing";
 import { buildInsightViews } from "@/lib/elise-insights";
-import { getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseMetrics } from "@/lib/db";
+import { getOccupancyRollup, getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseMetrics } from "@/lib/db";
 
 // Operations Dashboard — role-based (not person-named) operational view. Gated to
 // the ops level (PIN in Neon dashboard_pins) OR exec/CEO. Sections: OOO rooms
@@ -63,7 +63,7 @@ export default async function OpsPage({
 
   const [
     portfolio,
-    insights,
+    rollup,
     ooo,
     evictions,
     reviewsPayload,
@@ -74,7 +74,7 @@ export default async function OpsPage({
     eliseMetrics,
   ] = await Promise.all([
     getPortfolio(),
-    getPortfolioInsights(start, end),
+    getOccupancyRollup(start, end),
     getPortfolioOoo(asOf),
     getEvictions(),
     getOneStarReviews(),
@@ -85,7 +85,7 @@ export default async function OpsPage({
     getEliseMetrics(start, end),
   ]);
 
-  const properties = buildOccProperties(portfolio, insights);
+  const properties = buildOccProperties(portfolio, rollup);
   const leasingViews = buildLeasingViews(eliseFunnel, elisePipeline);
   const insightViews = buildInsightViews(
     eliseMetrics,

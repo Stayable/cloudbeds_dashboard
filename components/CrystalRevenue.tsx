@@ -1,5 +1,6 @@
 // Presentational revenue & rate section for /crystal. Server component (no
-// client state). ADR/RevPAR are real; revenue is a labeled estimate.
+// client state). ADR, RevPAR and room revenue are all real, all from the
+// banked snapshot store (lib/revenue.ts) — revenue is no longer an estimate.
 import type { RevenueSummary, RevenueRow } from "@/lib/revenue";
 import ExportMenu from "@/components/ExportMenu";
 import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
@@ -9,7 +10,7 @@ const REVENUE_COLS: ExportColumn<RevenueRow>[] = [
   { header: "County", value: (r) => r.county },
   { header: "ADR", value: (r) => (r.adr == null ? "" : r.adr.toFixed(2)) },
   { header: "RevPAR", value: (r) => (r.revpar == null ? "" : r.revpar.toFixed(2)) },
-  { header: "Room revenue (est.)", value: (r) => (r.roomRevenueEst == null ? "" : Math.round(r.roomRevenueEst)) },
+  { header: "Room revenue", value: (r) => (r.roomRevenue == null ? "" : Math.round(r.roomRevenue)) },
 ];
 
 function money(n: number | null) {
@@ -51,10 +52,10 @@ export default function CrystalRevenue({
         </div>
         <div className="col-span-2 rounded-[10px] border border-line bg-surface p-4 shadow-card sm:col-span-1">
           <p className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3">
-            Total room revenue <span className="text-warn">· est.</span>
+            Total room revenue
           </p>
-          <p className="mt-2 text-2xl font-semibold text-txt sm:text-3xl">{money(summary.totalRoomRevenueEst)}</p>
-          <p className="mt-1 text-[11px] text-txt3">RevPAR × capacity × {summary.days}d</p>
+          <p className="mt-2 text-2xl font-semibold text-txt sm:text-3xl">{money(summary.totalRoomRevenue)}</p>
+          <p className="mt-1 text-[11px] text-txt3">Exact, banked · {summary.days}d</p>
         </div>
       </div>
 
@@ -65,7 +66,7 @@ export default function CrystalRevenue({
               <th className="px-4 py-3 font-semibold">Property</th>
               <th className="px-4 py-3 font-semibold">ADR</th>
               <th className="px-4 py-3 font-semibold">RevPAR</th>
-              <th className="px-4 py-3 font-semibold">Room revenue (est.)</th>
+              <th className="px-4 py-3 font-semibold">Room revenue</th>
             </tr>
           </thead>
           <tbody>
@@ -76,16 +77,17 @@ export default function CrystalRevenue({
                 </td>
                 <td className="px-4 py-3 text-txt">{money2(r.adr)}</td>
                 <td className="px-4 py-3 text-txt">{money2(r.revpar)}</td>
-                <td className="px-4 py-3 text-txt">{money(r.roomRevenueEst)}</td>
+                <td className="px-4 py-3 text-txt">{money(r.roomRevenue)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="text-xs text-txt3">
-        ADR and RevPAR are live from Cloudbeds Data Insights. Revenue is an estimate
-        (RevPAR × available room-nights) — Cloudbeds&apos; aggregate API does not expose
-        summable revenue totals. Room rate ≈ ADR.
+        Room revenue is exact, from the same banked daily snapshots that produce the
+        occupancy figures above and the daily report. ADR is revenue ÷ occupied nights;
+        RevPAR is revenue ÷ inventory room-days. Not Cloudbeds&apos; own aggregates — see
+        lib/revenue.ts.
       </p>
     </div>
   );

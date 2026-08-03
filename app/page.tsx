@@ -5,7 +5,8 @@ import ControlBar, { ControlLabel } from "@/components/ControlBar";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { Bar, Label, MiniStat } from "@/components/ui";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights, getPortfolioRooms } from "@/lib/cloudbeds";
+import { getOccupancyRollup } from "@/lib/db";
+import { getPortfolio, getPortfolioRooms } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildZoneGroups } from "@/lib/zones";
 import { ZONE_CONFIG } from "@/config/zones";
@@ -29,13 +30,13 @@ export default async function DashboardPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights, rooms] = await Promise.all([
+  const [portfolio, rollup, rooms] = await Promise.all([
     getPortfolio(),
-    getPortfolioInsights(start, end),
+    getOccupancyRollup(start, end),
     getPortfolioRooms(end),
   ]);
 
-  const properties = buildOccProperties(portfolio, insights);
+  const properties = buildOccProperties(portfolio, rollup);
 
   // Room inventory grouped into buildings/zones (ROOM-ZONING.md → config/zones.ts).
   const zoneProperties: ZoneProperty[] = rooms.map((pr): ZoneProperty => {

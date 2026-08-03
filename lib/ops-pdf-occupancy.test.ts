@@ -82,7 +82,7 @@ describe("renderOccupancyPdf", () => {
       },
     ];
 
-    const buf = renderOccupancyPdf(props, insights, { start: "2026-07-01", end: "2026-07-02" });
+    const buf = renderOccupancyPdf(props, { start: "2026-07-01", end: "2026-07-02" });
     expect(buf.length).toBeGreaterThan(1000);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
   });

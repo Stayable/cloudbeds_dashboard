@@ -8,7 +8,8 @@ import CrystalNotes from "@/components/CrystalNotes";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { dayCount, resolveRange } from "@/lib/dates";
-import { getPortfolio, getPortfolioInsights, getPortfolioReservations } from "@/lib/cloudbeds";
+import { getOccupancyRollup } from "@/lib/db";
+import { getPortfolio, getPortfolioReservations } from "@/lib/cloudbeds";
 import { buildOccProperties } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
 import { buildReservationViews } from "@/lib/reservations";
@@ -48,15 +49,15 @@ export default async function CrystalPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, insights, reservations] = await Promise.all([
+  const [portfolio, rollup, reservations] = await Promise.all([
     getPortfolio(),
-    getPortfolioInsights(start, end),
+    getOccupancyRollup(start, end),
     getPortfolioReservations(start, end),
   ]);
 
-  const properties = buildOccProperties(portfolio, insights);
+  const properties = buildOccProperties(portfolio, rollup);
   const days = dayCount(start, end);
-  const revenue = buildRevenueSummary(portfolio, insights, days);
+  const revenue = buildRevenueSummary(portfolio, rollup, days);
   const reservationViews = buildReservationViews(reservations);
   const rangeLabel = start === end ? start : `${start} → ${end}`;
 
