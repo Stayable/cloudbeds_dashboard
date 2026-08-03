@@ -121,10 +121,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > **▶ NEXT — split by who can actually do it:**
 >
 > **Kyle only (all three block or shape the launch):**
-> 1. **[ ] Edit the Power Automate flow** for real PDF attachments, then set
->    `TEAMS_FLOW_ATTACHMENTS=1`. `docs/TEAMS-ATTACHMENTS.md`. Until this is done
->    the card's PDF button sits behind the MAIN pin — so either do it, or
->    distribute the pin. **This is the last unproven leg of delivery.**
+> 1. **[~] ON HOLD (Kyle, 08/04) — checking whether the team actually needs the
+>    PDF attached, or whether the card's buttons will do.** The pin-wall reason
+>    for needing the attachment is now **gone**: see the token-download item
+>    below. Whichever way this lands, the flow edit is no longer a launch gate.
 > 2. **[ ] Swap `TEAMS_FLOW_URL` in Vercel** from the test flow to the Revenue
 >    chat URL. That swap IS the first live post — do it after item 1.
 > 3. **[ ] Regenerate the Revenue trigger URL** (plaintext in a 07/29 transcript,
@@ -138,6 +138,41 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >    files disagree by 57.)
 > 6. **[ ] One raw export for JW or SA** — decides whether her OOO is DI
 >    everywhere or blocks everywhere except KE (item 5).
+>
+> **[x] 11. THE CARD'S FILE BUTTONS NOW WORK WITHOUT THE MAIN PIN** (`5c17349`,
+> `dpl_BH68fdrYkALbqMLyp5MsBsDjFwEb`). Built because Kyle put the attachment
+> question on hold, and the pin wall was the whole reason attachments looked
+> mandatory. **It was needed either way**: the "Same report in Excel" button
+> survives attachment (Monica posts only the PDF, so that link is its only
+> route) and was gated identically — so turning `TEAMS_FLOW_ATTACHMENTS=1` would
+> NOT have removed the wall.
+> - New **`/api/report-file?fmt=pdf|xlsx&t=<token>`**, excluded from the
+>   middleware matcher and checking its own token inline — the same pattern
+>   `/api/feedback` and `/api/crystal-note` already use. The cron mints a
+>   **30-day** signed token per post; the card's two file buttons route through
+>   it. **"Open the dashboard" is deliberately NOT tokenised** — a file token is
+>   not a pin, and the dashboard stays gated.
+> - Scope is "the report files, for a while", not per-user identity. The report
+>   is aggregate-only with no guest PII (CLAUDE.md §5 rule 2), so the risk being
+>   managed is business confidentiality. The alternative — handing the MAIN pin
+>   to the Revenue chat — would have given the whole gated dashboard away to
+>   deliver one file.
+> - **Verified end to end** against the built app: valid token → **200**, real
+>   593 KB PDF (`%PDF-1.3`) and 33 KB `.xlsx` (`PK\x03\x04`), both named
+>   `Occupancy Report as of August 3, 2026.*` exactly as Monica names hers.
+>   Missing / forged / expired → **403**. `/report` and `/report/latest.pdf`
+>   still **307** to `/login`, so nothing was opened up by accident.
+> - **In production the rejection path is confirmed** (403 as JSON, i.e. our
+>   handler ran — middleware would have sent a 307). The accept path could not
+>   be exercised from here: prod's signing secret differs from local, so a
+>   locally-minted token is correctly refused. The cron mints its own
+>   server-side, so this is expected — but it means **the first real proof is
+>   the first posted card. Click the PDF button on it.**
+> - **[!] FRAGILITY WORTH KNOWING:** `secret()` in `lib/auth.ts` falls back to
+>   `DATABASE_URL` when `AUTH_SECRET` is unset. Rotating the Neon connection
+>   string would therefore invalidate every outstanding 30-day report link (and
+>   every login cookie — that part is pre-existing). Setting an explicit
+>   `AUTH_SECRET` in Vercel would decouple them. Not done; flagged.
 >
 > **Mechanical, whenever:**
 > 7. Today's PDFs are still to be dropped; `diff-reports.py` is ready.

@@ -25,16 +25,23 @@ production release.
 
 | | Deployment | Commit |
 |---|---|---|
-| **Current (429 retry + OOO repair, 08/04/26)** | `dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` | `2c03b90` |
-| **Roll back one step** (Rob header links, 08/02/26) | `dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1` | `97515f0` |
-| **Roll back two steps** (session-6 close, 07/30/26) | `dpl_AWt9zKVFGF1QY1QAKmxNGtgrvWB4` | `3d29785` |
+| **Current (token report download, 08/04/26)** | `dpl_BH68fdrYkALbqMLyp5MsBsDjFwEb` | `5c17349` |
+| **Roll back one step** (429 retry + OOO repair, 08/04/26) | `dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` | `2c03b90` |
+| **Roll back two steps** (Rob header links, 08/02/26) | `dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1` | `97515f0` |
+| **Roll back three steps** (session-6 close, 07/30/26) | `dpl_AWt9zKVFGF1QY1QAKmxNGtgrvWB4` | `3d29785` |
 | **Roll back to pre-redesign** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
 
-One step back is the right target for a problem with the current release: the
-only behavioural change in `2c03b90` is that `cbGet` now retries HTTP 429/5xx
-up to 3 times before giving up. Its worst case is a slower cron, not a wrong
-figure — so if production looks wrong, the cause is probably NOT this release.
-Going all the way to `4e1eb0b` also unwinds the redesign.
+One step back is the right target for a problem with the current release.
+`5c17349` adds `/api/report-file` and points the Teams card's file buttons at
+it; rolling back returns those buttons to the pin-gated `/report/latest.*`,
+which is a worse experience but not a broken one. **Any already-posted card
+keeps its tokenised links, and after a rollback those links 404** — so if a
+live card is in the Revenue chat, prefer fixing forward.
+
+`2c03b90`'s only behavioural change is that `cbGet` retries HTTP 429/5xx up to
+3 times. Its worst case is a slower cron, not a wrong figure — so if production
+looks wrong, that release is probably not the cause. Going all the way to
+`4e1eb0b` also unwinds the redesign.
 
 **A rollback does not undo the data repair.** `2c03b90` also raised three
 banked out-of-order figures (KE/LL/SA 2026-07-20) via
@@ -43,8 +50,9 @@ deployment leaves them corrected, which is the safe combination. `observeBlocks`
 is raise-only, so nothing can put the zeros back short of a manual `update`.
 
 Rollback target inspectors:
-- one step — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1
-- two steps — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/AWt9zKVFGF1QY1QAKmxNGtgrvWB4
+- one step — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/EWEmjuJP5LguBVKCJf6xxy2g4kNq
+- two steps — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1
+- three steps — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/AWt9zKVFGF1QY1QAKmxNGtgrvWB4
 - pre-redesign — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/92vmRYYZhidi6xdQ9fkg79L28sYa
 
 ---
