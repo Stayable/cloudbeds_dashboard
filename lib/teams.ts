@@ -30,29 +30,61 @@ export function attachmentsEnabled(): boolean {
   return process.env.TEAMS_FLOW_ATTACHMENTS === "1";
 }
 
+/** Why a post did not land. `unconfigured` is the one that bit us: TEAMS_FLOW_URL
+ *  was never set in Vercel, so every production run since 2026-07-22 returned a
+ *  cheerful 200 having delivered nothing. The three cases need different fixes
+ *  — set an env var, retry, or fix the flow — so they are distinguished here
+ *  rather than collapsed into ok:false. */
+export type TeamsFailure = "unconfigured" | "network" | "http";
+
+export type TeamsPostResult = {
+  ok: boolean;
+  status: number;
+  attached: number;
+  reason?: TeamsFailure;
+  detail?: string;
+};
+
 /**
  * POST the daily card (and, when enabled, its file attachments) to the flow.
- * Never throws: a Teams outage must not fail the cron that also banks
- * snapshots. Returns ok:false/status:0 when TEAMS_FLOW_URL is unset (dev).
+ * Never throws — a Teams outage must not fail the cron that also banks
+ * snapshots, and the caller decides how loud to be about `reason`.
  */
 export async function postAdaptiveCard(
   card: object,
   files: TeamsAttachment[] = []
-): Promise<{ ok: boolean; status: number; attached: number }> {
+): Promise<TeamsPostResult> {
   const url = process.env.TEAMS_FLOW_URL;
-  if (!url) return { ok: false, status: 0, attached: 0 };
+  if (!url) {
+    return {
+      ok: false,
+      status: 0,
+      attached: 0,
+      reason: "unconfigured",
+      detail: "TEAMS_FLOW_URL is not set in this environment — nothing was sent.",
+    };
+  }
 
   const attach = attachmentsEnabled() && files.length > 0;
   const body = attach ? { card, files } : card;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    // The old code let this propagate despite the "never throws" comment.
+    return { ok: false, status: 0, attached: 0, reason: "network", detail: String(e) };
+  }
+
+  const ok = res.status === 202 || res.ok;
   return {
-    ok: res.status === 202 || res.ok,
+    ok,
     status: res.status,
     attached: attach ? files.length : 0,
+    ...(ok ? {} : { reason: "http" as const, detail: `flow returned HTTP ${res.status}` }),
   };
 }

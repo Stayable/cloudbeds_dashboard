@@ -69,9 +69,18 @@ export async function GET(req: Request) {
       findAvailabilityAnomalies(shiftYmd(asOf, -13), asOf),
     ]);
 
+    // A post that silently no-ops is the worst failure mode this route has:
+    // snapshots bank, the response reads 200, and nobody in the Revenue chat
+    // gets a report. That is exactly what happened from 07/22 to 08/03 with
+    // TEAMS_FLOW_URL unset. Fail the invocation so Vercel marks the cron run
+    // failed and it is visible without reading the body. (Vercel Cron does not
+    // auto-retry, so a 500 costs nothing beyond the alert.) The snapshot work
+    // above has already committed and is reported either way.
     return NextResponse.json({
       ok: posted.ok,
       status: posted.status,
+      teamsFailure: posted.reason,
+      teamsDetail: posted.detail,
       attached: posted.attached,
       attachmentNames: files.map((f) => f.name),
       asOf,
@@ -85,7 +94,7 @@ export async function GET(req: Request) {
         ...a,
         avgAvailablePct: Number((a.avgAvailablePct * 100).toFixed(1)),
       })),
-    });
+    }, { status: posted.ok ? 200 : 500 });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

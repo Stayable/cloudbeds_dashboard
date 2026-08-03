@@ -31,14 +31,40 @@ describe("postAdaptiveCard", () => {
     expect(init.body).toBe(JSON.stringify(CARD));
   });
 
-  it("returns {ok:false,status:0} when TEAMS_FLOW_URL unset", async () => {
-    expect(await postAdaptiveCard({})).toEqual({ ok: false, status: 0, attached: 0 });
+  it("reports `unconfigured` when TEAMS_FLOW_URL unset", async () => {
+    // The real 07/22-08/03 outage: set in .env.local, never in Vercel. The
+    // reason has to be distinguishable from a flow error — the fix is different.
+    const r = await postAdaptiveCard({});
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(0);
+    expect(r.reason).toBe("unconfigured");
+    expect(r.detail).toMatch(/TEAMS_FLOW_URL/);
   });
 
-  it("non-2xx is not ok", async () => {
+  it("non-2xx is not ok and reports `http`", async () => {
     process.env.TEAMS_FLOW_URL = "https://flow.example/x";
     vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 400 }));
-    expect((await postAdaptiveCard({})).ok).toBe(false);
+    const r = await postAdaptiveCard({});
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("http");
+    expect(r.detail).toContain("400");
+  });
+
+  it("does not throw when the flow is unreachable, and reports `network`", async () => {
+    process.env.TEAMS_FLOW_URL = "https://flow.example/x";
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("ECONNREFUSED"));
+    const r = await postAdaptiveCard({});
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("network");
+    expect(r.detail).toContain("ECONNREFUSED");
+  });
+
+  it("carries no failure reason on success", async () => {
+    process.env.TEAMS_FLOW_URL = "https://flow.example/x";
+    mockFetch();
+    const r = await postAdaptiveCard(CARD);
+    expect(r.ok).toBe(true);
+    expect(r.reason).toBeUndefined();
   });
 
   it("keeps the bare-card shape when attachments are off, even with files supplied", async () => {
