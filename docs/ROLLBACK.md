@@ -25,13 +25,25 @@ production release.
 
 | | Deployment | Commit |
 |---|---|---|
-| **Current (token report download, 08/04/26)** | `dpl_BH68fdrYkALbqMLyp5MsBsDjFwEb` | `5c17349` |
-| **Roll back one step** (429 retry + OOO repair, 08/04/26) | `dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` | `2c03b90` |
-| **Roll back two steps** (Rob header links, 08/02/26) | `dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1` | `97515f0` |
+| **Current (one occupancy derivation, 08/03/26)** | `dpl_H1gQryuUKVmTEEfM6hGsf57qaAZq` | `e6a87f7` |
+| **Roll back one step** (report `?asOf=` + PIN line) | `dpl_G8dwVvdC3dSNuynnPKT4PfefuhTs` | `fff3104` |
+| **Roll back two steps** (token report download) | `dpl_BH68fdrYkALbqMLyp5MsBsDjFwEb` | `5c17349` |
+| **Roll back three steps** (429 retry + OOO repair) | `dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` | `2c03b90` |
 | **Roll back three steps** (session-6 close, 07/30/26) | `dpl_AWt9zKVFGF1QY1QAKmxNGtgrvWB4` | `3d29785` |
 | **Roll back to pre-redesign** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
 
-One step back is the right target for a problem with the current release.
+**`e6a87f7` moves every displayed occupancy figure.** Home, `/exec`, `/ops`,
+`/crystal`, `/monica` and `/rob` now derive occupancy, ADR and RevPAR from the
+banked snapshots instead of Data Insights, so they agree with `/report` and
+with Monica. Visible shifts: JW 85.8% → 89.9%, SA 87.0% → 90.3%, KE on `/ops`
+83.0% → 73.7%. **A figure looking "wrong" after this release is most likely it
+looking right for the first time** — check it against `/report` before rolling
+back, because rolling back reintroduces the disagreement.
+
+The other risk it carries: those surfaces now need the snapshot store. Coverage
+is 2025-01-01 → present with no gaps, but a date range starting before
+2025-01-01 renders empty where DI used to return something.
+
 `5c17349` adds `/api/report-file` and points the Teams card's file buttons at
 it; rolling back returns those buttons to the pin-gated `/report/latest.*`,
 which is a worse experience but not a broken one. **Any already-posted card

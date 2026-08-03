@@ -4,6 +4,87 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/03/26 (session 9c) — LAUNCHED · ONE OCCUPANCY DERIVATION EVERYWHERE
+
+> **Pickup — 08/03/26 ET. THE DAILY REPORT IS LIVE IN THE REVENUE CHAT.**
+> Production **`dpl_H1gQryuUKVmTEEfM6hGsf57qaAZq`** (`e6a87f7`), aliased, all
+> eight surfaces 200. Note the machine clock reads Philippine time — **Eastern
+> is still Mon Aug 3**.
+>
+> **[x] LAUNCHED.** Four posts to the real Revenue chat, all `202`: the go-live
+> post, then Fri/Sat/Sun as a chronological catch-up so the run reads
+> continuously. `TEAMS_FLOW_URL` now holds the Revenue flow (`2dfcbfca…`).
+> **The 10:30 ET cron takes over from here with no further action.**
+>
+> **[x] THE REHEARSAL EARNED ITS KEEP.** Kyle asked for a test post first; it
+> found that **`TEAMS_FLOW_URL` was never set in Vercel at all**, so the daily
+> post had been silently no-oping since 07/22 (see item 12 below). Without the
+> rehearsal that would have been discovered by Monica's audience not receiving
+> anything.
+>
+> **[x] SCHEDULE: 10:30 ET, year-round** (`a599187`). Was 10:00 UTC = 06:00 EDT.
+> Kyle: the report must reflect the 10:00 ET state and land 10:30–11:00 ET. DST
+> drift is 60 min and the window is 30, so no single UTC cron works — two
+> entries (14:30 + 15:30 UTC) and a guard let exactly one through.
+> `easternMinutesNow()` + 6 tests across both transitions. Bonus: **Monica
+> generates her DI export at 14:02 UTC**, so we now read Cloudbeds ~28 minutes
+> after her source snapshot instead of 4 hours before it.
+>
+> **[x] `?asOf=` catch-up** (`93651f3`) — posts a past stay date, refuses
+> anything later than yesterday, bypasses the window, and deliberately does not
+> re-bank. **[x] PIN line in the card** (`fff3104`) — "Dashboard PIN: MAIN. The
+> report files above need no PIN."
+>
+> **[x] FIVE-DAY VALIDATION vs her real files** (she has now dropped Aug 1/2/3):
+> YTD revenue +0.08 / +0.08 / +0.09%, nights +0.03 / +0.03 / +0.04%, inventory
+> +0.01% throughout. **[ ] Naming nit: her August files are "Aug 1, 2026"; ours
+> say "August 1, 2026". She spells July out and abbreviates August.**
+>
+> ---
+>
+> **[x] THE BIG ONE: every surface now derives occupancy the same way**
+> (`e6a87f7`). Kyle's rule: **Cloudbeds is the source for PRIMITIVES —
+> transactions, the room list, blocks as observed at capture time. We own every
+> DERIVATION. Nothing consumes Cloudbeds' pre-computed percentages.**
+>
+> Measured before the change, 2026-07-05→08-02, `/report` vs home/`/exec`:
+> JW **4.2pp**, SA 3.3pp, OR 1.6pp, DP 1.3pp, LL 1.0pp, JN 1.0pp, KW 0.8pp,
+> KE 0.6pp — and KE read **83.0% on `/ops`** against 73.7% on `/report`, a
+> **9.3pp spread on one property**.
+>
+> Three causes, in order of size:
+> 1. **Numerator.** `/report` counts Occupied = transient + lease + other
+>    blocks; DI counts rooms *sold*. Predicted gap from other blocks alone —
+>    JW 3.8pp, SA 2.9pp, KE 0.6pp — is nearly the whole observed gap.
+>    **Monica includes other blocks too** (her JN row: 20 = 18 sold + 2 other),
+>    so `/report` was right and DI was measuring something else.
+> 2. **Denominator.** DI divides by 168 at KE (real 167) and 134 at JW (133).
+> 3. **`effOcc()` existed in THREE hand-maintained copies** — OccupancyView,
+>    ops-insights, ops-pdf-occupancy — and drifted. That is the 9.3pp.
+>
+> Shipped: `getOccupancyRollup()` in `lib/db.ts` (ratio of sums, from the banked
+> snapshots); `buildOccProperties` consumes it; one exported `displayOcc()`
+> replaces the three copies and **does not fold in KE's −20** (an
+> interpretation, not a measurement — `adjustedOcc()` exposes it separately, the
+> way `/report` gives it its own row). ADR/RevPAR moved to the same source so no
+> page can mix a snapshot occupancy with a DI rate. **Verified: all 8 properties
+> now match the `/report` column to 0.1pp.**
+>
+> **[x] And room revenue on `/crystal`, `/monica`, `/rob` is no longer an
+> estimate.** It was `RevPAR × capacity × days` labelled "est." because "the DI
+> public API does not sum currency columns" — no longer true of us; we bank it
+> daily and it reconciles to Monica to the cent. Portfolio ADR/RevPAR are now
+> revenue-weighted rather than a mean of per-property means.
+>
+> DI still legitimately feeds pace/pickup and is untouched there.
+>
+> **[!] Snapshot coverage is now load-bearing for those surfaces:**
+> 2025-01-01 → present, 8/8 properties, no gaps (DP from 2025-06-01 and JN 244
+> days are their in-service windows, not gaps). **A custom range starting before
+> 2025-01-01 will render empty** where DI used to return something.
+
+---
+
 ## 08/04/26 (session 9b) — MONICA'S RAW FILE READ · KE GAP SOLVED · NO EROSION
 
 > **Pickup — 08/04/26. PUSHED AND DEPLOYED.** Branch level with `origin` at
