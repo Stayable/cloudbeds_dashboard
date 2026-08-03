@@ -36,9 +36,29 @@ export async function GET(req: Request) {
   //     15:30 UTC = 11:30 EDT (skipped)      / 10:30 EST (runs, winter)
   // `?force=1` bypasses it for manual runs.
   const url = new URL(req.url);
+
+  // `?asOf=YYYY-MM-DD` posts the report for a PAST stay date — the Monday
+  // catch-up Monica used to do by hand (one file per missed day). It implies a
+  // manual run, so it bypasses the delivery window, and it deliberately does
+  // NOT re-bank snapshots: a catch-up post should read history, not rewrite it.
+  const asOfParam = url.searchParams.get("asOf");
+  const yesterday = shiftYmd(easternToday(), -1);
+  if (asOfParam !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfParam)) {
+      return NextResponse.json({ ok: false, error: "asOf must be YYYY-MM-DD" }, { status: 400 });
+    }
+    if (asOfParam > yesterday) {
+      // A future or same-day stay date has no settled figures to report.
+      return NextResponse.json(
+        { ok: false, error: `asOf must be ${yesterday} or earlier` },
+        { status: 400 },
+      );
+    }
+  }
+
   const minutes = easternMinutesNow();
   const inWindow = minutes >= 10 * 60 + 15 && minutes <= 11 * 60;
-  if (!inWindow && url.searchParams.get("force") !== "1") {
+  if (!inWindow && asOfParam === null && url.searchParams.get("force") !== "1") {
     // 200, not an error: skipping is the correct outcome for the off-DST twin.
     // Explicitly labelled so it can never be mistaken for a delivered report —
     // that ambiguity is what hid the unset-TEAMS_FLOW_URL bug for two weeks.
@@ -51,10 +71,11 @@ export async function GET(req: Request) {
   }
 
   try {
-    const asOf = shiftYmd(easternToday(), -1);
+    const asOf = asOfParam ?? yesterday;
     // Persist BEFORE building the report: future runs' MTD/YTD read
     // stored[..asOf-1] + a live "today" fetch, so this order never double-counts.
-    const { written } = await persistDailySnapshots(asOf);
+    // Skipped for a dated catch-up — see the asOf note above.
+    const { written } = asOfParam ? { written: 0 } : await persistDailySnapshots(asOf);
     const report = await buildRevenueReport(asOf);
     const base = process.env.PUBLIC_BASE_URL || "https://dashboard.rentstayable.com";
 
