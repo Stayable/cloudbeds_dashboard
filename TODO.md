@@ -4,6 +4,89 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/04/26 (session 9b) — MONICA'S RAW FILE READ · KE GAP SOLVED · NO EROSION
+
+> Kyle added four `Occupancy History and Forecast-KE-Jul 28..31.xlsx` in the repo
+> root — the Cloudbeds **Data Insights** export she works from, Kissimmee East
+> (2295) only, one generation per day at 14:02 UTC. Four snapshots of the same
+> data is exactly the experiment we could never run.
+>
+> **[x] 1. THERE IS NO EROSION. The premise behind the 07/30 fix is wrong.**
+> Across 4 generations × 33 stay dates, **not one value ever decreased.** OOO
+> *accretes*: it builds as the date approaches and settles on or just after the
+> stay day (07-28: 31 on the day → 32 at D+1 → 32 → 32; 07-29: 29 → 31 → 31 → 31),
+> then freezes. Everything 07-01→07-26 is byte-stable across all four files.
+> - The raise-only `observeBlocks` behaviour is still correct, and the end-of-day
+>   cron is harmless. But **its rationale was wrong and it cannot close the KE
+>   gap** — which is what five nights of `gain = 0` were already telling us.
+> - Kyle's 07/29 report that Cloudbeds refuses past-dated blocks is not
+>   contradicted; it just isn't what drives this number.
+>
+> **[x] 2. OUR KE `ooo = 24` IS A CORRECT READ — of the wrong measure.**
+> Live `getRoomBlocks` for KE returns exactly 24 out-of-service rooms every day,
+> and the reasons show why it never moves: **19 × "Renovation"** plus five named
+> maintenance blocks (flooring, bathroom ceiling leak, deep clean, sliding
+> door/walls, pest control). Long-lived blocks, stable for weeks.
+>
+> **[x] 3. HER KE FIGURE IS DATA INSIGHTS' "Out of Service Rooms" — and we can
+> reproduce it exactly.** Dataset 7 drops the count columns over the API
+> (`out_of_service_count` bare → omitted, `modifier:"sum"` → 400; the session-3
+> finding still holds), but it is **derivable from two columns that do come back**:
+>
+> ```
+> out_of_service = capacity × (1 − occupancy / adjusted_occupancy)
+> ```
+>
+> Validated against her own raw export for all of July at KE: **exact to the room
+> on 30 of 31 days.** The single miss is 07-31, where DI has since moved 29 → 31 —
+> i.e. accretion, not a formula error. Derived rooms-sold matches hers too.
+>
+> **▶ 4. SO THE ANSWER TO THE KE QUESTION IS: ~7 rooms are out of service in
+> Cloudbeds' occupancy data with NO room block against them.** Exactly the same
+> species as JN's unblocked renovation rooms (open item 2), and it explains every
+> symptom: constant on our side because blocks are constant, moving on hers
+> because room status moves daily.
+> - **Operational fix, not a code fix:** get those rooms blocked at KE — or add a
+>   KE OOO override the way JN has one. Blocking them is better; the override
+>   makes the report right while leaving Cloudbeds wrong.
+>
+> **[!] 5. DO NOT SWITCH OOO TO DATA INSIGHTS GLOBALLY.** The derivation is only
+> validated at KE, against her raw file. Run across all eight, DI disagrees with
+> **both** us and her published PDF at several: JW reads DI 12–14 where her report
+> and ours both say 6–7; SA DI 17–19 vs 13–15 agreed; OR and KW differ by ±1–3.
+> Since our block-based figure already matches her PDF at 7 of 8, blocks are
+> evidently the right source there. **One more raw export (JW or SA) settles
+> whether her workbook takes OOO from DI everywhere, or from blocks everywhere
+> except KE.** Cheap ask, and it decides the whole design.
+>
+> **[x] 6. THE 429-ZERO ACTUALLY HAPPENED IN PRODUCTION** — session 6 recorded
+> "no evidence production has hit this"; that is now superseded. Four
+> property-days banked OOO = 0 between non-zero neighbours:
+> **KE 07-20 (30 → 0 → 24), LL 07-20 (4 → 0 → 3), SA 07-20 (8 → 0 → 12)** — one
+> bad run — plus **LL 06-12 (4 → 0 → 4)**. The `cbGet` retry shipped in `a35e707`
+> prevents recurrence. **[?] Repairing the four is a write to banked history and
+> needs Kyle's go-ahead** (raise-only means a re-query can only lift them).
+>
+> **[x] 7. REVENUE AND SOLD RECONCILE AT KE.** Her "Room Rate - sum" matches our
+> banked room revenue **to the cent on 30 of 31 July days** (the exception is
+> 07-31, still settling). Rooms sold within ±2 all month, +5 room-nights over the
+> month (+0.13%).
+>
+> **[x] 8. HER CAPACITY IS 168 — and it wobbles.** The export reads 168 most days
+> but 175 (07-01), 171 (07-15), 169 (07-03/07/08). Ours is 167 flat, and **her
+> published PDF also shows 167**, so she does not carry the export's capacity into
+> the report. Consistent with the known `getDashboard.capacity` +1 defect at KE,
+> and further evidence her workbook re-bases inventory rather than trusting DI.
+>
+> **▶ NEXT:**
+> 1. **[ ] Ask Kyle/Monica for the same export for JW or SA** — decides item 5.
+> 2. **[ ] Raise the ~7 unblocked KE rooms operationally** (item 4).
+> 3. **[?] Repair the four 429-zeroed days** (item 6).
+> 4. The PDF actual report for today is still to be dropped; `diff-reports.py` is
+>    ready for it.
+
+---
+
 ## 08/03/26 (session 9) — 3-DAY CATCH-UP RENDERED · OOO GAP IS NOW **KE ONLY**
 
 > **Pickup — 08/03/26. Three PDFs generated for today's comparison with Monica.**
