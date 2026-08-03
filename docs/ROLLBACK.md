@@ -25,17 +25,26 @@ production release.
 
 | | Deployment | Commit |
 |---|---|---|
-| **Current (inventory release, 07/28/26)** | `dpl_8yarC3AZCpKE94HSF3CFSQ1Bq2t1` | `7851786` |
-| **Roll back one step** (redesign + accuracy, signed off) | `dpl_8p9GuzXH9cF75XLU5smo5FoLAgzt` | `0c61d0e` |
+| **Current (429 retry + OOO repair, 08/04/26)** | `dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` | `2c03b90` |
+| **Roll back one step** (Rob header links, 08/02/26) | `dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1` | `97515f0` |
+| **Roll back two steps** (session-6 close, 07/30/26) | `dpl_AWt9zKVFGF1QY1QAKmxNGtgrvWB4` | `3d29785` |
 | **Roll back to pre-redesign** | `dpl_92vmRYYZhidi6xdQ9fkg79L28sYa` | `4e1eb0b` |
 
-One step back is the right target for an inventory-release problem: `0c61d0e` is
-the redesign + accuracy build, visually signed off, and differs from the current
-release only in taking room counts from `getDashboard.capacity` instead of the
-room list. Going all the way to `4e1eb0b` also unwinds the redesign.
+One step back is the right target for a problem with the current release: the
+only behavioural change in `2c03b90` is that `cbGet` now retries HTTP 429/5xx
+up to 3 times before giving up. Its worst case is a slower cron, not a wrong
+figure — so if production looks wrong, the cause is probably NOT this release.
+Going all the way to `4e1eb0b` also unwinds the redesign.
+
+**A rollback does not undo the data repair.** `2c03b90` also raised three
+banked out-of-order figures (KE/LL/SA 2026-07-20) via
+`scripts/repair-zero-ooo.mts`. Those are Neon rows, not code — reverting the
+deployment leaves them corrected, which is the safe combination. `observeBlocks`
+is raise-only, so nothing can put the zeros back short of a manual `update`.
 
 Rollback target inspectors:
-- one step — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/8p9GuzXH9cF75XLU5smo5FoLAgzt
+- one step — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1
+- two steps — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/AWt9zKVFGF1QY1QAKmxNGtgrvWB4
 - pre-redesign — https://vercel.com/stayable-admins-projects/cloudbeds-dashboard/92vmRYYZhidi6xdQ9fkg79L28sYa
 
 ---

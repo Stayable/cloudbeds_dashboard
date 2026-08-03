@@ -6,6 +6,19 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/04/26 (session 9b) — MONICA'S RAW FILE READ · KE GAP SOLVED · NO EROSION
 
+> **Pickup — 08/04/26. PUSHED AND DEPLOYED.** Branch level with `origin` at
+> **`2c03b90`**; production **`dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` READY**, aliased
+> to `dashboard.rentstayable.com`. Live smoke: `/`, `/login`, `/report`, `/test`
+> all 200. Rollback target **`dpl_HEh5Gb2Yjxjqa9hdAXpsxZ8mF7C1`** (`97515f0`) —
+> `docs/ROLLBACK.md` updated, including the note that a rollback does NOT undo
+> the three repaired OOO rows (they are Neon data, and leaving them corrected is
+> the safe combination).
+>
+> **Everything code-side that I recommended is done and live.** What remains is
+> six items, and every one of them needs Kyle or Monica — they are listed at the
+> bottom of this block. **The launch itself is now gated on exactly two of them:
+> the Power Automate flow edit, and the `TEAMS_FLOW_URL` swap.**
+>
 > Kyle added four `Occupancy History and Forecast-KE-Jul 28..31.xlsx` in the repo
 > root — the Cloudbeds **Data Insights** export she works from, Kissimmee East
 > (2295) only, one generation per day at 14:02 UTC. Four snapshots of the same
