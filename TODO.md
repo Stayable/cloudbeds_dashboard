@@ -85,7 +85,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## 08/04/26 (session 9b) — MONICA'S RAW FILE READ · KE GAP SOLVED · NO EROSION
+## 08/03/26 (session 9b) — MONICA'S RAW FILE READ · KE GAP SOLVED (same ET day as 9c; the machine clock reads Philippine time)
 
 > **Pickup — 08/04/26. PUSHED AND DEPLOYED.** Branch level with `origin` at
 > **`2c03b90`**; production **`dpl_EWEmjuJP5LguBVKCJf6xxy2g4kNq` READY**, aliased
