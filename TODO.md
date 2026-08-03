@@ -174,6 +174,42 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   every login cookie — that part is pre-existing). Setting an explicit
 >   `AUTH_SECRET` in Vercel would decouple them. Not done; flagged.
 >
+> **[!] 12. `TEAMS_FLOW_URL` IS NOT SET IN VERCEL PRODUCTION — THE DAILY POST HAS
+> NEVER WORKED FROM THE CRON.** Found by firing the production cron as a
+> rehearsal (Kyle asked for a test post before going live — this is exactly what
+> that caught).
+> - Response: `{ok:false, status:0, attached:0}`. That is not a Teams failure,
+>   it is the **unset-URL branch**: `postAdaptiveCard` returns literally that
+>   tuple on `if (!url)` (`lib/teams.ts`). A real HTTP failure carries a non-zero
+>   status.
+> - **This corrects a belief recorded in session 6.** "Posted to the TEST channel
+>   and confirmed rendering (Kyle, 07/29)" was a **local** run reading
+>   `.env.local` — never the production cron. So the card leg was verified, and
+>   the *delivery* leg never was.
+> - **It has been failing silently every day.** `postAdaptiveCard` never throws
+>   by design (a Teams outage must not fail the snapshot banking), and the cron
+>   returns `ok:false` in a JSON body nobody reads. Everything else in the same
+>   run is healthy: `snapshotsWritten: 8`, `gapsLast14d: 0`.
+> - **[ ] Kyle: add `TEAMS_FLOW_URL` to Vercel Production and redeploy.** Set it
+>   to the **test** flow first (workflow `80063dcc…`, the value already in
+>   `.env.local`), so the rehearsal is real. Then swap to the **Revenue** flow
+>   (`2dfcbfca…`) for go-live. Env changes need a redeploy to take effect.
+> - **[ ] Then make this failure loud.** A daily post that no-ops silently is the
+>   same class of defect as the 429-zero: correct-looking response, no delivery.
+>   Options: fail the cron response with a non-200, or fold `postedOk` into the
+>   gaps/alerts the run already reports.
+>
+> **[x] 13. Date check while doing the above:** the machine's clock is Philippine
+> time (UTC+8), so it reads Aug 4 while **Eastern is still Mon Aug 3**. The cron
+> resolved `asOf = 2026-08-02`, file label "Occupancy Report as of August 3,
+> 2026" — correct, and it matches one of the three PDFs already in `outputs/`.
+>
+> **[ ] 14. Availability guard fired on DP** — 34.2% average available across
+> 2026-07-20→08-02 (14 days). Almost certainly a **false positive**: Davenport
+> genuinely runs ~66% occupancy (101/153), and the guard's threshold is a flat
+> ≥25% for 7+ days. Worth re-basing the threshold per property before it trains
+> everyone to ignore the alert.
+>
 > **Mechanical, whenever:**
 > 7. Today's PDFs are still to be dropped; `diff-reports.py` is ready.
 > 8. Re-check end-of-day capture coverage over the next few nights now the retry
