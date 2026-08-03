@@ -14,6 +14,26 @@ export function easternToday(): string {
   }).format(new Date());
 }
 
+/** Minutes past Eastern midnight right now (0-1439). DST-aware, so it means the
+ *  same wall-clock thing in EST and EDT.
+ *
+ *  Why this exists: Vercel Cron schedules are fixed UTC, so a single entry
+ *  drifts an hour against Eastern twice a year. The daily report must land in a
+ *  30-minute Eastern window (Kyle, 08/03/26), which is narrower than that drift
+ *  — so two UTC entries are scheduled an hour apart and the route uses this to
+ *  run on exactly the one that is currently correct. */
+export function easternMinutesNow(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
+  // en-GB renders midnight as 24 in some ICU versions.
+  return (get("hour") % 24) * 60 + get("minute");
+}
+
 /** Convert an ISO datetime (e.g. "2026-06-27T01:27:09Z") to its Eastern calendar
  *  date (YYYY-MM-DD). Returns "" for an unparseable input. */
 export function easternDateOf(iso: string): string {

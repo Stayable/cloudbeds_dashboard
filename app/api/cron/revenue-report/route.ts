@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { easternToday, shiftYmd } from "@/lib/dates";
+import { easternMinutesNow, easternToday, shiftYmd } from "@/lib/dates";
 import { persistDailySnapshots, buildRevenueReport } from "@/lib/cloudbeds";
 import { findAvailabilityAnomalies, findSnapshotGaps } from "@/lib/db";
 import { PROPERTIES } from "@/config/properties";
@@ -27,6 +27,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
   }
+  // DELIVERY WINDOW (Kyle, 08/03/26): the report must reflect the 10:00 ET state
+  // of Cloudbeds and land between 10:30 and 11:00 ET. Vercel Cron is fixed UTC,
+  // so one entry drifts an hour across the DST boundary — wider than the window
+  // itself. Two entries are scheduled an hour apart (vercel.json) and this guard
+  // lets exactly one of them through:
+  //     14:30 UTC = 10:30 EDT (runs, summer) / 09:30 EST (skipped)
+  //     15:30 UTC = 11:30 EDT (skipped)      / 10:30 EST (runs, winter)
+  // `?force=1` bypasses it for manual runs.
+  const url = new URL(req.url);
+  const minutes = easternMinutesNow();
+  const inWindow = minutes >= 10 * 60 + 15 && minutes <= 11 * 60;
+  if (!inWindow && url.searchParams.get("force") !== "1") {
+    // 200, not an error: skipping is the correct outcome for the off-DST twin.
+    // Explicitly labelled so it can never be mistaken for a delivered report —
+    // that ambiguity is what hid the unset-TEAMS_FLOW_URL bug for two weeks.
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: `outside the 10:15-11:00 ET delivery window (now ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} ET)`,
+      posted: false,
+    });
+  }
+
   try {
     const asOf = shiftYmd(easternToday(), -1);
     // Persist BEFORE building the report: future runs' MTD/YTD read
