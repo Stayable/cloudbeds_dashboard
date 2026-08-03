@@ -1422,7 +1422,12 @@ const BLOCK_QUERY_MAX_DAYS = 30;
  *  be a straightforward sum of this endpoint's block-night overlaps; its
  *  exact derivation is unresolved (see task-3-report.md). Reported honestly,
  *  not forced to match. */
-async function getBlockNights(apiKey: string, start: string, end: string): Promise<CloudbedsResult<BlockNights>> {
+/** Exported so a targeted repair (scripts/repair-zero-ooo.mts) can re-observe a
+ *  single property-day through the exact production path, instead of the
+ *  whole-portfolio `captureEndOfDayBlocks` — which would stamp `ooo_eod` /
+ *  `ooo_observed_at` on seven innocent rows and pollute the evidence for
+ *  whether the nightly cron actually fired. */
+export async function getBlockNights(apiKey: string, start: string, end: string): Promise<CloudbedsResult<BlockNights>> {
   const totalDays = dayCount(start, end);
   const windows: { s: string; e: string }[] = [];
   for (let offset = 0; offset < totalDays; offset += BLOCK_QUERY_MAX_DAYS) {

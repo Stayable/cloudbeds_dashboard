@@ -78,12 +78,58 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > the report. Consistent with the known `getDashboard.capacity` +1 defect at KE,
 > and further evidence her workbook re-bases inventory rather than trusting DI.
 >
-> **▶ NEXT:**
-> 1. **[ ] Ask Kyle/Monica for the same export for JW or SA** — decides item 5.
-> 2. **[ ] Raise the ~7 unblocked KE rooms operationally** (item 4).
-> 3. **[?] Repair the four 429-zeroed days** (item 6).
-> 4. The PDF actual report for today is still to be dropped; `diff-reports.py` is
->    ready for it.
+> **[!] 9. AND HER MTD DOES NOT EQUAL THE SUM OF HER OWN DAILIES — so DO NOT
+> switch KE to Data Insights.** Her PDF's KE **daily** OOO matches the export
+> exactly (31 on 07-30, 32 on 07-28), but her **MTD reads 923 where the export's
+> 07-01→07-30 dailies sum to 866** — a 57-room-night gap inside her own two
+> files. Switching KE's source to DI would fix the Yesterday column and leave MTD
+> wrong by a *different* amount (−57 instead of today's −95). That is not a
+> change worth making hours before launch, and it is now a question for her:
+> **how does the MTD out-of-order line accumulate?** Recorded rather than acted
+> on. Kyle authorised "do everything you recommend" — this is the one thing I
+> recommended against, and the finding above is why.
+>
+> **[x] 10. THE THREE RECOVERABLE 429-ZEROED DAYS ARE REPAIRED.**
+> `npx tsx scripts/repair-zero-ooo.mts [--apply]` — dry-run by default, writes
+> through the production `getBlockNights` + `observeBlocks` path, and touches
+> only the listed property-days rather than the whole portfolio for those dates
+> (which would stamp `ooo_observed_at` on seven innocent rows and destroy the
+> evidence for whether the nightly cron fired).
+> - **KE 07-20 → 24, LL 07-20 → 3, SA 07-20 → 11.** All sit sensibly between
+>   their neighbours; KE's 24 is its stable long-lived block set.
+> - **LL 06-12 is NOT recoverable** — Cloudbeds now returns zero `out_of_service`
+>   blocks for that date, so there is nothing to re-read. Left at 0 rather than
+>   inventing a figure. It is the one remaining suspect zero portfolio-wide.
+> - **[ ] Small residual:** `observeBlocks` writes `ooo`/`blocks_by_type` only, so
+>   LL and SA 07-20 still show `other_blocks = 0` while their `blocks_by_type`
+>   now records `blocked_dates` 1 and 3. Two rows, one row of the report,
+>   deliberately not fixed by widening a write contract on launch day.
+>
+> **▶ NEXT — split by who can actually do it:**
+>
+> **Kyle only (all three block or shape the launch):**
+> 1. **[ ] Edit the Power Automate flow** for real PDF attachments, then set
+>    `TEAMS_FLOW_ATTACHMENTS=1`. `docs/TEAMS-ATTACHMENTS.md`. Until this is done
+>    the card's PDF button sits behind the MAIN pin — so either do it, or
+>    distribute the pin. **This is the last unproven leg of delivery.**
+> 2. **[ ] Swap `TEAMS_FLOW_URL` in Vercel** from the test flow to the Revenue
+>    chat URL. That swap IS the first live post — do it after item 1.
+> 3. **[ ] Regenerate the Revenue trigger URL** (plaintext in a 07/29 transcript,
+>    six days old).
+>
+> **Ask Monica (both are one message, and both are now precisely framed):**
+> 4. **[ ] The ~7 unblocked KE rooms** — which rooms, and can they be blocked in
+>    Cloudbeds? Blocking them fixes it at source; failing that we add a KE
+>    override like JN's.
+> 5. **[ ] How does the MTD out-of-order line accumulate?** (item 9 — her own two
+>    files disagree by 57.)
+> 6. **[ ] One raw export for JW or SA** — decides whether her OOO is DI
+>    everywhere or blocks everywhere except KE (item 5).
+>
+> **Mechanical, whenever:**
+> 7. Today's PDFs are still to be dropped; `diff-reports.py` is ready.
+> 8. Re-check end-of-day capture coverage over the next few nights now the retry
+>    has shipped (it was 5/8 and 4/8 on two of five nights).
 
 ---
 
