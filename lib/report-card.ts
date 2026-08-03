@@ -117,6 +117,13 @@ export function buildReportCard(
      *  "Download Excel" stays: the .xlsx is deliberately NOT attached (Monica
      *  posts only the PDF), so that link is its only route. */
     pdfAttached?: boolean;
+    /** Bearer token from `signFileToken()`. When present the file buttons point
+     *  at the self-checking /api/report-file route instead of the pin-gated
+     *  /report/latest.*, so everyone in the Revenue chat can open them without
+     *  the MAIN pin. Note this matters even when `pdfAttached` is true: the
+     *  Excel button survives attachment and is gated just the same. Omitted =
+     *  today's gated URLs, which keeps local/dev behaviour unchanged. */
+    fileToken?: string;
   } = {}
 ): object {
   const portfolioOccYesterday = weightedOcc(report.actual, (p) => p.yesterday.actual);
@@ -232,16 +239,22 @@ export function buildReportCard(
   // Until the flow attaches the real file, the PDF button IS the attachment
   // (Kyle 07/29/26), so it leads. Both file links are gated behind the MAIN pin
   // by middleware.ts — anyone in the chat without that pin gets a login wall.
+  const fileUrl = (fmt: "pdf" | "xlsx") =>
+    opts.fileToken
+      ? `${baseUrl}/api/report-file?fmt=${fmt}&t=${encodeURIComponent(opts.fileToken)}`
+      : `${baseUrl}/report/latest.${fmt}`;
+
   const actions: object[] = [];
   if (!opts.pdfAttached) {
     actions.push({
       type: "Action.OpenUrl",
       title: `${reportFileBase(report.asOf)} (PDF)`,
-      url: `${baseUrl}/report/latest.pdf`,
+      url: fileUrl("pdf"),
     });
   }
   actions.push(
-    { type: "Action.OpenUrl", title: "Same report in Excel", url: `${baseUrl}/report/latest.xlsx` },
+    { type: "Action.OpenUrl", title: "Same report in Excel", url: fileUrl("xlsx") },
+    // Deliberately NOT tokenised — the dashboard itself stays behind the pin.
     { type: "Action.OpenUrl", title: "Open the dashboard", url: `${baseUrl}/report` },
   );
 

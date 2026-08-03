@@ -51,6 +51,24 @@ describe("buildReportCard", () => {
     expect(urls).toContain("https://x.test/report");
   });
 
+  it("routes both file buttons through the token link when given one", () => {
+    // The pin-gated /report/latest.* paths are a login wall for anyone in the
+    // Revenue chat without the MAIN pin, so a card carrying a token must not
+    // emit them at all — including the Excel button, which survives attachment.
+    const c:any = buildReportCard(rpt, "https://x.test", { fileToken: "123.abc" });
+    const urls: string[] = c.actions.map((a:any)=>a.url);
+    expect(urls).toContain("https://x.test/api/report-file?fmt=pdf&t=123.abc");
+    expect(urls).toContain("https://x.test/api/report-file?fmt=xlsx&t=123.abc");
+    expect(urls.some((u)=>u.includes("/report/latest."))).toBe(false);
+    // The dashboard link stays gated on purpose — a file token is not a pin.
+    expect(urls).toContain("https://x.test/report");
+
+    const attached:any = buildReportCard(rpt, "https://x.test", { fileToken: "123.abc", pdfAttached: true });
+    const aUrls: string[] = attached.actions.map((a:any)=>a.url);
+    expect(aUrls.some((u)=>u.includes("/report/latest."))).toBe(false);
+    expect(aUrls).toContain("https://x.test/api/report-file?fmt=xlsx&t=123.abc");
+  });
+
   it("shows Portfolio Occupancy (MTD) when MTD counts are complete", () => {
     const c:any = buildReportCard(rpt, "https://dashboard.rentstayable.com");
     const factSet = c.body.find((b:any)=>b.type==="FactSet" && b.facts.some((f:any)=>f.title.startsWith("Portfolio Occupancy")));

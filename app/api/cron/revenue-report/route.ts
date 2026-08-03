@@ -7,6 +7,7 @@ import { buildReportCard } from "@/lib/report-card";
 import { renderReportPdf } from "@/lib/report-pdf";
 import { reportFileBase } from "@/lib/revenue-report";
 import { attachmentsEnabled, postAdaptiveCard, type TeamsAttachment } from "@/lib/teams";
+import { signFileToken } from "@/lib/auth";
 
 // Daily occupancy/revenue report cron (Vercel Cron; see vercel.json). Banks
 // yesterday's exact snapshot (so future MTD/YTD accumulate), builds the
@@ -49,8 +50,13 @@ export async function GET(req: Request) {
       });
     }
 
+    // Signed download link for the card's file buttons. Without it those
+    // buttons hit the MAIN-pin login wall for anyone in the Revenue chat —
+    // and that is true of the Excel button even when the PDF is attached.
+    const fileToken = await signFileToken();
+
     const posted = await postAdaptiveCard(
-      buildReportCard(report, base, { pdfAttached: files.length > 0 }),
+      buildReportCard(report, base, { pdfAttached: files.length > 0, fileToken }),
       files,
     );
 

@@ -22,9 +22,11 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // Protect everything except: login, auth endpoint, the PUBLIC intake page and
   // its write endpoint, the feedback + crystal-note APIs (which self-check their
-  // own token inline), the cron endpoint (self-checks CRON_SECRET; called by
+  // own token inline), the report-file download (also self-checks — it is how
+  // the Teams card links the PDF/Excel without handing the MAIN pin to the
+  // Revenue chat), the cron endpoint (self-checks CRON_SECRET; called by
   // Vercel with no cookie), Next internals, and static files.
   matcher: [
-    "/((?!login|api/auth|api/cron(?:/.*)?|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/cron(?:/.*)?|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/report-file(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };

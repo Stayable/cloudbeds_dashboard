@@ -134,6 +134,39 @@ export async function signLevel(level: Level): Promise<string> {
   return `${level}.${await hmacHex(level)}`;
 }
 
+/** Days a report-file link stays usable after the card that carried it is posted. */
+export const FILE_TOKEN_DAYS = 30;
+
+/** A bearer token for the report download route, so the daily Teams card can
+ *  link the PDF/Excel WITHOUT everyone in the Revenue chat needing the MAIN
+ *  pin. `/report/latest.*` is gated by middleware, which put a login wall in
+ *  front of Monica's audience — the alternative was handing the pin (and with
+ *  it the whole dashboard) to the chat.
+ *
+ *  Scope is deliberately "the report files, for a while", not per-user: the
+ *  report is aggregate-only and carries no guest PII (CLAUDE.md §5 rule 2), so
+ *  the risk being managed is business confidentiality, not privacy. The token
+ *  is unguessable and expires; it is not an identity. */
+export async function signFileToken(nowMs = Date.now()): Promise<string> {
+  const exp = Math.floor(nowMs / 1000) + FILE_TOKEN_DAYS * 86_400;
+  return `${exp}.${await hmacHex(`file:${exp}`)}`;
+}
+
+/** True iff `token` is well-formed, unexpired and signed by this deployment. */
+export async function verifyFileToken(token: string | null, nowMs = Date.now()): Promise<boolean> {
+  if (!token) return false;
+  const dot = token.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const exp = Number(token.slice(0, dot));
+  const sig = token.slice(dot + 1);
+  if (!Number.isFinite(exp) || exp * 1000 < nowMs) return false;
+  const expected = await hmacHex(`file:${exp}`);
+  if (sig.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
 /** Verify a cookie and return its level, or null if missing/forged/unknown. */
 export async function verifyCookie(cookie: string | undefined): Promise<Level | null> {
   if (!cookie) return null;
