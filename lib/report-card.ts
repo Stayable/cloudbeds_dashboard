@@ -8,6 +8,13 @@ import { PROPERTIES } from "../config/properties";
 import { REPORT_NOTES, reportFileBase, reportGreeting } from "./revenue-report";
 import type { RevenueReport, PropertyActual, DerivedRow } from "./revenue-report";
 
+/** The base-level PIN, stated in the card so "Open the dashboard" is not a dead
+ *  end for the Revenue chat. Deliberately the LABEL, not a secret read from
+ *  env: the value belongs in the message, and sourcing it from
+ *  `process.env.DASHBOARD_PIN` would put the live secret one refactor away from
+ *  any other caller of this builder. If the PIN changes, change it here. */
+const DASHBOARD_PIN_HINT = "MAIN";
+
 const pct = (n: number) => (n * 100).toFixed(1) + "%";
 const money = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -234,6 +241,18 @@ export function buildReportCard(
         spacing: "None",
       },
     ]),
+    // The two file buttons are token-authenticated and need no PIN, but "Open
+    // the dashboard" is deliberately still gated — so the PIN has to be stated
+    // somewhere or that button is a dead end for most of the chat
+    // (Kyle, 08/03/26).
+    {
+      type: "TextBlock",
+      text: `Dashboard PIN: ${DASHBOARD_PIN_HINT}. The report files above need no PIN.`,
+      wrap: true,
+      size: "Small",
+      isSubtle: true,
+      spacing: "Medium",
+    },
   ];
 
   // Until the flow attaches the real file, the PDF button IS the attachment

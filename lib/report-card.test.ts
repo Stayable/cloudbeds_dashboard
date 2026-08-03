@@ -51,6 +51,14 @@ describe("buildReportCard", () => {
     expect(urls).toContain("https://x.test/report");
   });
 
+  it("states the dashboard PIN, since that button is still gated", () => {
+    const c:any = buildReportCard(rpt, "https://x.test", { fileToken: "123.abc" });
+    const text = JSON.stringify(c);
+    expect(text).toContain("Dashboard PIN: MAIN");
+    // ...and says the files do NOT need it, or people will assume they do.
+    expect(text).toMatch(/files above need no PIN/i);
+  });
+
   it("routes both file buttons through the token link when given one", () => {
     // The pin-gated /report/latest.* paths are a login wall for anyone in the
     // Revenue chat without the MAIN pin, so a card carrying a token must not
