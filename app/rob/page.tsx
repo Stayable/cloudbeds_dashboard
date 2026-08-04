@@ -1,13 +1,15 @@
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import ControlBar, { ControlLabel } from "@/components/ControlBar";
-import { PageHead, chromeButton } from "@/components/ui";
+import { PageHead, chromeButton, surfaceButton } from "@/components/ui";
 import CrystalRevenue from "@/components/CrystalRevenue";
 import CrystalReservations from "@/components/CrystalReservations";
 import FinanceSection from "@/components/FinanceSection";
 import ExecFeedback from "@/components/ExecFeedback";
 import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
+import ContractorSchedule from "@/components/ContractorSchedule";
+import { getContractorSchedule } from "@/lib/contractor-schedule";
 import { dayCount, resolveRange } from "@/lib/dates";
 import { getOccupancyRollup } from "@/lib/db";
 import { getPortfolio, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
@@ -26,6 +28,7 @@ const NAV: NavItem[] = [
   { id: "revenue", label: "Revenue & rate", n: 3 },
   { id: "reservations", label: "Reservations", n: 4 },
   { id: "finance", label: "Finance", n: 5 },
+  { id: "contractors", label: "Contractors", n: 6 },
   { id: "notes", label: "Notes", n: null },
 ];
 
@@ -61,11 +64,12 @@ export default async function RobPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, rollup, reservations, finance] = await Promise.all([
+  const [portfolio, rollup, reservations, finance, schedule] = await Promise.all([
     getPortfolio(),
     getOccupancyRollup(start, end),
     getPortfolioReservations(start, end),
     getPortfolioFinance(start, end),
+    getContractorSchedule(),
   ]);
 
   const properties = buildOccProperties(portfolio, rollup);
@@ -143,6 +147,40 @@ export default async function RobPage({
           <section id="finance" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
             <SectionHeading n={5} title="Finance" sub={`${rangeLabel} · charges, payments, net · aggregates only`} />
             <FinanceSection views={financeViews} rangeLabel={rangeLabel} exportDate={end} />
+          </section>
+
+          {/* §6 Contractor schedule — Smartsheet, one tab per weekday, opens on
+              today (Eastern). Independent of the page's date-range controls:
+              this is the crew's current week, not a period metric. */}
+          <section id="contractors" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <SectionHeading
+                n={6}
+                title="Contractor schedule"
+                sub={
+                  schedule.ok
+                    ? `${schedule.data.sheetName} · ${schedule.data.totalRows} assignments · opens on today (ET)`
+                    : "Weekly crew plan from Smartsheet"
+                }
+              />
+              {schedule.ok && schedule.data.permalink && (
+                <a
+                  href={schedule.data.permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={surfaceButton}
+                >
+                  Open in Smartsheet ↗
+                </a>
+              )}
+            </div>
+            {schedule.ok ? (
+              <ContractorSchedule schedule={schedule.data} />
+            ) : (
+              <p className="rounded-lg bg-warnbg px-4 py-3 text-sm text-warn">
+                Couldn&apos;t load the contractor schedule: {schedule.error}
+              </p>
+            )}
           </section>
 
           {/* Honest note on what's not shown */}

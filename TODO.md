@@ -4,6 +4,94 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/05/26 (session 9e) — ROB §6 CONTRACTOR SCHEDULE (Smartsheet, day tabs)
+
+> **Pickup — 08/05/26. BUILT AND COMMITTED LOCALLY. NOT PUSHED.** `tsc --noEmit`
+> exit 0 · `next build` green · **292/292 tests** (18 new).
+> **Deliberately not pushed: on this repo a push to the dev branch auto-deploys
+> to production, and item 3 below should be settled first.**
+>
+> Kyle: add Smartsheet **1391340150542212** (the contractor schedule) to `/rob`,
+> tabbed by day Mon–Fri off the **Date** column, showing **Contractor, Property,
+> Task, Status, Latest WhatsApp Update**, defaulting to the current day (ET);
+> plus a link so Rob can open the sheet itself.
+>
+> Shipped as `/rob` **§6 Contractor schedule** — `lib/contractor-schedule.ts`
+> (fetch + pure `foldSchedule`), `components/ContractorSchedule.tsx` (day tabs),
+> nav item 6, and an **"Open in Smartsheet ↗"** button in the section header
+> (`surfaceButton`, new tab, `noopener`).
+>
+> **The sheet:** "Contractor Schedule 08-03 to 08-07-26" — 65 rows, exactly
+> Mon 08-03 → Fri 08-07, **13 assignments per day**, 4 at Davenport (44199), 3 at
+> Jacksonville North (812), 6 at Boca Condo. `Latest WhatsApp Update` is populated
+> only on Monday (the past day); forward days are blank, which is expected.
+> Status picklist: Pending / In Progress / Completed / Delayed / Off.
+>
+> **[x] 1. DEFECT CAUGHT BEFORE IT SHIPPED — the Date column must be read RAW.**
+> Smartsheet returns DATE cells with `value: "2026-08-03"` **and** a
+> locale-formatted `displayValue` like `"08/03/26"`. My first `cellText` preferred
+> `displayValue` everywhere, which would have made `weekdayOf` reject **every**
+> row and render all five tabs empty. `cellText` now takes a
+> `prefer: "display" | "raw"` and Date uses `"raw"`. Two regression tests pin it.
+> - Weekday is derived by parsing `YYYY-MM-DD` as **UTC midnight**, not local —
+>   this machine runs Philippine time, which would have shifted Monday to Sunday.
+>
+> **[x] 2. The `Day` text column is deliberately IGNORED.** The sheet carries both
+> `Date` and a text `Day` ("Monday".."Friday"). Kyle said use Date, and Date cannot
+> drift out of sync with itself — a test asserts Date wins when the two disagree.
+>
+> **[!] 3. `SMARTSHEET_API_TOKEN` IS NOT IN `.env.local` AND WAS NEVER IN
+> `.env.example`.** I could not verify the live fetch locally, and I cannot read
+> Vercel env vars from here (no CLI, and the Vercel MCP has no env tool).
+> - **If it is unset in Vercel Production, §6 renders an error — and so do TWO
+>   EXISTING SECTIONS: `/ops` Evictions and `/ops` One-star reviews.** Both have
+>   depended on this token since they shipped. Nobody has confirmed it is set.
+>   Exactly the `TEAMS_FLOW_URL` shape (session 9b item 12).
+> - **[ ] Kyle: confirm `SMARTSHEET_API_TOKEN` is set in Vercel Production.** If
+>   it is, §6 works on deploy. If it isn't, three sections are currently broken.
+> - Failure is graceful and self-diagnosing: the section prints the reason
+>   ("SMARTSHEET_API_TOKEN is not set") and the rest of `/rob` is unaffected.
+> - `.env.example` now documents the token and all four sheet IDs — it had **no
+>   Smartsheet section at all**, which is likely why the token never got copied.
+>
+> **[?] 4. WEEKLY ROLLOVER IS UNRESOLVED AND WILL BITE.** The sheet's *name*
+> carries its date range, so either Gerardo renames one long-lived sheet each week
+> (this hardcoded ID keeps working) or a **new sheet is created weekly** (§6
+> silently shows a stale week from Monday 08/10). Not decidable from one
+> observation, so I did not guess: the section header prints the sheet's own name
+> and every tab prints its real date, making a stale week visible rather than
+> silent. `SMARTSHEET_CONTRACTOR_SHEET_ID` overrides without a code change.
+> - **[ ] Ask Gerardo/Kyle which it is.** If it's a new sheet weekly, the fix is
+>   to resolve the sheet by name pattern at request time instead of by ID.
+>
+> **[x] 5. Details worth knowing:**
+> - Tabs for days with no rows are rendered but **disabled**, so the week's shape
+>   is visible rather than the tab silently vanishing.
+> - Weekend-dated and undated rows are **counted in a footnote**, never silently
+>   dropped — the same principle as the credits footnote on `/bea` §3.
+> - Default tab falls back to the first populated day when today is Sat/Sun or
+>   today's tab is empty, so Rob never lands on a blank tab. `defaultKey` is
+>   resolved **server-side** from `easternToday()` — the browser clock is the
+>   visitor's timezone, and Rob's day is Eastern wherever he is.
+> - Rows sort by contractor A→Z within a day, so a person holds position across
+>   tabs. Deterministic tie-break (property, then task).
+> - **This is not guest PII** — contractor names are vendor/crew names, unrelated
+>   to the §3 exception. It does name individual workers, so `/rob` staying
+>   exec-gated matters; it already is.
+> - Used `surfaceButton`, not `chromeButton`: the latter is styled for the navy
+>   header (`text-chromeText`) and would be near-invisible on a light section.
+>
+> **[x] 6. Fixed a stale line in `.env.example`** claiming the home `/` is public
+> (no PIN). It has been gated at `base` since 07/08/26.
+>
+> **[ ] 7. Pre-existing cosmetic bug, NOT fixed (out of scope, flagging):**
+> `chromeButton` in `components/ui.tsx:358` reads `bg-white\[.06]` — a stray
+> backslash where `bg-white/[.06]` was intended, so that background never applies
+> to the four `/rob` header pills. One character; left alone because it is
+> unrelated to this request.
+
+---
+
 ## 08/04/26 (session 9d) — BEA §3 BALANCE DUE · FIRST GUEST-PII SURFACE
 
 > **Pickup — 08/04/26. BUILT, VERIFIED LIVE, NOT PUSHED, NOT DEPLOYED.**
