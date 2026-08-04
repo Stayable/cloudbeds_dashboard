@@ -78,18 +78,39 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > "room numbers are inventory only (no guest data)" — false once §3 landed — and
 > "(Davenport today)", left over from when only one key was configured.
 >
+> **[x] 7. PUSHED AND DEPLOYED.** Branch level with `origin` at **`f02cdba`**;
+> production **`dpl_34hpdHJ31o95NdfXX3AE1v1woMkH` READY** (git-triggered by the
+> push), aliased to `dashboard.rentstayable.com`. Rollback target
+> **`dpl_6V9PGVSHmPpYxu3hNwdKRQ1FJ1X3`** (`6ff0ed2`).
+> - **Live smoke:** `/login` 200 · `/test` 200 · **`/bea` 307 → `/login`** (the
+>   PII is gated in production, which is the check that mattered) · `/` 307 ·
+>   `/report` 307.
+> - A rollback is clean here: §3 is additive, reads Cloudbeds live, and writes
+>   nothing. No data to unwind, unlike the 9b OOO repair.
+>
+> **[x] 8. TWO THINGS I TOLD KYLE THAT WERE WRONG — corrected by checking:**
+> - **PINs are NOT Vercel env vars.** I said to "confirm `BEA_PIN` in Vercel
+>   Production". `lib/pins.ts` is explicit: PINs live only in the Neon
+>   `dashboard_pins` table, with **no env-var fallback** (a level with no row
+>   simply cannot log in — fail-safe). Verified with new
+>   `node scripts/check-pins.mjs` (reports presence + length, never values):
+>   **all 7 levels have a PIN, `bea` included.** Bea can log in today.
+> - **"Make a failed Teams post loud" was ALREADY SHIPPED** in `d9a5fead`
+>   ("fix(cron): make a failed Teams post loud instead of a cheerful 200") —
+>   `TeamsFailure = unconfigured | network | http` in `lib/teams.ts` and the cron
+>   returns 500 on failure. Sessions 9b/9c left it marked `[ ]` and I repeated
+>   that. It is done; the item below is struck.
+>
 > **▶ NEXT:**
-> 1. **[ ] Push + deploy.** Nothing is live yet.
-> 2. **[ ] Confirm `BEA_PIN` is set in Vercel Production.** §3 is PII behind that
->    gate; if the pin is missing the gate's behaviour must be checked before
->    anyone gets the link. Same class of miss as `TEAMS_FLOW_URL` (session 9b
->    item 12) — an env var nobody verified in prod.
-> 3. **[ ] Show Bea the table and confirm the columns are what she meant**,
->    including that Due Date is absent and why.
-> 4. Carried forward from 9b/9c, untouched this session: regenerate the Revenue
->    trigger URL · the PDF-attachment question · make a failed Teams post loud ·
->    the three Monica questions (KE's ~7 unblocked rooms, MTD OOO accumulation,
->    one raw JW/SA export).
+> 1. **[ ] Show Bea the table and confirm the columns are what she meant**,
+>    including that Due Date is absent and why. She has never seen it.
+> 2. **[ ] Someone look at the three large transient balances** (item 4 above) —
+>    collection failures or a data defect, and either way it is real money.
+> 3. Carried forward from 9b/9c, genuinely still open: regenerate the Revenue
+>    trigger URL · the PDF-attachment question · the three Monica questions
+>    (KE's ~7 unblocked rooms, MTD OOO accumulation, one raw JW/SA export) ·
+>    the DP availability-guard false positive · `AUTH_SECRET` unset.
+>    ~~make a failed Teams post loud~~ — already shipped, see item 8.
 
 ---
 
@@ -364,10 +385,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   to the **test** flow first (workflow `80063dcc…`, the value already in
 >   `.env.local`), so the rehearsal is real. Then swap to the **Revenue** flow
 >   (`2dfcbfca…`) for go-live. Env changes need a redeploy to take effect.
-> - **[ ] Then make this failure loud.** A daily post that no-ops silently is the
->   same class of defect as the 429-zero: correct-looking response, no delivery.
->   Options: fail the cron response with a non-200, or fold `postedOk` into the
->   gaps/alerts the run already reports.
+> - **[x] Then make this failure loud — DONE** in `d9a5fead`, same day.
+>   `postAdaptiveCard` now returns `reason` (`unconfigured | network | http`) and
+>   the cron responds 500 when the post fails, so Vercel marks the invocation
+>   failed. (Left marked open here until 08/04/26 — see session 9d item 8.)
 >
 > **[x] 13. Date check while doing the above:** the machine's clock is Philippine
 > time (UTC+8), so it reads Aug 4 while **Eastern is still Mon Aug 3**. The cron
