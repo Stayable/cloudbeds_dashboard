@@ -6,13 +6,19 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/05/26 (session 9e) — ROB §6 CONTRACTOR SCHEDULE (Smartsheet, day tabs)
 
-> **Pickup — 08/05/26. BUILT AND COMMITTED LOCALLY at `369a294`. NOT PUSHED —
-> awaiting Kyle's go-ahead only.** `tsc --noEmit` exit 0 · `next build` green ·
-> **292/292 tests** (18 new). On this repo a push to the dev branch auto-deploys
-> to production, so the push IS the release.
-> **The env-var blocker (item 3) is RESOLVED — nothing technical is outstanding.**
-> The rollover question (item 4) does not block: the sheet covers Mon 08-03 to
-> Fri 08-07, so §6 is correct for all of this week.
+> **Pickup — 08/05/26. SHIPPED AND LIVE.** Branch level with `origin` at
+> **`38d8eb7`**; production **`dpl_G56dPFfEsMHFJziyZFvZCL42eJcb` READY**, aliased
+> to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · `next build` green ·
+> **292/292 tests** (18 new).
+> - **Live smoke:** `/login` 200 · `/test` 200 · **`/rob` 307 → `/login`**
+>   (exec-gated) · `/bea` 307 · `/` 307.
+> - **Rollback target `dpl_XA58Mm2shb912pUSspdKAhiWgbdm`** (`4e1724a`). Clean:
+>   §6 is additive, read-only, and writes nothing anywhere.
+> - **[ ] First real proof is Rob (or exec PIN) loading `/rob` §6.** Everything
+>   below the HTTP layer — the Smartsheet token in prod, the live fold — is
+>   unverified from here because `/rob` is gated and the token is Vercel-only.
+>   If the token were rotated, §6 says so in plain words instead of failing
+>   silently.
 >
 > Kyle: add Smartsheet **1391340150542212** (the contractor schedule) to `/rob`,
 > tabbed by day Mon–Fri off the **Date** column, showing **Contractor, Property,
