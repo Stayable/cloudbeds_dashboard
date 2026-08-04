@@ -13,12 +13,13 @@
 // unrelated to the /bea §3 guest-PII exception. The sheet does name individual
 // workers, so /rob staying exec-gated matters; it already is.
 //
-// [!] WEEKLY ROLLOVER IS AN OPEN QUESTION. The sheet's NAME carries its date
-// range, so either (a) Gerardo renames one long-lived sheet each week and this
-// hardcoded ID keeps working, or (b) a new sheet is created weekly and this
-// section silently shows a stale week. Not resolvable from one observation, so
-// the UI prints the sheet's own name and each tab's real date — a stale week is
-// visible rather than silent. Override with SMARTSHEET_CONTRACTOR_SHEET_ID.
+// WEEKLY ROLLOVER (settled by Kyle 08/05/26): it is ONE long-lived sheet whose
+// NAME changes automatically for each new schedule — "same sheet". So this ID is
+// stable and needs no weekly maintenance, and resolving the sheet by name pattern
+// is unnecessary. The sheet holds the CURRENT WEEK ONLY (rows are replaced), so
+// there is no past-week data to read from this source; a history view would mean
+// banking rows ourselves. SMARTSHEET_CONTRACTOR_SHEET_ID overrides the ID if the
+// sheet is ever genuinely replaced.
 
 import { getSheet, readSmartsheetToken, type RawSheet, type SmartsheetResult } from "@/lib/smartsheet";
 import { easternToday } from "@/lib/dates";

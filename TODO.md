@@ -6,10 +6,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/05/26 (session 9e) — ROB §6 CONTRACTOR SCHEDULE (Smartsheet, day tabs)
 
-> **Pickup — 08/05/26. BUILT AND COMMITTED LOCALLY. NOT PUSHED.** `tsc --noEmit`
-> exit 0 · `next build` green · **292/292 tests** (18 new).
-> **Deliberately not pushed: on this repo a push to the dev branch auto-deploys
-> to production, and item 3 below should be settled first.**
+> **Pickup — 08/05/26. BUILT AND COMMITTED LOCALLY at `369a294`. NOT PUSHED —
+> awaiting Kyle's go-ahead only.** `tsc --noEmit` exit 0 · `next build` green ·
+> **292/292 tests** (18 new). On this repo a push to the dev branch auto-deploys
+> to production, so the push IS the release.
+> **The env-var blocker (item 3) is RESOLVED — nothing technical is outstanding.**
+> The rollover question (item 4) does not block: the sheet covers Mon 08-03 to
+> Fri 08-07, so §6 is correct for all of this week.
 >
 > Kyle: add Smartsheet **1391340150542212** (the contractor schedule) to `/rob`,
 > tabbed by day Mon–Fri off the **Date** column, showing **Contractor, Property,
@@ -40,29 +43,42 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > `Date` and a text `Day` ("Monday".."Friday"). Kyle said use Date, and Date cannot
 > drift out of sync with itself — a test asserts Date wins when the two disagree.
 >
-> **[!] 3. `SMARTSHEET_API_TOKEN` IS NOT IN `.env.local` AND WAS NEVER IN
-> `.env.example`.** I could not verify the live fetch locally, and I cannot read
-> Vercel env vars from here (no CLI, and the Vercel MCP has no env tool).
-> - **If it is unset in Vercel Production, §6 renders an error — and so do TWO
->   EXISTING SECTIONS: `/ops` Evictions and `/ops` One-star reviews.** Both have
->   depended on this token since they shipped. Nobody has confirmed it is set.
->   Exactly the `TEAMS_FLOW_URL` shape (session 9b item 12).
-> - **[ ] Kyle: confirm `SMARTSHEET_API_TOKEN` is set in Vercel Production.** If
->   it is, §6 works on deploy. If it isn't, three sections are currently broken.
-> - Failure is graceful and self-diagnosing: the section prints the reason
->   ("SMARTSHEET_API_TOKEN is not set") and the rest of `/rob` is unaffected.
-> - `.env.example` now documents the token and all four sheet IDs — it had **no
->   Smartsheet section at all**, which is likely why the token never got copied.
+> **[x] 3. `SMARTSHEET_API_TOKEN` — RESOLVED, and my initial alarm was WRONG.**
+> It is absent from `.env.local`, so I could not verify the live fetch locally and
+> cannot read Vercel env vars from here (no CLI; the Vercel MCP has no env tool).
+> I flagged that as possibly breaking THREE sections. That was unfounded:
+> - **The token was set in Vercel by Kyle during the evictions session**
+>   (this file, line ~1798: "New env vars: `SMARTSHEET_API_TOKEN` (set by Kyle
+>   this session)"), and its local absence is deliberate and already documented
+>   at line ~1732: "Reviews/evictions can't render locally (no
+>   `SMARTSHEET_API_TOKEN` in `.env.local`)."
+> - So `/ops` Evictions and One-star reviews are **not** broken, and §6 will work
+>   on deploy. **The lesson is mine: check the repo's own record before escalating
+>   an env var to a blocker.** Not the `TEAMS_FLOW_URL` shape after all — that one
+>   had no such record.
+> - Residual (small): nobody has re-verified the token since ~07/08, and a revoked
+>   or rotated Smartsheet token would fail silently in the same way. Failure IS
+>   graceful and self-diagnosing — the section prints the reason and the rest of
+>   `/rob` is unaffected — so the first load of §6 confirms it.
+> - `.env.example` now documents the token and all four sheet IDs anyway; it had
+>   **no Smartsheet section at all**, which is worth fixing regardless.
 >
-> **[?] 4. WEEKLY ROLLOVER IS UNRESOLVED AND WILL BITE.** The sheet's *name*
-> carries its date range, so either Gerardo renames one long-lived sheet each week
-> (this hardcoded ID keeps working) or a **new sheet is created weekly** (§6
-> silently shows a stale week from Monday 08/10). Not decidable from one
-> observation, so I did not guess: the section header prints the sheet's own name
-> and every tab prints its real date, making a stale week visible rather than
-> silent. `SMARTSHEET_CONTRACTOR_SHEET_ID` overrides without a code change.
-> - **[ ] Ask Gerardo/Kyle which it is.** If it's a new sheet weekly, the fix is
->   to resolve the sheet by name pattern at request time instead of by ID.
+> **[x] 4. WEEKLY ROLLOVER — ANSWERED BY KYLE 08/05/26: ONE SHEET, THE NAME
+> AUTO-CHANGES.** "The file name changes (automatically) for new schedule. but
+> same sheet." So the sheet ID **1391340150542212 is stable** and the hardcoded
+> default keeps working indefinitely. **No name-pattern resolution is needed** —
+> the fix I had queued is cancelled, not deferred.
+> - I deliberately did not guess this, and the guess would have been wrong in the
+>   expensive direction (building sheet-discovery-by-name for nothing).
+> - Two consequences worth knowing:
+>   1. The section header printing the sheet's own name is still the right call —
+>      it is now how Rob sees WHICH week he is looking at, since the name is the
+>      only thing that changes.
+>   2. **The sheet holds the current week only** (65 rows = 13 crew × 5 days), so
+>      rows are replaced each week. There is no history in Smartsheet to read, so
+>      a past-week view is not possible from this source. Not requested; noted in
+>      case it ever is — it would need us to bank the rows nightly the way we bank
+>      Cloudbeds snapshots.
 >
 > **[x] 5. Details worth knowing:**
 > - Tabs for days with no rows are rendered but **disabled**, so the week's shape
