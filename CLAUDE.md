@@ -82,9 +82,24 @@ Cloudbeds API
 1. **Credentials never reach the browser.** Cloudbeds API key / OAuth tokens
    live in Vercel environment variables and are used only in server code. No
    `NEXT_PUBLIC_` prefix on any secret.
-2. **No guest PII on the public page — ever.** Expose aggregated metrics only
+2. **No guest PII on any ungated page — ever.** Expose aggregated metrics only
    (occupancy %, room counts, ADR/RevPAR, arrivals/departures *counts*). No
    guest names, no reservation-level detail.
+   - **SCOPED EXCEPTION — `/bea` §3 "Balance due" (authorised by Kyle 08/04/26).**
+     That one table shows **guest name + room + outstanding balance** for
+     in-house reservations, because chasing rent arrears is not possible without
+     naming the person who owes it. It is the **only** guest-PII surface in the
+     app. Conditions, all load-bearing:
+     - `/bea` stays PIN-gated (`BEA_PIN` or exec/CEO). Never relax that.
+     - The exception does **not** generalise. Any other surface wanting guest
+       names is a fresh decision, not covered by this one.
+     - **Consequence:** the standing "re-issue all 8 Cloudbeds keys without Guest
+       scope" security task **can no longer drop the Guest / Data Insights Guests
+       scopes.** Least privilege now stops one step short of where §6 aimed it.
+       That is a real, accepted reduction in the technical guardrail — the rule is
+       now enforced by code and the PIN gate rather than by the key.
+     - Implementation + the measurement behind the missing due-date column:
+       `lib/balance-due.ts`.
 3. **Read-only.** This app never writes to Cloudbeds.
 4. Cache API responses server-side (short TTL, e.g. 5–15 min) to stay within
    Cloudbeds rate limits and keep the page fast.
@@ -128,8 +143,13 @@ range, not separate API calls.
 - **Auth: API key (scoped key set)** — chosen over OAuth. No redirect URI, no
   token rotation, no extra storage. Server-to-server, ideal for a BI dashboard.
   (OAuth's redirect-URI flow was the alternative; not used.)
-- **Scope rule: Read-only, aggregate-only, no guest scopes.** Least privilege —
-  do not even request guest data; it's the technical guardrail behind §5 rule 2.
+- **Scope rule: Read-only. Aggregate-only everywhere except `/bea` §3.** Least
+  privilege still applies to Write/Delete and to every scope below — but as of
+  **08/04/26** the guest read scope is **retained deliberately**, because `/bea`
+  §3 names guests against their outstanding balance (§5 rule 2, scoped
+  exception). The guardrail behind §5 rule 2 is therefore now **code + the PIN
+  gate**, not the key. Treat "no guest scopes" as historical wherever it appears
+  below or in `TODO.md`.
 
   **Scopes to enable (Read only):**
   - Data Insights Occupancy — occupancy %, ADR, RevPAR, rooms sold/available
@@ -143,8 +163,13 @@ range, not separate API calls.
   - *(optional)* Data Insights Invoices, Data Insights Payments, Rate,
     Marketsegment
 
-  **Never enable:** Guest, Data Insights Guests (PII); any Write or Delete;
-  Door Lock Key, Housekeeping, Night Audit, Communication, User, etc.
+  **Required as of 08/04/26:** Guest / Data Insights Guests — `/bea` §3 reads
+  `primary_guest_full_name` from DI Reservations (dataset 3). Previously listed
+  here as "never enable"; that changed with the §5 rule 2 exception. Revoking it
+  breaks Bea's Balance due table and nothing else.
+
+  **Never enable:** any Write or Delete; Door Lock Key, Housekeeping, Night
+  Audit, Communication, User, etc.
 
 - **Key scoping**: confirm whether the key is per-property or covers all 6 active
   properties. Pilot (Davenport 44199) can start with a single-property key; the

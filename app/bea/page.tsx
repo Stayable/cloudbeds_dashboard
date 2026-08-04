@@ -2,18 +2,26 @@ import { PageHead } from "@/components/ui";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import ChangePin from "@/components/ChangePin";
 import BeaOosExplorer, { type BeaProperty } from "@/components/BeaOosExplorer";
+import BeaBalanceExplorer, { type BeaBalanceProperty } from "@/components/BeaBalanceExplorer";
 import ExportMenu from "@/components/ExportMenu";
 import { getPortfolio, getPortfolioOoo } from "@/lib/cloudbeds";
+import { getPortfolioBalanceDue } from "@/lib/balance-due";
 import { buildMatrix, exportFilename } from "@/lib/export";
 import { easternToday } from "@/lib/dates";
 
-// Bea (Ops Support) — tailored to her two selections: out-of-service rooms and
-// property local time. Gated to the bea level (BEA_PIN) OR exec/CEO.
+// Bea (Ops Support) — out-of-service rooms, property local time, and (08/04/26)
+// outstanding balances on in-house reservations. Gated to the bea level
+// (BEA_PIN) OR exec/CEO.
+//
+// §3 is the ONLY place in the app that renders guest names — authorised by Kyle
+// 08/04/26 as an explicit amendment to CLAUDE.md §5 rule 2. See
+// lib/balance-due.ts for the full note. This page must stay gated.
 export const dynamic = "force-dynamic";
 
 const NAV: NavItem[] = [
   { id: "oos", label: "Out of service", n: 1 },
   { id: "localtime", label: "Local time", n: 2 },
+  { id: "balance", label: "Balance due", n: 3 },
 ];
 
 // Section header. The step number ties back to the numbered rail on the left.
@@ -33,7 +41,11 @@ function SectionHeading({ n, title, sub }: { n: number; title: string; sub: stri
 
 export default async function BeaPage() {
   const asOf = easternToday();
-  const [portfolio, ooo] = await Promise.all([getPortfolio(), getPortfolioOoo(asOf)]);
+  const [portfolio, ooo, balances] = await Promise.all([
+    getPortfolio(),
+    getPortfolioOoo(asOf),
+    getPortfolioBalanceDue(asOf),
+  ]);
 
   const oooByCode = new Map(ooo.map((o) => [o.property.code, o]));
   const rows = portfolio.map((pd) => {
@@ -52,6 +64,16 @@ export default async function BeaPage() {
       tz: d ? d.timezone : null,
     };
   });
+  const balanceProps: BeaBalanceProperty[] = balances.map((b) => ({
+    id: b.property.id,
+    code: b.property.code,
+    name: b.property.name,
+    county: b.property.county,
+    configured: b.configured,
+    summary: b.result?.ok ? b.result.data : null,
+    error: b.result && !b.result.ok ? b.result.error : null,
+  }));
+
   const oosProps: BeaProperty[] = rows.map((r) => ({
     id: r.id,
     code: r.code,
@@ -121,10 +143,27 @@ export default async function BeaPage() {
             </div>
           </section>
 
+          <section id="balance" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
+            <SectionHeading
+              n={3}
+              title="Balance due"
+              sub="Live · in-house reservations carrying an outstanding balance"
+            />
+            <BeaBalanceExplorer properties={balanceProps} asOf={asOf} />
+            <p className="mt-2.5 text-[11.5px] text-txt3">
+              Balance is Cloudbeds&apos; reservation balance due for guests in-house today, newest
+              read (cached up to 10 min). Reservations in credit are excluded from totals and
+              counted in the footnote. <span className="font-semibold">No due date is shown</span>{" "}
+              because rent accrues nightly in Cloudbeds and neither Data Insights dataset carries a
+              rent or payment due date — a last-charge date would read as today for every row.
+            </p>
+          </section>
+
           <p className="mb-6 text-xs text-txt3">
             Live, read-only · cached up to 10 min. Out-of-service rooms are blocks active today;
-            room numbers are inventory only (no guest data). Only properties with a configured
-            Cloudbeds key report (Davenport today).
+            those room numbers are inventory only. The Balance due table names guests — treat this
+            page as confidential and do not share the link or its exports. Only properties with a
+            configured Cloudbeds key report.
           </p>
 
           <ChangePin />

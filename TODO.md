@@ -4,6 +4,95 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/04/26 (session 9d) — BEA §3 BALANCE DUE · FIRST GUEST-PII SURFACE
+
+> **Pickup — 08/04/26. BUILT, VERIFIED LIVE, NOT PUSHED, NOT DEPLOYED.**
+> `tsc --noEmit` exit 0 · `next build` green · **274/274 tests** (9 new).
+>
+> **Bea's request (via Kyle): a per-property table of Guest Name + current
+> Balance Due + Due Date.** Shipped as `/bea` §3 "Balance due" — property cards
+> + All, matching `BeaOosExplorer` and the per-user dashboard convention.
+> Columns: **Guest · Room · Balance due · Type (lease/transient) · Check-in**,
+> sorted by balance desc, `ExportMenu` for csv/xlsx.
+>
+> **[!] 1. THIS IS THE FIRST AND ONLY GUEST-PII SURFACE IN THE APP.** Kyle chose
+> it explicitly over two PII-free alternatives I offered (room number instead of
+> name; aggregate-only). CLAUDE.md §5 rule 2 and §6 are both amended to record
+> the reversal rather than leaving the docs contradicting the code.
+> - **Consequence, and it is real:** the standing "re-issue all 8 keys WITHOUT
+>   Guest scope" security task **can no longer drop that scope.** §5.2 is now
+>   enforced by code + the PIN gate, not by the key. Recorded in both files.
+> - `/bea` must stay gated (`BEA_PIN` or exec/CEO). The page footer now warns
+>   that the table names guests and that exports are confidential.
+>
+> **[x] 2. THERE IS NO DUE-DATE COLUMN, AND THAT IS A MEASUREMENT, NOT A PUNT.**
+> Kyle's answer to "what is Due Date" was *Previous Rent Due*; the data cannot
+> supply it.
+> - **No such column exists.** Dumped every field of DI datasets 1 and 3:
+>   **zero** due / lease / cycle / recurring / term columns. The only "due"
+>   fields are balance *amounts* (`reservation_balance_due_amount`,
+>   `balance_due_amount` — the latter is just a transaction amount, misleadingly
+>   named).
+> - **Rent accrues NIGHTLY, it does not post on a cycle.** All 19
+>   balance-carrying reservations at LL had Room Rate charges on *every day* of a
+>   90-day window, last charge dated **today**, every one. KE and DP match
+>   (avg 13.6 charge-days per 28). So "date of last rent charge" would render as
+>   today for all 145 rows.
+> - A check-in-anniversary due date is derivable but **unverifiable**, and a wrong
+>   date in a collections workflow sends Bea after the wrong tenant. Left out.
+>   Kyle's call: "Why not use Balance Due" — the amount is the actionable field.
+> - **[ ] If aging is ever wanted, the grounded derivation is "unpaid since":**
+>   walk each reservation's debits and credits chronologically, take the last date
+>   the running balance was ≤ 0. Measured, not inferred. Not built.
+>
+> **[x] 3. VERIFIED LIVE ON ALL 8 PROPERTIES** —
+> `npx tsx scripts/check-balance-due.mts` (masks names by default, `--names` to
+> reveal). Portfolio **$161,654.39 across 145 reservations**, and the two-query
+> join on `reservation_number` **resolved 100% of rows** (0 missing check-in or
+> rate plan). `group_rows` caps at 3 columns and the table needs 5 fields, hence
+> two queries joined — same cap `diDataset1Rows` already documents.
+>
+> | property | outstanding | rows | lease / transient | in credit |
+> |---|---|---|---|---|
+> | Kissimmee East (2295) | $38,928.67 | 28 | 25 / 3 | 5 · $246.73 |
+> | Kissimmee West (5399) | $27,033.74 | 22 | 22 / 0 | 2 · $1,048.38 |
+> | St. Augustine (2535) | $20,360.30 | 17 | 17 / 0 | 6 · $1,079.18 |
+> | Jacksonville West (6802) | $19,213.80 | 16 | 15 / 1 | 3 · $322.00 |
+> | Davenport (44199) | $17,826.80 | 15 | 13 / 2 | — |
+> | Orlando OBT (8700) | $16,418.82 | 23 | 23 / 0 | 8 · $3,995.98 |
+> | Lakeland (4645) | $15,880.15 | 19 | 19 / 0 | 5 · $1,681.45 |
+> | Jacksonville North (812) | $5,992.11 | 5 | 5 / 0 | 1 · $49.68 |
+>
+> **▶ 4. THREE LARGE TRANSIENT BALANCES WORTH SOMEONE'S ATTENTION** — arrears are
+> overwhelmingly lease (139 of 145 rows), which makes these stand out:
+> **KE room 114 $10,138.68** (in since 06-19), **JW room 114 $4,612.42**
+> (07-10), **DP room 130 $4,713.10** (07-01). Long-staying transients accruing
+> nightly without paying. Not a data defect as far as I can tell — but if it is
+> one, it is the kind that costs money. **[ ] Worth Bea or Monica eyeballing.**
+>
+> **[x] 5. Reservations in credit are excluded from totals**, not netted, and
+> counted in a footnote (30 portfolio-wide, $8,423.40). Netting would understate
+> what Bea has to collect.
+>
+> **[x] 6. Two stale claims on Bea's page fixed while there:** the footer said
+> "room numbers are inventory only (no guest data)" — false once §3 landed — and
+> "(Davenport today)", left over from when only one key was configured.
+>
+> **▶ NEXT:**
+> 1. **[ ] Push + deploy.** Nothing is live yet.
+> 2. **[ ] Confirm `BEA_PIN` is set in Vercel Production.** §3 is PII behind that
+>    gate; if the pin is missing the gate's behaviour must be checked before
+>    anyone gets the link. Same class of miss as `TEAMS_FLOW_URL` (session 9b
+>    item 12) — an env var nobody verified in prod.
+> 3. **[ ] Show Bea the table and confirm the columns are what she meant**,
+>    including that Due Date is absent and why.
+> 4. Carried forward from 9b/9c, untouched this session: regenerate the Revenue
+>    trigger URL · the PDF-attachment question · make a failed Teams post loud ·
+>    the three Monica questions (KE's ~7 unblocked rooms, MTD OOO accumulation,
+>    one raw JW/SA export).
+
+---
+
 ## 08/03/26 (session 9c) — LAUNCHED · ONE OCCUPANCY DERIVATION EVERYWHERE
 
 > **Pickup — 08/03/26 ET. THE DAILY REPORT IS LIVE IN THE REVENUE CHAT.**
