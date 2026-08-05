@@ -4,6 +4,83 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/05/26 (session 9f) — UNIQUE GUEST COUNT FOR THE INSURANCE APPLICATION
+
+> **Pickup — 08/05/26. DELIVERED. No app change; a one-off count + a memo.**
+> Write-up: **`outputs/UniqueGuestCount_Stayable_080526.md`** (counts only, no
+> personal data — safe to send to a broker). Tool:
+> **`node scripts/count-unique-guests.mjs [--json out.json]`**.
+>
+> **THE NUMBERS (all 8 properties, records dated 2020-07-07 → 2026-08-04):**
+> | Measure | Count |
+> |---|---:|
+> | Named guest records | **92,282** |
+> | Distinct people (name + email) | **88,671** |
+> | Distinct email addresses | 82,939 |
+> | Counted by Cloudbeds, never served | 3,112 |
+> | Cloudbeds' own `total` | 95,394 |
+>
+> Per year, by year the guest record was created — **records** sum to the total;
+> **people** deliberately do NOT (a 2024-and-2026 repeat guest counts in both):
+> | Year | Records | People |
+> |---|---:|---:|
+> | 2020 (from 07-07) | 3,577 | 3,479 |
+> | 2021 | 11,977 | 11,806 |
+> | 2022 | 25,108 | 24,662 |
+> | 2023 | 15,618 | 15,442 |
+> | 2024 | 16,378 | 16,049 |
+> | 2025 | 12,976 | 11,742 |
+> | 2026 (to 08-04) | 6,648 | 6,000 |
+> | **Total** | **92,282** | **88,671** |
+>
+> Most recent COMPLETE year = **2025: 12,976 records / 11,742 people**. 2020 and
+> 2026 are partial. 2022 is a real outlier (~2× neighbours) and volume steps down
+> after it — consistent with the shift toward extended-stay leases, where one
+> guest holds a room for months instead of many guests turning over. Worth having
+> ready if the insurer asks why the trend declines.
+>
+> **[x] 1. A CLOUDBEDS GUEST ID IS NOT A PERSON — this is the finding that
+> matters.** Guest IDs never repeated once across 92,282 records at any property,
+> which is impossible for a stable person identifier: Cloudbeds mints a **new
+> guest profile per booking**. So "distinct guest IDs" counts bookings, and the
+> person-level figure has to come from name+email. IDs are also issued per
+> property, so one human at two hotels holds two IDs.
+>
+> **[x] 2. `total` IS NOT A SERVABLE-ROW COUNT.** Cloudbeds reports 95,394 but the
+> endpoint only ever serves 92,282. Verified at DP: it serves 1,175 rows then
+> returns empty pages indefinitely (tested pages 13, 14, 20) while `total` holds
+> at 1,338. Almost certainly anonymized / merged / deleted profiles filtered
+> server-side — **that "why" is inference, not confirmed by Cloudbeds.** They have
+> no retrievable name, so they are correctly outside the count. **[ ] If the
+> insurer wants 95,394 explained, that is a question for Cloudbeds support.**
+>
+> **[x] 3. MY OWN BUG, CAUGHT BY CHECKING AGAINST THE API'S TOTALS.** The first
+> walk stopped whenever a page returned fewer rows than the page size — but
+> Cloudbeds returns short pages MID-RUN. That undercounted by **8,263 records**,
+> concentrated at **JN (−2,983)** and **OR (−2,167)**. The tell was that OR is an
+> active property with 119 in-house guests yet its newest guest record read
+> 2024-02-07. Only an empty page may end the walk. The script now prints
+> served-vs-reported per property so this cannot recur silently.
+> - I also told Kyle mid-run that the fix "changed nothing" — true for five
+>   properties, wrong for those two. Corrected in the same session.
+>
+> **[x] 4. Method, stated because every choice moves the number:** source is v1.3
+> `/getGuestList` per property; **all** reservation statuses (checked in/out,
+> pending, cancelled, no-show — it is the guest master, not status-filtered);
+> excludes nameless (0 found) and GDPR-anonymized (0 found) records; collapses
+> merged duplicates onto the surviving ID (2, both at KE). Names/emails are held
+> in memory only to deduplicate — never printed or written.
+>
+> **[ ] 5. NOT BUILT, offered and not taken up:** an Excel version of the memo for
+> attaching to the application. The per-year table was sent in chat and is
+> recorded above; the `.md` memo has the full method and caveats.
+>
+> **[!] 6. Each full run takes ~25 min** (92k records, ~930 paged requests across
+> 8 properties). Budget for that, or narrow to one property with the CODE arg on
+> the probe script.
+
+---
+
 ## 08/05/26 (session 9e) — ROB §6 CONTRACTOR SCHEDULE (Smartsheet, day tabs)
 
 > **Pickup — 08/05/26. SHIPPED AND LIVE.** Branch level with `origin` at
