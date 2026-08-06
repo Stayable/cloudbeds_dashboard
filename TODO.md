@@ -6,8 +6,23 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/07/26 (session 9h) — REPORT LINKS FOLLOWED "LATEST" · ELISE FUNNEL SPEC
 
-> **Pickup — 08/07/26. FIXED AND VERIFIED LOCALLY, NOT PUSHED, NOT DEPLOYED.**
-> `tsc --noEmit` exit 0 · **302/302 tests** (7 new).
+> **Pickup — 08/07/26. SHIPPED AND LIVE.** Branch level with `origin` at
+> **`581036a`**; production **`dpl_6w3NPQHsajZ5gnSWLufRUumKgke8` READY**, aliased
+> to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · `next build` green ·
+> **302/302 tests** (7 new).
+> - **Live smoke:** `/login` 200 · `/test` 200 · `/bea` `/` `/report` `/rob` 307.
+> - **The new rejection paths are confirmed in production**, and they answer as
+>   JSON (so our handler ran — middleware would have sent a 307): no token → 403
+>   · forged token → 403 `invalid or expired link` · `asOf=notadate` → **400
+>   `bad asOf`**, which only the new build emits.
+> - **The accept path still cannot be exercised from here** — prod's signing
+>   secret differs from local, so a locally-minted token is correctly refused.
+>   Unchanged limitation from 9b item 11: the first real proof is a posted card.
+> - **Rollback target `dpl_2opTMgcJAxtCbSExVDUGyTcdc3tc`** (`bf205a4`). Clean —
+>   read-only, writes nothing. One asymmetry: cards posted *after* this release
+>   carry `&asOf=` and stay-date-bound tokens, and a rollback would make those
+>   buttons **403** (old code verifies the unbound message). So once a card has
+>   gone out on this build, fix forward rather than roll back.
 >
 > **[x] 1. MONICA'S BUG: every card's file button downloaded the SAME report.**
 > "The same button from yesterday's report and today's report downloads the
