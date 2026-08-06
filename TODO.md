@@ -6,8 +6,18 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/06/26 (session 9g) — BEA'S MISSING GUEST · CB IS NOW THE ONLY SOURCE OF TRUTH
 
-> **Pickup — 08/06/26. FIXED AND VERIFIED LOCALLY, NOT PUSHED, NOT DEPLOYED.**
-> `tsc --noEmit` exit 0 · `next build` green · **295/295 tests** (3 new).
+> **Pickup — 08/06/26. SHIPPED AND LIVE.** Branch level with `origin` at
+> **`b6ffde1`**; production **`dpl_2bpEFLvVwirx4cNFvGVghKMaRmjh` READY**, aliased
+> to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · `next build` green ·
+> **295/295 tests** (3 new).
+> - **Live smoke:** `/login` 200 · `/test` 200 · **`/bea` 307 → `/login`** (the
+>   guest PII is still gated, the check that matters) · `/` 307 · `/report` 307.
+> - **Rollback target `dpl_Fno12VQnnAWwAB24KqQsMcgDkDMF`** (`346842c`). Clean:
+>   the change is a read-only filter plus a display column and writes nothing.
+>   (I initially quoted the 9e deploy as the rollback target — wrong; that one is
+>   two releases back.)
+> - **[ ] The proof that counts is Bea loading `/bea` §3 and seeing Michael
+>   Krick.** Verified from here via the API, not through the gated page.
 >
 > **[!] 1. MONICA IS NO LONGER PRODUCING REPORTS (Kyle, 08/06/26).** "She won't be
 > creating any reports from now on so we are on our own. The source of truth will
