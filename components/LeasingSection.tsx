@@ -119,6 +119,17 @@ export default function LeasingSection({
   const toursBooked = stageN(view, STAGE.toursBooked);
   const leased = stageN(view, STAGE.leased);
 
+  // Mid-funnel stages sitting at zero while leads are non-zero. Leads itself is
+  // excluded (zero leads is just an empty window), and so is the last stage —
+  // a month with no signed leases is entirely possible.
+  const emptyStages =
+    leads > 0
+      ? view.stages
+          .slice(1, -1)
+          .filter((s) => s.n === 0)
+          .map((s) => s.label)
+      : [];
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -159,6 +170,23 @@ export default function LeasingSection({
           </>
         )}
       </p>
+
+      {/* A mid-funnel stage at zero against a non-zero lead count is far more
+          likely to be missing data than a real month with no tours at all. Say
+          so, because the derived rates keep rendering (Lead → Tour reads a
+          confident 0%) and that is the plausible-but-wrong shape this dashboard
+          otherwise works hard to avoid. Data-driven, so it clears itself once a
+          sync repopulates the stage. */}
+      {emptyStages.length > 0 && (
+        <p className="rounded-lg bg-warnbg px-4 py-2.5 text-xs text-warn">
+          <span className="font-semibold">
+            {emptyStages.join(" · ")} {emptyStages.length === 1 ? "reads" : "read"} zero
+          </span>{" "}
+          against {intFmt(leads)} leads, which almost certainly means the stage is awaiting the next
+          EliseAI sync rather than that nothing happened. Treat any rate involving{" "}
+          {emptyStages.length === 1 ? "it" : "them"} as unavailable, not as 0%.
+        </p>
+      )}
 
       {/* Conversion + volume tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
