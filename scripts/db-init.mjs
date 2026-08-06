@@ -61,8 +61,9 @@ await sql`
 console.log("app_settings table ready.");
 
 // elise_funnel_daily: PII-free leasing funnel rollup from the EliseAI Snowflake
-// data share (RISE8_DATA.DA.PROSPECT_EVENTS_RISE8), refreshed by the nightly
-// sync (scripts/elise-sync.mjs / the /api/cron/elise-sync route). One row per
+// data share (RISE8_DATA.DA.EVENTS_LEASING_RISE8 for the seven funnel stages,
+// plus prospect_canceled from PROSPECT_EVENTS_RISE8), refreshed by the nightly
+// sync (scripts/elise-sync.mts / the /api/cron/elise-sync route). One row per
 // (building, day, event_type) with a count. `code` is the mapped Stayable
 // property code (config/elise.ts); two Elise buildings can share a code (the
 // unlaunched dupes fold into LL/DP), so reads GROUP BY code and SUM n.
@@ -77,6 +78,13 @@ await sql`
   )
 `;
 await sql`create index if not exists elise_funnel_daily_day_idx on elise_funnel_daily (day)`;
+// updated_at added 08/07/26. Without it, rows written by two different query
+// definitions are INDISTINGUISHABLE — which is exactly how the 08/07 source swap
+// left three event types (tour_booked / tour_attended / application_approved)
+// holding a mix of old UTC-bucketed and new local-bucketed rows that could not be
+// separated after the fact. Every sync now stamps it, so stale rows are
+// identifiable and purgeable (scripts/purge-elise-funnel.mts).
+await sql`alter table elise_funnel_daily add column if not exists updated_at timestamptz not null default now()`;
 console.log("elise_funnel_daily table ready.");
 
 // elise_pipeline_snapshot: current prospect-status counts (Inquiry/Applicant/

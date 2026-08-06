@@ -43,10 +43,69 @@ function makeConnection() {
   });
 }
 
-/** Snowflake DATE arrives as JS Date (UTC midnight) or string → YYYY-MM-DD. */
+/** Snowflake DATE arrives as JS Date (UTC midnight) or string → YYYY-MM-DD.
+ *  Do NOT replace with String(v).slice() — a JS Date stringifies to
+ *  "Wed Jun 03 2026 ...", which silently yields no matching days at all. */
 function ymd(v: unknown): string {
   return v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
 }
+
+/** The seven Leasing-Dashboard funnel stages, as EVENTS_LEASING_RISE8 spells
+ *  them. Order is the funnel order. Given by EliseAI (Steph) on 08/07/26. */
+const LEASING_EVENT_TYPES = [
+  "state", // a lead
+  "first_lead_engagement",
+  "tour_booked",
+  "tour_attended",
+  "lease_applied", // application started
+  "application_approved",
+  "lease_signed",
+] as const;
+
+// Funnel rollup from EVENTS_LEASING_RISE8 — the view EliseAI's own Leasing
+// Dashboard reads. Replaces PROSPECT_EVENTS_RISE8, which was a different
+// vocabulary counting different things (June 2026: 2,260 `prospect` vs 1,863
+// deduped leads; 373 `tour_booked` vs 223).
+//
+// VERIFIED 08/07/26 against Steph's reference query — all seven stages match to
+// the row for June 2026, and summing our day rollup over the month equals her
+// single windowed query (scripts/probe-leasing-parity.mjs). Four rules, each of
+// which changes the number:
+//
+//  1. DEDUPE on (GLOBAL_SESSION_ID, EVENT_TYPE), earliest wins. Raw rows are
+//     ~4.6x the deduped count.
+//  2. IS_INTEREST = FALSE, applied AFTER the dedupe — NOT in the inner query.
+//     Moving it inward changes which row wins its partition and gave 1,865
+//     leads instead of 1,863. Filtering EVENT_TYPE inward IS safe, because the
+//     partition is BY event_type so other types cannot affect a winner.
+//  3. Bucket by LOCAL date. The share stores UTC; the dashboard shows community
+//     local time. All 8 properties are America/New_York.
+//  4. The dedupe is GLOBAL, not per-window, so each (session, event_type) lands
+//     on exactly ONE local day — which is what makes a day rollup summable back
+//     to her windowed figure. A stage therefore counts sessions whose FIRST
+//     event of that type falls in the window.
+//
+// Checked and deliberately NOT applied: `IS_IGNORED` is false on every funnel
+// row, and GLOBAL_SESSION_ID is NULL on ZERO of them (it is null on ~98k
+// message-grain rows, which would have collapsed into one partition — the
+// reason to check rather than assume).
+//
+// PII: this view DOES carry LEAD_FIRST_NAME / LEAD_LAST_NAME / LEAD_EMAIL /
+// LEAD_PHONE_NUMBER / AGENT_EMAIL. None is selected here and none may ever be —
+// this query returns ids, a date, an event type and a count (CLAUDE.md §5.2).
+const LEASING_FUNNEL_SQL = `
+  SELECT BUILDING_ID, EVENT_LOCAL::DATE AS DAY, EVENT_TYPE, COUNT(*) AS N
+  FROM (
+    SELECT BUILDING_ID, EVENT_TYPE, IS_INTEREST,
+           CONVERT_TIMEZONE('UTC','America/New_York', EVENT_DATETIME) AS EVENT_LOCAL
+    FROM RISE8_DATA.DA.EVENTS_LEASING_RISE8
+    WHERE EVENT_TYPE IN (${LEASING_EVENT_TYPES.map((t) => `'${t}'`).join(",")})
+      AND BUILDING_ID IS NOT NULL AND EVENT_DATETIME IS NOT NULL
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY GLOBAL_SESSION_ID, EVENT_TYPE ORDER BY EVENT_DATETIME) = 1
+  )
+  WHERE IS_INTEREST = FALSE
+  GROUP BY 1, 2, 3`;
 
 /** Fetch both aggregate result sets on one connection. Skips buildings not in
  *  our map (returns the skip count for logging). */
@@ -63,11 +122,22 @@ export async function fetchEliseAggregates(): Promise<{
 
   await new Promise<void>((resolve, reject) => conn.connect((e) => (e ? reject(e) : resolve())));
   try {
-    const funnelRaw = await q(`
+    const funnelRaw = await q(LEASING_FUNNEL_SQL);
+
+    // The seven parity stages come from EVENTS_LEASING_RISE8 (above), which has
+    // NO cancellation event. `prospect_canceled` is therefore still taken from
+    // PROSPECT_EVENTS_RISE8 so /ops §2 does not silently lose its Cancelled
+    // figure. Pulling ONLY that one type is collision-free: it does not exist in
+    // the new vocabulary, whereas tour_booked / tour_attended /
+    // application_approved DO exist in both with different counts, and mixing
+    // those would corrupt the rollup (the upsert key is building/day/type).
+    const cancelRaw = await q(`
       SELECT BUILDING_ID, EVENT_DATETIME::DATE AS DAY, EVENT_TYPE, COUNT(*) AS N
       FROM RISE8_DATA.DA.PROSPECT_EVENTS_RISE8
-      WHERE BUILDING_ID IS NOT NULL AND EVENT_DATETIME IS NOT NULL AND EVENT_TYPE IS NOT NULL
+      WHERE BUILDING_ID IS NOT NULL AND EVENT_DATETIME IS NOT NULL
+        AND EVENT_TYPE = 'prospect_canceled'
       GROUP BY BUILDING_ID, EVENT_DATETIME::DATE, EVENT_TYPE`);
+    funnelRaw.push(...cancelRaw);
 
     const snapRaw = await q(`
       SELECT ELISE_PROPERTY_ID AS BUILDING_ID, PROSPECT_STATUS, COUNT(*) AS N
@@ -128,6 +198,16 @@ export async function fetchEliseEnrichment(): Promise<{ rows: MetricRow[]; skipp
   const QUERIES: { metric: string; sql: string }[] = [
     {
       // Lead source per day. Tracks where demand originates.
+      //
+      // [!] KNOWN INCONSISTENCY, 08/07/26. This still counts PROSPECT_EVENTS
+      // `prospect` rows, undeduplicated, while the FUNNEL now counts deduplicated
+      // EVENTS_LEASING `state` rows. So the lead_source totals on /elise are
+      // ~21% higher than the funnel's Leads for the same window (June 2026:
+      // 2,260 vs 1,863) and the two will not tie out.
+      // Deliberately NOT changed here: EliseAI's spec covered dashboard parity
+      // for the funnel only, and migrating the enrichment metrics needs its own
+      // verification pass. EVENTS_LEASING_RISE8 does carry MARKETING_SOURCE and
+      // CHANNEL, so the migration is possible when someone wants it.
       metric: "lead_source",
       sql: `SELECT BUILDING_ID, EVENT_DATETIME::DATE AS DAY,
                    COALESCE(${CLEAN_SOURCE}, 'Unknown') AS DIM, COUNT(*) AS N, 0 AS TOTAL

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { occupancyInsights, leasingInsights, reviewsInsights, oooInsights } from "./ops-insights";
 import { newOpsDoc, finishPdf } from "./ops-pdf-kit";
 import type { OccProperty } from "@/components/OccupancyView";
-import type { LeasingView } from "./leasing";
+import { FUNNEL_STAGES, STAGE, type LeasingView } from "./leasing";
 import type { ReviewsView } from "./reviews";
 import type { PropertyOoo } from "./cloudbeds";
 import type { Property } from "@/config/properties";
@@ -88,19 +88,18 @@ describe("occupancyInsights", () => {
 
 // --- leasingInsights --------------------------------------------------------
 
+// Built from FUNNEL_STAGES, not a hand-written copy of the keys. The 08/07/26
+// stage rename showed why: this fixture's own literals kept the suite green while
+// leasingInsights read zeros from the real (renamed) stages.
+function stagesWith(counts: Partial<Record<string, number>>) {
+  return FUNNEL_STAGES.map((s) => ({ key: s.key, label: s.label, n: counts[s.key] ?? 0 }));
+}
+
 function leasingView(overrides: Partial<LeasingView>): LeasingView {
   return {
     key: "XX",
     label: "Test",
-    stages: [
-      { key: "prospect", label: "Leads", n: 0 },
-      { key: "prospect_engaged", label: "Engaged", n: 0 },
-      { key: "tour_booked", label: "Tours booked", n: 0 },
-      { key: "tour_attended", label: "Tours attended", n: 0 },
-      { key: "application_started", label: "Apps started", n: 0 },
-      { key: "application_approved", label: "Apps approved", n: 0 },
-      { key: "lease_completed", label: "Leased", n: 0 },
-    ],
+    stages: stagesWith({}),
     cancelled: 0,
     leadToTour: null,
     tourToLease: null,
@@ -121,44 +120,20 @@ describe("leasingInsights", () => {
       leasingView({
         key: "ALL",
         label: "All properties",
-        stages: [
-          { key: "prospect", label: "Leads", n: 30 },
-          { key: "prospect_engaged", label: "Engaged", n: 0 },
-          { key: "tour_booked", label: "Tours booked", n: 0 },
-          { key: "tour_attended", label: "Tours attended", n: 0 },
-          { key: "application_started", label: "Apps started", n: 0 },
-          { key: "application_approved", label: "Apps approved", n: 0 },
-          { key: "lease_completed", label: "Leased", n: 6 },
-        ],
+        stages: stagesWith({ [STAGE.leads]: 30, [STAGE.leased]: 6 }),
         leadToLease: 20,
       }),
       leasingView({
         key: "AA",
         label: "Alpha",
-        stages: [
-          { key: "prospect", label: "Leads", n: 20 },
-          { key: "prospect_engaged", label: "Engaged", n: 0 },
-          { key: "tour_booked", label: "Tours booked", n: 0 },
-          { key: "tour_attended", label: "Tours attended", n: 0 },
-          { key: "application_started", label: "Apps started", n: 0 },
-          { key: "application_approved", label: "Apps approved", n: 0 },
-          { key: "lease_completed", label: "Leased", n: 6 },
-        ],
+        stages: stagesWith({ [STAGE.leads]: 20, [STAGE.leased]: 6 }),
         leadToLease: 30,
         cancelled: 2,
       }),
       leasingView({
         key: "BB",
         label: "Bravo",
-        stages: [
-          { key: "prospect", label: "Leads", n: 10 },
-          { key: "prospect_engaged", label: "Engaged", n: 0 },
-          { key: "tour_booked", label: "Tours booked", n: 0 },
-          { key: "tour_attended", label: "Tours attended", n: 0 },
-          { key: "application_started", label: "Apps started", n: 0 },
-          { key: "application_approved", label: "Apps approved", n: 0 },
-          { key: "lease_completed", label: "Leased", n: 0 },
-        ],
+        stages: stagesWith({ [STAGE.leads]: 10 }),
         leadToLease: 0,
         cancelled: 5,
       }),

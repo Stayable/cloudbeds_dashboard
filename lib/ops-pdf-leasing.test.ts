@@ -1,18 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { renderLeasingPdf } from "./ops-pdf-leasing";
-import type { LeasingView } from "@/lib/leasing";
+import { FUNNEL_STAGES, STAGE, type LeasingView } from "@/lib/leasing";
 
+// Derived from FUNNEL_STAGES rather than a hand-written label map. The 08/07/26
+// stage rename found that this fixture's own copy of the keys kept the suite
+// green while the real PDF rendered zeros — the fixture must not be able to
+// disagree with the app about what a stage is called.
 function stages(counts: Partial<Record<string, number>>) {
-  const labels: Record<string, string> = {
-    prospect: "Leads",
-    prospect_engaged: "Engaged",
-    tour_booked: "Tours booked",
-    tour_attended: "Tours attended",
-    application_started: "Apps started",
-    application_approved: "Apps approved",
-    lease_completed: "Leased",
-  };
-  return Object.keys(labels).map((key) => ({ key, label: labels[key], n: counts[key] ?? 0 }));
+  return FUNNEL_STAGES.map((s) => ({ key: s.key, label: s.label, n: counts[s.key] ?? 0 }));
 }
 
 describe("renderLeasingPdf", () => {
@@ -21,7 +16,7 @@ describe("renderLeasingPdf", () => {
       {
         key: "ALL",
         label: "All properties",
-        stages: stages({ prospect: 100, prospect_engaged: 80, tour_booked: 40, tour_attended: 30, application_started: 20, application_approved: 15, lease_completed: 10 }),
+        stages: stages({ [STAGE.leads]: 100, [STAGE.engaged]: 80, [STAGE.toursBooked]: 40, [STAGE.toursAttended]: 30, [STAGE.appsStarted]: 20, [STAGE.appsApproved]: 15, [STAGE.leased]: 10 }),
         cancelled: 5,
         leadToTour: 40,
         tourToLease: 33.3,
@@ -37,7 +32,7 @@ describe("renderLeasingPdf", () => {
       {
         key: "DP",
         label: "Davenport",
-        stages: stages({ prospect: 60, prospect_engaged: 50, tour_booked: 25, tour_attended: 20, application_started: 12, application_approved: 10, lease_completed: 8 }),
+        stages: stages({ [STAGE.leads]: 60, [STAGE.engaged]: 50, [STAGE.toursBooked]: 25, [STAGE.toursAttended]: 20, [STAGE.appsStarted]: 12, [STAGE.appsApproved]: 10, [STAGE.leased]: 8 }),
         cancelled: 3,
         leadToTour: 41.7,
         tourToLease: 40,
@@ -52,7 +47,7 @@ describe("renderLeasingPdf", () => {
       {
         key: "LL",
         label: "Lakeland",
-        stages: stages({ prospect: 40, prospect_engaged: 30, tour_booked: 15, tour_attended: 10, application_started: 8, application_approved: 5, lease_completed: 2 }),
+        stages: stages({ [STAGE.leads]: 40, [STAGE.engaged]: 30, [STAGE.toursBooked]: 15, [STAGE.toursAttended]: 10, [STAGE.appsStarted]: 8, [STAGE.appsApproved]: 5, [STAGE.leased]: 2 }),
         cancelled: 2,
         leadToTour: 37.5,
         tourToLease: 20,

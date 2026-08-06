@@ -137,14 +137,19 @@ export async function upsertEliseFunnel(
     const params: unknown[] = [];
     chunk.forEach((r, j) => {
       const b = j * 5;
-      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5})`);
+      // now() is inlined as the 6th column rather than bound, so the parameter
+      // numbering stays 5-per-row.
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},now())`);
       params.push(r.buildingId, r.code, r.day, r.eventType, r.n);
     });
     await sql.query(
-      `insert into elise_funnel_daily (building_id, code, day, event_type, n)
+      // updated_at is stamped on every write so rows from an older query
+      // definition can be told apart from current ones — see the note in
+      // scripts/db-init.mjs for the incident that made this necessary.
+      `insert into elise_funnel_daily (building_id, code, day, event_type, n, updated_at)
        values ${values.join(",")}
        on conflict (building_id, day, event_type)
-       do update set n = excluded.n, code = excluded.code`,
+       do update set n = excluded.n, code = excluded.code, updated_at = now()`,
       params,
     );
   }

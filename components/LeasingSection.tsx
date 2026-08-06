@@ -1,28 +1,34 @@
 "use client";
 
 // Operations Dashboard §2 — Leasing funnel. PII-free rollups synced nightly from
-// the EliseAI Snowflake data share (PROSPECT_EVENTS → funnel, PROSPECTS → current
+// the EliseAI Snowflake data share (EVENTS_LEASING → funnel, PROSPECTS → current
 // pipeline). Property selector ("All properties" + one per property) per the
 // dashboard convention. Counts only — no lead names/emails/phones ever leave
 // Snowflake (aggregated at the source).
+//
+// Stage keys come from STAGE in lib/leasing.ts. Do NOT inline raw Elise event
+// names here: they were renamed wholesale on 08/07/26, and because this layer's
+// tests build their own stage arrays, the literals that used to be here would
+// have rendered ZEROS in production with a fully green suite.
 import { useState } from "react";
-import type { LeasingView } from "@/lib/leasing";
+import { STAGE, type LeasingView } from "@/lib/leasing";
 import ExportMenu from "@/components/ExportMenu";
 import { buildMatrix, exportFilename, type ExportColumn } from "@/lib/export";
 import { propertyIdByCode } from "@/config/properties";
 
 const intFmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const rate = (v: number | null) => (v == null ? "—" : `${v}%`);
+const stageN = (v: LeasingView, key: string) => v.stages.find((s) => s.key === key)?.n ?? 0;
 
 const EXPORT_COLS: ExportColumn<LeasingView>[] = [
   { header: "Property", value: (v) => v.label },
-  { header: "Leads", value: (v) => v.stages.find((s) => s.key === "prospect")?.n ?? 0 },
-  { header: "Engaged", value: (v) => v.stages.find((s) => s.key === "prospect_engaged")?.n ?? 0 },
-  { header: "Tours booked", value: (v) => v.stages.find((s) => s.key === "tour_booked")?.n ?? 0 },
-  { header: "Tours attended", value: (v) => v.stages.find((s) => s.key === "tour_attended")?.n ?? 0 },
-  { header: "Apps started", value: (v) => v.stages.find((s) => s.key === "application_started")?.n ?? 0 },
-  { header: "Apps approved", value: (v) => v.stages.find((s) => s.key === "application_approved")?.n ?? 0 },
-  { header: "Leased", value: (v) => v.stages.find((s) => s.key === "lease_completed")?.n ?? 0 },
+  { header: "Leads", value: (v) => stageN(v, STAGE.leads) },
+  { header: "Engaged", value: (v) => stageN(v, STAGE.engaged) },
+  { header: "Tours booked", value: (v) => stageN(v, STAGE.toursBooked) },
+  { header: "Tours attended", value: (v) => stageN(v, STAGE.toursAttended) },
+  { header: "Apps started", value: (v) => stageN(v, STAGE.appsStarted) },
+  { header: "Apps approved", value: (v) => stageN(v, STAGE.appsApproved) },
+  { header: "Leased", value: (v) => stageN(v, STAGE.leased) },
   { header: "Cancelled", value: (v) => v.cancelled },
   { header: "Lead→Lease %", value: (v) => (v.leadToLease == null ? "" : v.leadToLease) },
 ];
@@ -63,7 +69,7 @@ function Funnel({ view }: { view: LeasingView }) {
               </div>
               <span className="w-24 shrink-0 text-[11.5px]">
                 <span className="font-semibold text-txt">{intFmt(s.n)}</span>
-                {shareOfLeads != null && s.key !== "prospect" && (
+                {shareOfLeads != null && s.key !== STAGE.leads && (
                   <span className="text-txt3"> · {shareOfLeads}%</span>
                 )}
               </span>
@@ -109,11 +115,9 @@ export default function LeasingSection({
   const isAll = view.key === "ALL";
   const scopeId = isAll ? null : propertyIdByCode(view.key);
 
-  const leads = view.stages.find((s) => s.key === "prospect")?.n ?? 0;
-  const toursBooked = view.stages.find((s) => s.key === "tour_booked")?.n ?? 0;
-  const leased = view.stages.find((s) => s.key === "lease_completed")?.n ?? 0;
-
-  const stageN = (v: LeasingView, key: string) => v.stages.find((s) => s.key === key)?.n ?? 0;
+  const leads = stageN(view, STAGE.leads);
+  const toursBooked = stageN(view, STAGE.toursBooked);
+  const leased = stageN(view, STAGE.leased);
 
   return (
     <div className="space-y-5">
@@ -209,10 +213,10 @@ export default function LeasingSection({
                   className={"border-b border-line last:border-0 " + (v.key === view.key ? "bg-accent/5" : "")}
                 >
                   <td className="px-4 py-2 text-txt">{v.label}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "prospect"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "tour_booked"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "application_started"))}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, "lease_completed"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, STAGE.leads))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, STAGE.toursBooked))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, STAGE.appsStarted))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-txt">{intFmt(stageN(v, STAGE.leased))}</td>
                   <td className="px-4 py-2 text-right tabular-nums text-txt">{rate(v.leadToLease)}</td>
                 </tr>
               ))}
@@ -222,7 +226,7 @@ export default function LeasingSection({
       </section>
 
       <p className="text-xs text-txt3">
-        Source: EliseAI Snowflake data share (PROSPECT_EVENTS for the funnel, PROSPECTS for the pipeline
+        Source: EliseAI Snowflake data share (EVENTS_LEASING for the funnel, PROSPECTS for the pipeline
         snapshot), synced nightly to Neon. Aggregate counts only — no lead names, emails, phones, or
         conversation content ever leave Snowflake. Funnel is windowed by event date; the pipeline
         snapshot is the current all-time status.

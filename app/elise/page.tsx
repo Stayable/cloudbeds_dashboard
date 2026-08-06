@@ -24,25 +24,40 @@ function MethodologyNote() {
       <ul className="list-disc space-y-2 pl-5">
         <li>
           Source: EliseAI Snowflake data share <code className="rounded bg-surface3 px-1">RISE8_DATA.DA</code> —
-          views <code className="rounded bg-surface3 px-1">PROSPECT_EVENTS_RISE8</code> (funnel) and{" "}
-          <code className="rounded bg-surface3 px-1">PROSPECTS_RISE8</code> (current pipeline).
+          views <code className="rounded bg-surface3 px-1">EVENTS_LEASING_RISE8</code> (funnel) and{" "}
+          <code className="rounded bg-surface3 px-1">PROSPECTS_RISE8</code> (current pipeline). The funnel moved off{" "}
+          <code className="rounded bg-surface3 px-1">PROSPECT_EVENTS_RISE8</code> on 08/07/26: EliseAI confirmed{" "}
+          <code className="rounded bg-surface3 px-1">EVENTS_LEASING</code> is what their own Leasing Dashboard reads.
         </li>
         <li>
-          Funnel = <code className="rounded bg-surface3 px-1">COUNT(*)</code> of events grouped by building,{" "}
-          <code className="rounded bg-surface3 px-1">EVENT_DATETIME::DATE</code>, and{" "}
-          <code className="rounded bg-surface3 px-1">EVENT_TYPE</code>. No de-duplication; no{" "}
-          <code className="rounded bg-surface3 px-1">is_interest</code>/<code className="rounded bg-surface3 px-1">is_ignored</code>/spam
-          filtering.
+          Funnel = de-duplicated on{" "}
+          <code className="rounded bg-surface3 px-1">(GLOBAL_SESSION_ID, EVENT_TYPE)</code> keeping the earliest event,
+          then filtered to <code className="rounded bg-surface3 px-1">is_interest = false</code>, grouped by building,
+          property-local day and <code className="rounded bg-surface3 px-1">EVENT_TYPE</code>. Raw rows are ~4.6× the
+          de-duplicated count, so this is the whole difference between matching their dashboard and not.
         </li>
         <li>
-          Stage mapping: prospect → Leads, prospect_engaged → Engaged, tour_booked → Tours booked, tour_attended → Tours
-          attended, application_started → Apps started, application_approved → Apps approved, lease_completed → Leased,
-          prospect_canceled → Cancelled.
+          Stage mapping: state → Leads, first_lead_engagement → Engaged, tour_booked → Tours booked, tour_attended →
+          Tours attended, lease_applied → Apps started, application_approved → Apps approved, lease_signed → Leased.
+          Cancelled still comes from <code className="rounded bg-surface3 px-1">PROSPECT_EVENTS_RISE8</code>{" "}
+          (prospect_canceled) because <code className="rounded bg-surface3 px-1">EVENTS_LEASING</code> carries no
+          cancellation event.
         </li>
         <li>
-          Day bucketing uses <code className="rounded bg-surface3 px-1">EVENT_DATETIME::DATE</code> (a{" "}
-          <code className="rounded bg-surface3 px-1">TIMESTAMP_NTZ</code>, not converted to Eastern) — totals near
-          midnight may differ by ~1 day from a property-local dashboard.
+          Day bucketing converts <code className="rounded bg-surface3 px-1">EVENT_DATETIME</code> (stored UTC) to{" "}
+          <code className="rounded bg-surface3 px-1">America/New_York</code>, which is the local timezone of all eight
+          properties — so a day here is the same day EliseAI shows.
+        </li>
+        <li>
+          Verified 08/07/26 against EliseAI&apos;s own reference query: all seven stages match to the row for June 2026
+          (1,863 leads · 781 engaged · 223 tours booked · 90 attended · 274 apps started · 146 approved · 146 signed).
+        </li>
+        <li>
+          Known limits, measured rather than assumed:{" "}
+          <code className="rounded bg-surface3 px-1">application_approved</code> and{" "}
+          <code className="rounded bg-surface3 px-1">lease_signed</code> are always emitted together (671/671 all-time),
+          so approved → signed carries no information; and tour attendance is under-recorded (1,660 booked vs 566
+          attended all-time), which is why Tour → Lease is measured against tours <em>booked</em>.
         </li>
         <li>Refreshed nightly (~24h lag); this page reads a Neon rollup, not Snowflake live.</li>
       </ul>

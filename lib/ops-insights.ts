@@ -8,7 +8,7 @@
 // friendly string instead of throwing.
 import type { OccProperty } from "@/components/OccupancyView";
 import { displayOcc } from "@/lib/occupancy";
-import type { LeasingView } from "@/lib/leasing";
+import { STAGE, type LeasingView } from "@/lib/leasing";
 import type { ReviewsView } from "@/lib/reviews";
 import { summarizeOoo, type PropertyOoo } from "@/lib/cloudbeds";
 import { pct, int } from "@/lib/ops-pdf-kit";
@@ -93,8 +93,8 @@ export function leasingInsights(views: LeasingView[]): string[] {
   }
 
   for (const v of perProperty) {
-    const leads = v.stages.find((s) => s.key === "prospect")?.n ?? 0;
-    const leased = v.stages.find((s) => s.key === "lease_completed")?.n ?? 0;
+    const leads = v.stages.find((s) => s.key === STAGE.leads)?.n ?? 0;
+    const leased = v.stages.find((s) => s.key === STAGE.leased)?.n ?? 0;
     if (leads > 0 && leased === 0) {
       out.push(`${v.label} has ${int(leads)} leads and zero leases this period -- stalled funnel.`);
     }

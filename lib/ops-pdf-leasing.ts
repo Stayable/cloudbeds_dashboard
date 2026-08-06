@@ -4,7 +4,7 @@
 // dashboard. Source data is Neon (EliseAI Snowflake-share rollups) -- PII-free,
 // aggregate counts only. Renders all properties even locally (Neon-backed, not
 // Cloudbeds-backed). ASCII-safe.
-import type { LeasingView } from "@/lib/leasing";
+import { STAGE, type LeasingView } from "@/lib/leasing";
 import { leasingInsights } from "@/lib/ops-insights";
 import {
   newOpsDoc,
@@ -45,7 +45,7 @@ export function renderLeasingPdf(
     y = insightsBlock(doc, y, ["Leasing data not connected -- the nightly EliseAI sync has not populated the funnel yet."]);
     opsFooter(
       doc,
-      "EliseAI Snowflake data share - aggregate/PII-free - refreshed nightly - counts are raw events (no de-dup).",
+      "EliseAI EVENTS_LEASING share - aggregate/PII-free - refreshed nightly - de-duplicated per session and event, excluding interests, in property-local time (matches EliseAI's Leasing Dashboard).",
     );
     return finishPdf(doc);
   }
@@ -53,12 +53,12 @@ export function renderLeasingPdf(
   const all = views.find((v) => v.key === "ALL");
   const perProperty = views
     .filter((v) => v.key !== "ALL")
-    .sort((a, b) => stageN(b, "prospect") - stageN(a, "prospect"));
+    .sort((a, b) => stageN(b, STAGE.leads) - stageN(a, STAGE.leads));
 
   y = summaryTiles(doc, y, [
-    { label: "Leads", value: int(all ? stageN(all, "prospect") : 0) },
-    { label: "Tours Booked", value: int(all ? stageN(all, "tour_booked") : 0) },
-    { label: "Leased", value: int(all ? stageN(all, "lease_completed") : 0) },
+    { label: "Leads", value: int(all ? stageN(all, STAGE.leads) : 0) },
+    { label: "Tours Booked", value: int(all ? stageN(all, STAGE.toursBooked) : 0) },
+    { label: "Leased", value: int(all ? stageN(all, STAGE.leased) : 0) },
     { label: "Lead -> Lease %", value: ratePct(all?.leadToLease ?? null) },
   ]);
 
@@ -76,13 +76,13 @@ export function renderLeasingPdf(
   ];
   const rows: (string | number)[][] = perProperty.map((v) => [
     v.label,
-    int(stageN(v, "prospect")),
-    int(stageN(v, "prospect_engaged")),
-    int(stageN(v, "tour_booked")),
-    int(stageN(v, "tour_attended")),
-    int(stageN(v, "application_started")),
-    int(stageN(v, "application_approved")),
-    int(stageN(v, "lease_completed")),
+    int(stageN(v, STAGE.leads)),
+    int(stageN(v, STAGE.engaged)),
+    int(stageN(v, STAGE.toursBooked)),
+    int(stageN(v, STAGE.toursAttended)),
+    int(stageN(v, STAGE.appsStarted)),
+    int(stageN(v, STAGE.appsApproved)),
+    int(stageN(v, STAGE.leased)),
     int(v.cancelled),
     ratePct(v.leadToLease),
   ]);

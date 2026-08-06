@@ -60,8 +60,85 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   can differ by a room or two from what a card posted that morning showed.
 >   MTD/YTD come from the store and are unaffected.
 >
-> **[ ] 3. ELISE FUNNEL PARITY — SPEC RECEIVED 08/07/26, NOT BUILT.** Steph at
-> EliseAI answered the Leasing Dashboard mismatch. Everything needed is now known:
+> **[x] 3. ELISE FUNNEL PARITY — BUILT AND VERIFIED. Code correct; 3 of 7 stages
+> still hold stale DATA, and that needs one command once the Snowflake password
+> is back (item 3d).**
+>
+> **[x] 3a. The share was queryable after all** — my earlier note that it "cannot
+> be queried until the new password lands" was **wrong**. `rise8_reader` worked
+> throughout; the password Steph reset is a different (UI) login. Corrected.
+> **Then the credential DIED mid-session at ~01:04** — "Incorrect username or
+> password was specified", persistent, right after the sync finished. Almost
+> certainly Steph's reset landing. **[ ] Kyle: put the new temporary password in
+> `SNOWFLAKE_PASSWORD` (`.env.local` AND Vercel), and expect Snowflake to force a
+> permanent one on first login.** Until then the nightly `elise-sync` cron fails
+> and the funnel goes stale (it does not go wrong — the rollup is already banked).
+>
+> **[x] 3b. VERIFIED TO THE ROW against Steph's reference query.** New
+> `LEASING_FUNNEL_SQL` in `lib/snowflake.ts` reproduces all seven June-2026 stages
+> exactly — **1,863 leads · 781 engaged · 223 tours booked · 90 attended · 274 apps
+> started · 146 approved · 146 signed** — and summing our per-day rollup over the
+> month equals her single windowed query
+> (`scripts/probe-leasing-parity.mjs`). Four rules, each of which moves the number:
+> dedupe on `(GLOBAL_SESSION_ID, EVENT_TYPE)` earliest-wins · `IS_INTEREST=FALSE`
+> **applied AFTER the dedupe** (before gave 1,865, not 1,863) · bucket by
+> `America/New_York` local date · the dedupe is **global**, not per-window, which
+> is what makes a day rollup summable back to her figure.
+> - Checked rather than assumed: `GLOBAL_SESSION_ID` is NULL on **zero** funnel
+>   rows (it is null on ~98k message-grain rows, which would have silently
+>   collapsed into ONE partition), and `IS_IGNORED` is false on every funnel row.
+>
+> **[!] 3c. THE DUPLICATED-SQL TRAP BIT ME, TWICE, AND BOTH ARE NOW CLOSED.**
+> - `scripts/elise-sync.mjs` kept its **own copy** of the Snowflake SQL. I ran it,
+>   it reported "9,791 rows upserted", and it populated **none** of the new
+>   stages — it re-synced the old vocabulary. **Deleted and replaced with
+>   `scripts/elise-sync.mts`**, which calls the real `runEliseSync()` so there is
+>   one definition and it cannot drift from production again.
+> - The seven stage keys were **copied as string literals** into
+>   `LeasingSection`, `ops-pdf-leasing`, `ops-insights` — and their tests build
+>   their own stage arrays, so all three would have rendered **ZEROS in production
+>   with a fully green suite**. Now every consumer reads `STAGE` from
+>   `lib/leasing.ts`, and both test fixtures derive from `FUNNEL_STAGES`.
+>
+> **[!] 3d. DATA RESIDUE — 3 of 7 stages read high until a re-sync.**
+> `tour_booked`, `tour_attended` and `application_approved` exist in **both**
+> vocabularies. The old query bucketed by UTC and did not dedupe; the new one
+> buckets local and does. Where the two disagree on the day, **both rows survive**
+> and reads sum them. June reads **286 / 98 / 195** against Elise's
+> **223 / 90 / 146**. The other four stages are exact.
+> - Caused by my running the stale `.mjs` before replacing it. There was no write
+>   timestamp, so the two generations are indistinguishable after the fact.
+> - **Fixed the underlying gap:** `elise_funnel_daily.updated_at` added
+>   (`db-init.mjs` migration, applied) and stamped on every upsert.
+> - **[x] Purged 6,857 rows of 15 RETIRED event types** (prospect,
+>   prospect_engaged, application_started, lease_completed, …) — dead weight no
+>   stage read, and `lease_completed` sitting next to `lease_signed` was a trap.
+> - **[ ] REMEDIATION, one command once the password works:**
+>   `npx tsx scripts/purge-elise-funnel.mts --overlap --apply` then
+>   `npx tsx scripts/elise-sync.mts`. Do not run the purge before the credential
+>   works — it empties those three stages until a sync repopulates them.
+> - **[?] Meanwhile: leave the three stages reading high, or zero them?** Kyle's
+>   call — inflated-but-plausible distorts Lead→Tour and Tour→Lease on a live exec
+>   page; zeroed is visibly missing instead of subtly wrong.
+>
+> **[!] 3e. ONE KNOWN INCONSISTENCY LEFT, deliberately.** The enrichment
+> `lead_source` metric still counts undeduplicated PROSPECT_EVENTS `prospect`
+> rows, so its totals run ~21% above the funnel's Leads for the same window (June:
+> 2,260 vs 1,863) and the two will not tie out on `/elise`. Steph's spec covered
+> the funnel only, and migrating enrichment needs its own verification pass —
+> `EVENTS_LEASING_RISE8` does carry `MARKETING_SOURCE` and `CHANNEL`, so it is
+> possible when wanted. Flagged in `lib/snowflake.ts` at the query.
+>
+> **[!] 3f. Measured facts worth not rediscovering:** `application_approved` and
+> `lease_signed` are **always emitted together** (671/671 rows, 667/667 sessions
+> all-time; 146/146 in June), so `lease_signed` carries no information the former
+> does not and an approved→leased rate would read 100% by construction —
+> deliberately not computed. Tour attendance stays badly under-recorded in the new
+> source too (1,660 booked vs 566 attended all-time, 34%), which is why Tour→Lease
+> is measured against tours **booked**. `/elise`'s methodology note and the PDF
+> footer (which claimed "counts are raw events (no de-dup)") are both rewritten.
+>
+> **Spec as received, for the record:**
 > - Table **`RISE8_DATA.DA.EVENTS_LEASING_RISE8`** (not the funnel source we were
 >   using).
 > - **Dedupe on `(GLOBAL_SESSION_ID, EVENT_TYPE)`**, keeping earliest
@@ -77,10 +154,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   derive from. Consistent with the CB rule (§6): match once to validate, then
 >   own the derivation. **Consequence: our funnel and Elise's dashboard WILL
 >   diverge on timezone-boundary days, and there is no third party to arbitrate.**
-> - **[ ] Password: Kyle asked Steph to reset it** — the original was a temporary
->   one that expected a first-login change. A new temporary password is coming;
->   the share cannot be queried until it lands. Reply sent:
->   `outputs/ReplyEliseAI_DataShare_080726.md`.
+> - Reply sent: `outputs/ReplyEliseAI_DataShare_080726.md`.
 > - Supersedes the funnel approach in the `elise-data-share` memory.
 
 ---
