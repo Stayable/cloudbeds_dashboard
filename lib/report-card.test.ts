@@ -65,8 +65,8 @@ describe("buildReportCard", () => {
     // emit them at all — including the Excel button, which survives attachment.
     const c:any = buildReportCard(rpt, "https://x.test", { fileToken: "123.abc" });
     const urls: string[] = c.actions.map((a:any)=>a.url);
-    expect(urls).toContain("https://x.test/api/report-file?fmt=pdf&t=123.abc");
-    expect(urls).toContain("https://x.test/api/report-file?fmt=xlsx&t=123.abc");
+    expect(urls).toContain("https://x.test/api/report-file?fmt=pdf&asOf=2026-07-19&t=123.abc");
+    expect(urls).toContain("https://x.test/api/report-file?fmt=xlsx&asOf=2026-07-19&t=123.abc");
     expect(urls.some((u)=>u.includes("/report/latest."))).toBe(false);
     // The dashboard link stays gated on purpose — a file token is not a pin.
     expect(urls).toContain("https://x.test/report");
@@ -74,7 +74,19 @@ describe("buildReportCard", () => {
     const attached:any = buildReportCard(rpt, "https://x.test", { fileToken: "123.abc", pdfAttached: true });
     const aUrls: string[] = attached.actions.map((a:any)=>a.url);
     expect(aUrls.some((u)=>u.includes("/report/latest."))).toBe(false);
-    expect(aUrls).toContain("https://x.test/api/report-file?fmt=xlsx&t=123.abc");
+    expect(aUrls).toContain("https://x.test/api/report-file?fmt=xlsx&asOf=2026-07-19&t=123.abc");
+  });
+
+  it("pins the file links to THIS card's stay date, not to latest", () => {
+    // Monica, 08/07/26: the same button on yesterday's card and today's card
+    // downloaded the identical file, because the route rendered whatever was
+    // latest at click time. Every tokenised link must name its own stay date.
+    const older:any = buildReportCard({ ...rpt, asOf: "2026-08-04" }, "https://x.test", { fileToken: "t.1" });
+    const newer:any = buildReportCard({ ...rpt, asOf: "2026-08-05" }, "https://x.test", { fileToken: "t.2" });
+    const urlOf = (c:any, fmt:string) => c.actions.map((a:any)=>a.url).find((u:string)=>u?.includes(`fmt=${fmt}`));
+    expect(urlOf(older, "pdf")).toContain("asOf=2026-08-04");
+    expect(urlOf(newer, "pdf")).toContain("asOf=2026-08-05");
+    expect(urlOf(older, "pdf")).not.toBe(urlOf(newer, "pdf"));
   });
 
   it("shows Portfolio Occupancy (MTD) when MTD counts are complete", () => {

@@ -4,6 +4,72 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/07/26 (session 9h) — REPORT LINKS FOLLOWED "LATEST" · ELISE FUNNEL SPEC
+
+> **Pickup — 08/07/26. FIXED AND VERIFIED LOCALLY, NOT PUSHED, NOT DEPLOYED.**
+> `tsc --noEmit` exit 0 · **302/302 tests** (7 new).
+>
+> **[x] 1. MONICA'S BUG: every card's file button downloaded the SAME report.**
+> "The same button from yesterday's report and today's report downloads the
+> identical Aug 6 report."
+> - **Cause, and it was a one-word omission:** `/api/report-file` called
+>   `buildRevenueReport()` **with no argument**, so it rendered whatever was
+>   latest **at click time**. The token carried only an expiry — nothing said
+>   which day the card was for. So every link in the chat, however old, always
+>   served the current report. It has behaved this way since the route shipped
+>   (`5c17349`, 08/03/26).
+> - **Fix:** the stay date is now **inside the signed token** and on the URL
+>   (`&asOf=`). A link yields the one report it was minted for, for its whole
+>   30-day life, and editing the date fails the signature rather than fetching
+>   another day. The cron signs `report.asOf`, so a `?asOf=` catch-up post pins
+>   to the day it actually rendered rather than to the day it was posted.
+> - **[!] ALREADY-POSTED CARDS ARE NOT REPAIRED, deliberately.** ~2 weeks of
+>   cards carry unbound tokens; those still verify (so the buttons are not dead)
+>   and still render latest. **Their intended date is not recoverable:**
+>   mint-time − 1 day would work for the daily cron but is *wrong* for `?asOf=`
+>   catch-up posts, so guessing trades one wrong file for a differently wrong
+>   one. **Only cards posted from 08/07/26 are correct.** Both failure directions
+>   fail closed and are tested: a bound token refuses a different date, and
+>   refuses having `&asOf=` stripped off (which would otherwise reopen the bug).
+> - **[ ] Verify on the first card posted after deploy** — click yesterday's
+>   button and today's and confirm they differ. The signing secret is
+>   deployment-side, so this cannot be proven from here (same limit as 9b item 11).
+>
+> **[x] 2. RENDERED THE AUG 5 REPORT FOR MONICA** —
+> `outputs/Occupancy Report as of August 5, 2026.pdf` (594 KB), i.e. **stay date
+> 2026-08-04**, her label = stay date + 1. This is the file yesterday's button
+> should have served.
+> - **[!] Caveat worth passing on if she reconciles it:** re-rendering a past
+>   date takes the **Yesterday column from a LIVE fetch**, not from the banked
+>   snapshot (`getRevenueReportInputs`, session 9 open item), so per-property OOO
+>   can differ by a room or two from what a card posted that morning showed.
+>   MTD/YTD come from the store and are unaffected.
+>
+> **[ ] 3. ELISE FUNNEL PARITY — SPEC RECEIVED 08/07/26, NOT BUILT.** Steph at
+> EliseAI answered the Leasing Dashboard mismatch. Everything needed is now known:
+> - Table **`RISE8_DATA.DA.EVENTS_LEASING_RISE8`** (not the funnel source we were
+>   using).
+> - **Dedupe on `(GLOBAL_SESSION_ID, EVENT_TYPE)`**, keeping earliest
+>   `EVENT_DATETIME` — this is the part we did not have.
+> - **`IS_INTEREST = FALSE`.**
+> - **Timestamps are UTC**; the dashboard shows each community's local time, so
+>   convert per property (`CONVERT_TIMEZONE`) — all 8 are `America/New_York`.
+> - Event → stage map: `state` = leads · `first_lead_engagement` = engaged ·
+>   `tour_booked` · `tour_attended` · `lease_applied` = apps started ·
+>   `application_approved` = apps approved · `lease_signed`.
+> - **Her caveat, and it matches our own posture:** she does *not* recommend
+>   trying to replicate the Leasing Dashboard exactly — the share is raw data to
+>   derive from. Consistent with the CB rule (§6): match once to validate, then
+>   own the derivation. **Consequence: our funnel and Elise's dashboard WILL
+>   diverge on timezone-boundary days, and there is no third party to arbitrate.**
+> - **[ ] Password: Kyle asked Steph to reset it** — the original was a temporary
+>   one that expected a first-login change. A new temporary password is coming;
+>   the share cannot be queried until it lands. Reply sent:
+>   `outputs/ReplyEliseAI_DataShare_080726.md`.
+> - Supersedes the funnel approach in the `elise-data-share` memory.
+
+---
+
 ## 08/06/26 (session 9g) — BEA'S MISSING GUEST · CB IS NOW THE ONLY SOURCE OF TRUTH
 
 > **Pickup — 08/06/26. SHIPPED AND LIVE, two releases.** Branch level with

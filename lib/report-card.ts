@@ -258,9 +258,13 @@ export function buildReportCard(
   // Until the flow attaches the real file, the PDF button IS the attachment
   // (Kyle 07/29/26), so it leads. Both file links are gated behind the MAIN pin
   // by middleware.ts — anyone in the chat without that pin gets a login wall.
+  // `asOf` pins the link to THIS card's stay date. Without it the route renders
+  // whatever is latest when the button is clicked, so an older card silently
+  // serves the current day's file (Monica, 08/07/26). The token is signed over
+  // the same date, so editing the URL fails rather than fetching another day.
   const fileUrl = (fmt: "pdf" | "xlsx") =>
     opts.fileToken
-      ? `${baseUrl}/api/report-file?fmt=${fmt}&t=${encodeURIComponent(opts.fileToken)}`
+      ? `${baseUrl}/api/report-file?fmt=${fmt}&asOf=${report.asOf}&t=${encodeURIComponent(opts.fileToken)}`
       : `${baseUrl}/report/latest.${fmt}`;
 
   const actions: object[] = [];

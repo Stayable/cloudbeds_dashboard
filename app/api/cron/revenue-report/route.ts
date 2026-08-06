@@ -97,7 +97,12 @@ export async function GET(req: Request) {
     // Signed download link for the card's file buttons. Without it those
     // buttons hit the MAIN-pin login wall for anyone in the Revenue chat —
     // and that is true of the Excel button even when the PDF is attached.
-    const fileToken = await signFileToken();
+    //
+    // Bound to THIS report's stay date, so the link keeps serving this day's
+    // file for its whole 30-day life instead of following "latest" forward.
+    // `report.asOf` rather than the `asOf` query param, so a ?asOf= catch-up
+    // post is pinned to the day it actually rendered.
+    const fileToken = await signFileToken(report.asOf);
 
     const posted = await postAdaptiveCard(
       buildReportCard(report, base, { pdfAttached: files.length > 0, fileToken }),

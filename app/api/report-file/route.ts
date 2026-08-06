@@ -23,14 +23,25 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const fmt = url.searchParams.get("fmt") === "xlsx" ? "xlsx" : "pdf";
 
+  // The stay date the card was posted for. Without it this route rendered
+  // whatever was latest at CLICK time, so yesterday's card and today's card
+  // downloaded the identical file (reported by Monica, 08/07/26). It is signed
+  // into the token, so it cannot be edited to fish for another date; a card
+  // posted before the fix carries no asOf and still renders latest.
+  const rawAsOf = url.searchParams.get("asOf");
+  const asOf = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? rawAsOf : null;
+  if (rawAsOf && !asOf) {
+    return NextResponse.json({ ok: false, error: "bad asOf" }, { status: 400 });
+  }
+
   // gateEnabled() false = no signing secret configured (local dev), in which
   // case the whole app is ungated anyway and demanding a token here would only
   // break dev.
-  if (gateEnabled() && !(await verifyFileToken(url.searchParams.get("t")))) {
+  if (gateEnabled() && !(await verifyFileToken(url.searchParams.get("t"), asOf))) {
     return NextResponse.json({ ok: false, error: "invalid or expired link" }, { status: 403 });
   }
 
-  const report = await buildRevenueReport();
+  const report = await buildRevenueReport(asOf ?? undefined);
   // Named the way Monica names hers, so a file saved from the chat matches the
   // one she used to post by hand.
   const name = `${reportFileBase(report.asOf)}.${fmt}`;

@@ -146,21 +146,50 @@ export const FILE_TOKEN_DAYS = 30;
  *  Scope is deliberately "the report files, for a while", not per-user: the
  *  report is aggregate-only and carries no guest PII (CLAUDE.md §5 rule 2), so
  *  the risk being managed is business confidentiality, not privacy. The token
- *  is unguessable and expires; it is not an identity. */
-export async function signFileToken(nowMs = Date.now()): Promise<string> {
+ *  is unguessable and expires; it is not an identity.
+ *
+ *  BINDS THE STAY DATE (fixed 08/07/26, reported by Monica). The token used to
+ *  carry only an expiry, and /api/report-file called buildRevenueReport() with
+ *  no argument — so EVERY card's button rendered whatever was latest at click
+ *  time. Yesterday's card and today's card downloaded the identical file. The
+ *  stay date is now inside the signed message, so a link yields the one report
+ *  it was minted for and cannot be edited to fish for another date.
+ *
+ *  `asOf` null keeps the old unbound message, which is what already-posted
+ *  cards carry. See verifyFileToken for why those cannot be repaired. */
+export async function signFileToken(asOf: string | null = null, nowMs = Date.now()): Promise<string> {
   const exp = Math.floor(nowMs / 1000) + FILE_TOKEN_DAYS * 86_400;
-  return `${exp}.${await hmacHex(`file:${exp}`)}`;
+  return `${exp}.${await hmacHex(fileTokenMessage(exp, asOf))}`;
 }
 
-/** True iff `token` is well-formed, unexpired and signed by this deployment. */
-export async function verifyFileToken(token: string | null, nowMs = Date.now()): Promise<boolean> {
+function fileTokenMessage(exp: number, asOf: string | null): string {
+  return asOf ? `file:${exp}:${asOf}` : `file:${exp}`;
+}
+
+/** True iff `token` is well-formed, unexpired, and signed by this deployment
+ *  FOR `asOf`. A token minted for one stay date fails against another, and a
+ *  legacy (unbound) token fails whenever an `asOf` is supplied — both directions
+ *  fail closed.
+ *
+ *  Legacy tokens still verify when `asOf` is null, so the ~2 weeks of cards
+ *  already sitting in the Revenue chat keep working. Their intended date is NOT
+ *  recoverable: mint-time minus one day would work for the daily cron but is
+ *  wrong for `?asOf=` catch-up posts, which mint a token for a past stay date.
+ *  Guessing there would trade one wrong file for a differently wrong one, so
+ *  those links keep rendering latest and only cards posted from 08/07/26 are
+ *  correct. */
+export async function verifyFileToken(
+  token: string | null,
+  asOf: string | null = null,
+  nowMs = Date.now(),
+): Promise<boolean> {
   if (!token) return false;
   const dot = token.lastIndexOf(".");
   if (dot <= 0) return false;
   const exp = Number(token.slice(0, dot));
   const sig = token.slice(dot + 1);
   if (!Number.isFinite(exp) || exp * 1000 < nowMs) return false;
-  const expected = await hmacHex(`file:${exp}`);
+  const expected = await hmacHex(fileTokenMessage(exp, asOf));
   if (sig.length !== expected.length) return false;
   let diff = 0;
   for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
