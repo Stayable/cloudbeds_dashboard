@@ -7,10 +7,16 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 ## 08/07/26 (session 9h) — REPORT LINKS FOLLOWED "LATEST" · ELISE FUNNEL SPEC
 
 > **Pickup — 08/07/26. SHIPPED AND LIVE.** Branch level with `origin` at
-> **`581036a`**; production **`dpl_6w3NPQHsajZ5gnSWLufRUumKgke8` READY**, aliased
+> **`1fac49f`**; production **`dpl_AGQdgc6rw9RAuQprTXSDThpPyNBf` READY**, aliased
 > to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · `next build` green ·
-> **302/302 tests** (7 new).
-> - **Live smoke:** `/login` 200 · `/test` 200 · `/bea` `/` `/report` `/rob` 307.
+> **306/306 tests** (11 new across the session).
+> - **Live smoke after `1fac49f`:** `/login` 200 · `/test` 200 · `/ops` `/bea` `/`
+>   `/report` `/elise` all 307.
+> - Two releases in this block: **`581036a`** = the report-link fix
+>   (`dpl_6w3NPQHsajZ5gnSWLufRUumKgke8`), then **`b57c75f`** + **`1fac49f`** =
+>   the Elise funnel swap and its empty-stage warning. Rollback target for the
+>   latest is **`dpl_9qbuvwVb11w8MugWf5ntTBJoUz8X`** (`b57c75f`).
+> - Report-link specifics below refer to the `581036a` release.
 > - **The new rejection paths are confirmed in production**, and they answer as
 >   JSON (so our handler ran — middleware would have sent a 307): no token → 403
 >   · forged token → 403 `invalid or expired link` · `asOf=notadate` → **400
@@ -117,9 +123,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   `npx tsx scripts/purge-elise-funnel.mts --overlap --apply` then
 >   `npx tsx scripts/elise-sync.mts`. Do not run the purge before the credential
 >   works — it empties those three stages until a sync repopulates them.
-> - **[?] Meanwhile: leave the three stages reading high, or zero them?** Kyle's
->   call — inflated-but-plausible distorts Lead→Tour and Tour→Lease on a live exec
->   page; zeroed is visibly missing instead of subtly wrong.
+> - **[x] Kyle chose ZERO THEM (08/07/26).** Purged 2,157 rows across the three
+>   types, so they read 0 until a sync repopulates them. Because zero is an
+>   honest count but the derived rates keep rendering off it — Lead→Tour showed a
+>   confident **0% against 1,863 leads** — `/ops` §2 now warns whenever a
+>   MID-funnel stage is 0 while leads are non-zero (`1fac49f`). Data-driven and
+>   names no cause, so it clears itself on the next good sync instead of becoming
+>   a stale banner. Leads is excluded (0 leads is just an empty window) and so is
+>   the last stage (a month with no signed leases is genuinely possible).
 >
 > **[!] 3e. ONE KNOWN INCONSISTENCY LEFT, deliberately.** The enrichment
 > `lead_source` metric still counts undeduplicated PROSPECT_EVENTS `prospect`
