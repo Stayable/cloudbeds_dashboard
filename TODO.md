@@ -4,6 +4,124 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/06/26 (session 9g) — BEA'S MISSING GUEST · CB IS NOW THE ONLY SOURCE OF TRUTH
+
+> **Pickup — 08/06/26. FIXED AND VERIFIED LOCALLY, NOT PUSHED, NOT DEPLOYED.**
+> `tsc --noEmit` exit 0 · `next build` green · **295/295 tests** (3 new).
+>
+> **[!] 1. MONICA IS NO LONGER PRODUCING REPORTS (Kyle, 08/06/26).** "She won't be
+> creating any reports from now on so we are on our own. The source of truth will
+> always be CB from now on." Recorded in **CLAUDE.md §6** and the
+> `cloudbeds-source-rule` memory, because it changes how to work here:
+> - **The independent validation signal is gone.** Five days of head-to-head
+>   parity, the OOO reconciliation and the rate-plan ruling were all her files.
+>   This app IS the report now, not a second opinion on it. Nothing external will
+>   catch our errors — measure rather than infer, and record uncertainty in the
+>   code where the number is produced.
+> - **Three questions parked on her are CLOSED UNANSWERED**, per Kyle: the ~7
+>   unblocked KE (2295) rooms · how the MTD out-of-order line accumulates · one
+>   raw JW/SA export. Whatever the code does now is the answer until Cloudbeds
+>   says otherwise. Do not reopen them as "ask Monica".
+> - Her files stay as a **historical seed + regression fixtures**
+>   (`diff-reports.py`, `parse-monica-pdf.py`). Evidence about the past, not a
+>   live check. **[ ] The DP availability guard is the same case** — re-base the
+>   threshold per property against banked CB data; it needs nobody's confirmation.
+> - **[x] The Excel version of the guest-count memo is CANCELLED** (Kyle: not
+>   needed). The `.md` memo stands as the deliverable.
+>
+> **[x] 2. BEA'S DEFECT, FOUND AND FIXED: `/bea` §3 was hiding guests by date, not
+> by balance.** Bea reported that **Michael Krick** has a balance due and cannot be
+> seen. He is **Davenport (44199)**, res `6872348591162`, **$4,793.60**, checkin
+> 07-01, checkout **08-06 — today**, and Cloudbeds status **In-House**.
+> - **Cause:** the filter was `status = In-House AND checkin <= asOf AND
+>   checkout > asOf`. That third clause drops the two row types a collections
+>   table exists to show — guests **departing today** (the last day Bea can
+>   collect) and **overstays / evictions** (checkout already past, still In-House).
+>   His guest record is literally named "Michael Krick Active Eviction".
+> - **Fix:** trust Cloudbeds' own `reservation_status`. It is the authority on who
+>   is physically in a room and a date window cannot outvote it. `checkin_date <=
+>   asOf` stays as a future-arrival guard; there is **no** checkout clause now, and
+>   the file header says never to reintroduce one.
+> - **Measured blast radius: 8 reservations / $15,098.87 hidden across 7 of 8
+>   properties** on this one day — DP 2 ($5,259.90), JW 2 ($4,820.42), JN 1
+>   ($2,269.01), LL 1 ($1,348.06), SA 1 ($875.60), KE 1 ($525.88). Every one of
+>   them checking out today. It would have recurred every single day.
+> - **Also new, because the missing field was the explanation:** rows now carry
+>   **Checkout** with a flag — `Checkout passed` (warn) for an overstay,
+>   `Leaving today`. Footnote counts overstays; both new fields are in the export.
+> - **[x] Verified live on all 8:** `npx tsx scripts/check-balance-due.mts` shows
+>   Krick at DP room 130 flagged LEAVING TODAY. Portfolio **$148,086.40 / 137
+>   reservations**. Seven of eight properties reconcile **exactly** to the
+>   independent probe; the eighth (a $10 KW row) is explained in item 4.
+> - **[ ] Tell Bea it is fixed** — she is the one who caught it, and it is her
+>   confirmation that closes it.
+>
+> **[x] 3. BEA'S TAX QUESTION, ANSWERED WITH A MEASUREMENT.** She asked (Taglish)
+> whether the table is only the tax-exempt leases and excludes regular guests.
+> **There is no boolean tax-exempt column in DI dataset 1 or 3** — checked with the
+> new `probe-di-columns.mjs`; only `tax_classification`/`tax_type` (dataset 1) and
+> `taxes_value_amount` (dataset 3), so **$0 taxes is the only available signal.**
+> In-house rows carrying a balance, portfolio:
+>
+> | rate-plan class | tax | res | balance |
+> |---|---|---:|---:|
+> | lease-monthly | $0 (exempt) | 119 | $116,867.50 |
+> | transient | taxed | 7 | $23,507.25 |
+> | lease-weekly | $0 (exempt) | 3 | $3,484.05 |
+> | lease-weekly | taxed | 5 | $3,327.91 |
+> | lease-monthly | taxed | 2 | $630.74 |
+>
+> - **She is right about the shape, wrong about the exclusion.** ~81% of the money
+>   is tax-exempt monthly leases, and **no transient row is exempt** — but regular
+>   guests ARE included: 7 reservations, ~16% of the total. Nothing filters on tax
+>   status or on lease type; the skew is real behaviour (long-stay leases accrue
+>   nightly, transients who owe have usually already checked out — item 4).
+> - **▶ ONE GENUINE TAX FLAG: Orlando OBT (8700) res `9687974803447`,
+>   lease-monthly, taxed $280.12, resident since 2025-01-08** — 19 months. The
+>   other taxed leases are weekly/short-stay where tax is expected. FL exemption
+>   turns on ~6 months' continuous residency, so this one looks like the exemption
+>   was never applied. **[ ] Worth Bea or accounting checking** — I am not
+>   asserting a tax error from a rate-plan name, only that this row does not fit
+>   the pattern.
+> - Covers 136 of the 137 rows: one reservation does not resolve a
+>   `public_rate_plan` in the 2-column grouping. $349 — noted, not chased.
+>
+> **[?] 4. THE REAL SCOPE QUESTION, AND IT IS KYLE'S/BEA'S TO ANSWER: §3 shows
+> IN-HOUSE ONLY, and that is where most of the arrears are NOT.** Measured:
+> **Checked Out and still owing = 668 reservations / $351,468.26** since
+> 2025-01-01, against ~$148k in-house.
+> - **[!] DO NOT QUOTE $351k AS COLLECTIBLE.** $282,764.50 of it is **2025**
+>   checkouts, and **JN (812) alone holds $158,213.82 over 40 reservations**
+>   (largest single **$21,465.94**, out 2025-11-14) — wildly out of scale for the
+>   portfolio's smallest property. That looks like unreconciled Yardi→Cloudbeds
+>   migration folios rather than money anyone can chase. **Unverified inference.**
+> - The 2026 slice is **$68,703.76 over 153 reservations** and is the part
+>   plausibly live.
+> - **[?] Decision needed: should §3 include departed guests?** It would change
+>   the section from "who is here and owes" to AR, add cancelled/no-show noise, and
+>   need the 2025/JN residue triaged first. Not built — this is a product call.
+> - The $10 KW row the probe saw and the table does not: an In-House reservation
+>   whose **checkin is after asOf**, correctly excluded by the future-arrival
+>   guard. Immaterial, and now printed by `probe-balance-composition.mts`.
+> - **[x] Zero true overstays portfolio-wide today** (checkout already past, still
+>   In-House). Krick becomes one tomorrow if he stays — which is exactly why the
+>   overdue path exists rather than a `>=` patch.
+>
+> **[x] 5. Session 9d's "three large transient balances" partly resolves itself:**
+> DP room 130 $4,713.10 was **Krick** — same reservation, now $4,793.60 (+$80.50
+> in two days ≈ $40/night, nightly accrual as documented). KE room 114 is now
+> $10,313.44 (was $10,138.68) and JW room 114 $4,729.46. All three still growing,
+> all three still worth someone's attention.
+>
+> **New/changed files:** `lib/balance-due.ts` (filter + `checkout`/`departure` +
+> `overdueCount`/`overdueTotal` + header note), `components/BeaBalanceExplorer.tsx`
+> (Checkout column, flag, footnote, export cols), `lib/__tests__/balance-due.test.ts`
+> (12 tests, 3 new pinning the regression), `scripts/check-balance-due.mts`,
+> and three new read-only probes: `probe-missing-balance.mts`,
+> `probe-di-columns.mjs`, `probe-balance-composition.mts`.
+
+---
+
 ## 08/05/26 (session 9f) — UNIQUE GUEST COUNT FOR THE INSURANCE APPLICATION
 
 > **Pickup — 08/05/26. DELIVERED. No app change; a one-off count + a memo.**

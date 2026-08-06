@@ -24,6 +24,22 @@
 // If an aging dimension is ever wanted, the grounded derivation is "unpaid
 // since" — walk each reservation's debits and credits chronologically and take
 // the last date the running balance was <= 0. That is measured, not inferred.
+//
+// DEFECT FIXED 08/06/26 — DO NOT REINTRODUCE `checkout_date > asOf`.
+// The original filter was `status = In-House AND checkin <= asOf AND checkout >
+// asOf`. That third clause silently dropped two kinds of row, both of which are
+// the ones a collections table exists to show:
+//   1. guests DEPARTING TODAY (checkout == asOf) — the last day Bea can collect;
+//   2. OVERSTAYS (checkout < asOf, status still In-House) — i.e. evictions, who
+//      are still in the room and owe the most.
+// Reported by Bea via Kyle: a Davenport (44199) guest under active eviction,
+// $4,793.60 outstanding, checkin 07-01, checkout 08-06, was invisible on 08-06
+// and would have stayed invisible every day after. Measured blast radius at the
+// time of the fix: 9 In-House reservations holding $15,108.87 across 7
+// properties were being hidden portfolio-wide.
+// The fix is to trust Cloudbeds' own `reservation_status`: it is the authority
+// on who is physically in a room, and a date window cannot outvote it. Probe:
+// scripts/probe-missing-balance.mts "<name>".
 
 import { PROPERTIES, type Property } from "@/config/properties";
 import { readKey, type CloudbedsResult } from "@/lib/cloudbeds";
@@ -42,6 +58,11 @@ export type BalanceRow = {
   ratePlan: string;
   leaseClass: LeaseClass;
   checkin: string;
+  checkout: string; // blank when the departures query did not resolve
+  /** Scheduled departure vs `asOf`. `overdue` means still In-House per Cloudbeds
+   *  with a checkout date already past — an overstay / eviction. `unknown` when
+   *  `checkout` is blank. */
+  departure: "overdue" | "today" | "future" | "unknown";
 };
 
 export type BalanceSummary = {
@@ -52,6 +73,8 @@ export type BalanceSummary = {
   creditCount: number; // reservations in credit (negative balance), excluded from rows
   creditTotal: number; // Σ of those negatives, as a positive number
   inHouseCount: number; // all in-house reservations considered, for context
+  overdueCount: number; // rows whose checkout date has passed — overstays / evictions
+  overdueTotal: number; // Σ balanceDue over those rows
 };
 
 /** A dataset-3 `details:true` result: one entry per reservation row, `dims` in
@@ -75,9 +98,12 @@ async function diDataset3Rows(
     group_rows: groupColumns.map((column) => ({ cdf: { column } })),
     filters: {
       and: [
-        // In-house on asOf: arrived on or before it, not yet departed.
+        // Presence is defined by Cloudbeds' own status, NOT by a date window —
+        // see the "DEFECT FIXED 08/06/26" note in the file header. `checkin_date`
+        // still guards against future arrivals; there is deliberately no
+        // checkout_date clause, so guests departing today and overstays
+        // (evictions) both remain visible.
         { cdf: { column: "checkin_date" }, operator: "less_than_or_equal", value: asOf },
-        { cdf: { column: "checkout_date" }, operator: "greater_than", value: asOf },
         { cdf: { column: "reservation_status" }, operator: "equals", value: "In-House" },
       ],
     },
@@ -125,17 +151,31 @@ async function diDataset3Rows(
 const BALANCE_COL = "reservation_balance_due_amount";
 
 /** Join the identity query (guest + rooms) to the terms query (check-in + rate
- *  plan) on reservation number, then keep only non-zero balances. Pure — the
- *  network shape is the only input, so this is unit-testable.
+ *  plan) and the departures query (checkout) on reservation number, then keep
+ *  only non-zero balances. Pure — the network shape is the only input, so this
+ *  is unit-testable.
  *
- *  A reservation missing from `terms` still appears (its check-in / rate plan
- *  render blank) rather than being dropped: an unclassified balance is still a
- *  balance Bea needs to see. */
-export function foldBalanceRows(identity: Dataset3Rows, terms: Dataset3Rows): BalanceSummary {
+ *  Three queries rather than one because `group_rows` caps at THREE columns and
+ *  the table needs six fields (the same cap `diDataset1Rows` documents).
+ *
+ *  A reservation missing from `terms` or `departures` still appears (those
+ *  fields render blank) rather than being dropped: an unclassified balance is
+ *  still a balance Bea needs to see. */
+export function foldBalanceRows(
+  identity: Dataset3Rows,
+  terms: Dataset3Rows,
+  departures: Dataset3Rows,
+  asOf: string,
+): BalanceSummary {
   const termsByRes = new Map<string, { checkin: string; ratePlan: string }>();
   for (const dims of terms.dims) {
     const [resNo, checkin, ratePlan] = dims;
     if (resNo && !termsByRes.has(resNo)) termsByRes.set(resNo, { checkin: checkin ?? "", ratePlan: ratePlan ?? "" });
+  }
+  const checkoutByRes = new Map<string, string>();
+  for (const dims of departures.dims) {
+    const [resNo, checkout] = dims;
+    if (resNo && !checkoutByRes.has(resNo)) checkoutByRes.set(resNo, checkout ?? "");
   }
 
   const due = identity.records[BALANCE_COL] ?? [];
@@ -160,6 +200,7 @@ export function foldBalanceRows(identity: Dataset3Rows, terms: Dataset3Rows): Ba
     if (balance <= BALANCE_EPSILON) continue;
 
     const t = termsByRes.get(resNo);
+    const checkout = checkoutByRes.get(resNo) ?? "";
     rows.push({
       reservationNumber: resNo,
       guest: guest || "—",
@@ -168,6 +209,9 @@ export function foldBalanceRows(identity: Dataset3Rows, terms: Dataset3Rows): Ba
       ratePlan: t?.ratePlan ?? "",
       leaseClass: classifyRatePlan(t?.ratePlan),
       checkin: t?.checkin ?? "",
+      checkout,
+      // ISO dates compare correctly as strings, which is why they are read raw.
+      departure: !checkout ? "unknown" : checkout < asOf ? "overdue" : checkout === asOf ? "today" : "future",
     });
   }
 
@@ -181,6 +225,7 @@ export function foldBalanceRows(identity: Dataset3Rows, terms: Dataset3Rows): Ba
       a.reservationNumber.localeCompare(b.reservationNumber),
   );
 
+  const overdue = rows.filter((r) => r.departure === "overdue");
   return {
     rows,
     total: rows.reduce((sum, r) => sum + r.balanceDue, 0),
@@ -189,6 +234,8 @@ export function foldBalanceRows(identity: Dataset3Rows, terms: Dataset3Rows): Ba
     creditCount,
     creditTotal,
     inHouseCount,
+    overdueCount: overdue.length,
+    overdueTotal: overdue.reduce((sum, r) => sum + r.balanceDue, 0),
   };
 }
 
@@ -198,16 +245,22 @@ export async function getBalanceDue(
   apiPropertyId: string,
   asOf: string,
 ): Promise<CloudbedsResult<BalanceSummary>> {
-  const [identity, terms] = await Promise.all([
+  const [identity, terms, departures] = await Promise.all([
     diDataset3Rows(apiKey, apiPropertyId, ["reservation_number", "primary_guest_full_name", "room_numbers"], [BALANCE_COL], asOf),
     diDataset3Rows(apiKey, apiPropertyId, ["reservation_number", "checkin_date", "public_rate_plan"], [BALANCE_COL], asOf),
+    diDataset3Rows(apiKey, apiPropertyId, ["reservation_number", "checkout_date"], [BALANCE_COL], asOf),
   ]);
 
   if (!identity.ok) return identity;
-  // Terms are supplementary — a failure there degrades the table (blank
-  // check-in / rate plan) rather than losing the balances entirely.
-  const termsData = terms.ok ? terms.data : { dims: [], records: {} };
-  return { ok: true, data: foldBalanceRows(identity.data, termsData) };
+  // Terms and departures are supplementary — a failure there degrades the table
+  // (blank check-in / rate plan / checkout) rather than losing the balances
+  // entirely. `departure` then reads "unknown" instead of silently claiming the
+  // stay is current.
+  const empty = { dims: [], records: {} };
+  return {
+    ok: true,
+    data: foldBalanceRows(identity.data, terms.ok ? terms.data : empty, departures.ok ? departures.data : empty, asOf),
+  };
 }
 
 export type PropertyBalance = {

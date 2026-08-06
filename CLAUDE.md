@@ -120,6 +120,27 @@ Cloudbeds API
 
 ## 6. Cloudbeds data — what we show
 
+### Cloudbeds is the only source of truth (Kyle, 08/06/26)
+**Monica has stopped producing the occupancy/revenue reports.** Her workbook and
+PDFs were the external validation signal for everything in `/report` — five days
+of head-to-head parity, the OOO reconciliation, the rate-plan classifier ruling.
+That signal is gone; this app is now the report, not a second opinion on it.
+
+Consequences, because they change how to work here:
+- **Never block on "ask Monica."** Any open question about a number is now settled
+  against Cloudbeds directly, or measured and recorded as unresolved. Three
+  questions were parked on her and are hereby closed unanswered — the ~7 unblocked
+  KE (2295) rooms, how the MTD out-of-order line accumulates, and a raw JW/SA
+  export. Whatever is in the code now is the answer until Cloudbeds says otherwise.
+- The derivation rule from session 9c is unchanged and now load-bearing:
+  **Cloudbeds supplies primitives (transactions, room list, blocks as observed);
+  we own every derivation.** Nothing consumes Cloudbeds' pre-computed percentages.
+- Her historical files stay in the repo as a **historical seed and a regression
+  fixture** (`scripts/diff-reports.py`, `parse-monica-pdf.py`). They are evidence
+  about the past, not a live check — do not expect new ones.
+- **Nothing external will catch our errors any more.** Prefer measuring over
+  inferring, and record uncertainty in the code where the number is produced.
+
 ### Occupancy cadence (answer to "what's possible")
 - **Daily** — native. Per-day occupancy from the dashboard/reservations
   endpoints. This is the core view.

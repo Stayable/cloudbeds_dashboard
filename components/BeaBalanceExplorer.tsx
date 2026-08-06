@@ -33,6 +33,13 @@ function planLabel(r: BalanceRow) {
   return r.leaseClass === "lease-monthly" ? "Monthly lease" : r.leaseClass === "lease-weekly" ? "Weekly lease" : "Transient";
 }
 
+const DEPARTURE_LABEL: Record<BalanceRow["departure"], string> = {
+  overdue: "Checkout passed",
+  today: "Leaving today",
+  future: "",
+  unknown: "",
+};
+
 const ROW_COLS: ExportColumn<BalanceRow>[] = [
   { header: "Guest", value: (r) => r.guest },
   { header: "Room", value: (r) => r.rooms },
@@ -40,6 +47,8 @@ const ROW_COLS: ExportColumn<BalanceRow>[] = [
   { header: "Type", value: (r) => planLabel(r) },
   { header: "Rate plan", value: (r) => r.ratePlan },
   { header: "Check-in", value: (r) => r.checkin },
+  { header: "Checkout", value: (r) => r.checkout },
+  { header: "Flag", value: (r) => DEPARTURE_LABEL[r.departure] },
   { header: "Reservation", value: (r) => r.reservationNumber },
 ];
 type RowAll = BalanceRow & { property: string };
@@ -50,7 +59,7 @@ const ROW_COLS_ALL: ExportColumn<RowAll>[] = [
 
 function BalanceTable({ rows }: { rows: BalanceRow[] }) {
   return (
-    <table className="w-full min-w-[620px] border-collapse">
+    <table className="w-full min-w-[720px] border-collapse">
       <thead>
         <tr>
           <th className={thClass("left")}>Guest</th>
@@ -58,6 +67,7 @@ function BalanceTable({ rows }: { rows: BalanceRow[] }) {
           <th className={thClass("right")}>Balance due</th>
           <th className={thClass("left")}>Type</th>
           <th className={thClass("left")}>Check-in</th>
+          <th className={thClass("left")}>Checkout</th>
         </tr>
       </thead>
       <tbody>
@@ -79,6 +89,22 @@ function BalanceTable({ rows }: { rows: BalanceRow[] }) {
               </span>
             </td>
             <td className="px-4 py-2.5 text-[12.5px] text-txt2">{r.checkin || "—"}</td>
+            <td className="px-4 py-2.5 text-[12.5px] text-txt2">
+              {r.checkout || "—"}
+              {/* An In-House reservation whose checkout has passed is an
+                  overstay / eviction — the highest-urgency row on the table, and
+                  the case the old date-window filter used to hide entirely. */}
+              {r.departure !== "future" && r.departure !== "unknown" && (
+                <span
+                  className={
+                    "ml-2 rounded-[5px] px-[7px] py-0.5 text-[11px] font-semibold " +
+                    (r.departure === "overdue" ? "bg-warnbg text-warn" : "bg-surface2 text-txt2")
+                  }
+                >
+                  {DEPARTURE_LABEL[r.departure]}
+                </span>
+              )}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -93,6 +119,11 @@ function Footnote({ s }: { s: BalanceSummary }) {
     <p className="text-[11.5px] text-txt3">
       {s.inHouseCount} in-house reservation{s.inHouseCount === 1 ? "" : "s"} checked ·{" "}
       {s.rows.length} carrying a balance
+      {s.overdueCount > 0 && (
+        <>
+          {" "}· {s.overdueCount} still in-house past checkout ({money(s.overdueTotal)})
+        </>
+      )}
       {s.creditCount > 0 && (
         <>
           {" "}· {s.creditCount} in credit ({money(s.creditTotal)}), excluded from the total
@@ -156,6 +187,8 @@ export default function BeaBalanceExplorer({
     creditCount: reporting.reduce((n, p) => n + (p.summary?.creditCount ?? 0), 0),
     creditTotal: reporting.reduce((n, p) => n + (p.summary?.creditTotal ?? 0), 0),
     inHouseCount: reporting.reduce((n, p) => n + (p.summary?.inHouseCount ?? 0), 0),
+    overdueCount: reporting.reduce((n, p) => n + (p.summary?.overdueCount ?? 0), 0),
+    overdueTotal: reporting.reduce((n, p) => n + (p.summary?.overdueTotal ?? 0), 0),
   };
 
   const selectedProp = activeKey === "ALL" ? null : properties.find((p) => p.code === activeKey) ?? null;
