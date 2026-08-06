@@ -51,15 +51,18 @@ const ROW_COLS: ExportColumn<BalanceRow>[] = [
   { header: "Flag", value: (r) => DEPARTURE_LABEL[r.departure] },
   { header: "Reservation", value: (r) => r.reservationNumber },
 ];
-type RowAll = BalanceRow & { property: string };
+type RowAll = BalanceRow & { property: string; propertyId: string };
 const ROW_COLS_ALL: ExportColumn<RowAll>[] = [
   { header: "Property", value: (r) => r.property },
+  // Business property ID, per CLAUDE.md §3/§7 — a row lifted out of the export
+  // has to name which property it came from unambiguously.
+  { header: "Property ID", value: (r) => r.propertyId },
   ...ROW_COLS.map((c) => ({ header: c.header, value: (r: RowAll) => c.value(r) })),
 ];
 
 function BalanceTable({ rows }: { rows: BalanceRow[] }) {
   return (
-    <table className="w-full min-w-[720px] border-collapse">
+    <table className="w-full min-w-[820px] border-collapse">
       <thead>
         <tr>
           <th className={thClass("left")}>Guest</th>
@@ -68,6 +71,11 @@ function BalanceTable({ rows }: { rows: BalanceRow[] }) {
           <th className={thClass("left")}>Type</th>
           <th className={thClass("left")}>Check-in</th>
           <th className={thClass("left")}>Checkout</th>
+          {/* The reservation number is how Bea finds this exact row in
+              Cloudbeds. Deliberately NOT a guest ID: Cloudbeds mints a new guest
+              profile per booking, so a guest ID identifies a booking, not a
+              person, and would mislead in a collections workflow. */}
+          <th className={thClass("left")}>Reservation</th>
         </tr>
       </thead>
       <tbody>
@@ -105,6 +113,7 @@ function BalanceTable({ rows }: { rows: BalanceRow[] }) {
                 </span>
               )}
             </td>
+            <td className="px-4 py-2.5 text-[12px] tabular-nums text-txt3">{r.reservationNumber}</td>
           </tr>
         ))}
       </tbody>
@@ -146,10 +155,17 @@ export default function BeaBalanceExplorer({
   const allTotal = reporting.reduce((sum, p) => sum + (p.summary?.total ?? 0), 0);
   const allRowCount = reporting.reduce((n, p) => n + (p.summary?.rows.length ?? 0), 0);
   const allRowsForExport: RowAll[] = reporting.flatMap((p) =>
-    (p.summary?.rows ?? []).map((r) => ({ ...r, property: p.name })),
+    (p.summary?.rows ?? []).map((r) => ({ ...r, property: p.name, propertyId: p.id })),
   );
 
-  const card = (key: string, label: string, summary: BalanceSummary | null, statusSub: string, disabled: boolean) => {
+  const card = (
+    key: string,
+    label: string,
+    summary: BalanceSummary | null,
+    statusSub: string,
+    disabled: boolean,
+    propertyId?: string,
+  ) => {
     const active = key === activeKey;
     return (
       <button
@@ -161,7 +177,10 @@ export default function BeaBalanceExplorer({
           (disabled ? "opacity-60" : "")
         }
       >
-        <p className="truncate text-[13px] font-semibold tracking-[-.01em] text-txt">{label}</p>
+        <p className="truncate text-[13px] font-semibold tracking-[-.01em] text-txt">
+          {label}
+          {propertyId && <span className="ml-1.5 text-[11px] font-normal text-txt3">{propertyId}</span>}
+        </p>
         {summary !== null ? (
           <>
             <p className="mt-2.5 text-[21px] font-semibold leading-none tracking-[-.03em] text-txt">
@@ -211,6 +230,7 @@ export default function BeaBalanceExplorer({
             p.configured && !p.error ? p.summary : null,
             p.configured ? (p.error ? "error" : "no data") : "awaiting key",
             !p.configured || !!p.error,
+            p.id,
           ),
         )}
       </div>
@@ -258,7 +278,10 @@ export default function BeaBalanceExplorer({
                       className={"border-t border-line " + (drillable ? "cursor-pointer hover:bg-surface2" : "")}
                     >
                       <td className="px-4 py-2.5 text-[12.5px] font-semibold text-txt">
-                        {p.name} <span className="text-xs font-normal text-txt3">· {p.county}</span>
+                        {p.name}{" "}
+                        <span className="text-xs font-normal text-txt3">
+                          · {p.id} · {p.county}
+                        </span>
                       </td>
                       <td className="px-4 py-2.5 text-right text-[12.5px] font-semibold tabular-nums text-txt">
                         {s ? money(s.total) : <span className="font-normal text-txt3">—</span>}
@@ -300,7 +323,7 @@ export default function BeaBalanceExplorer({
             <span>
               <span className="text-2xl font-semibold tabular-nums text-txt">{money(selected?.total ?? 0)}</span>
               <span className="ml-2 text-sm text-txt2">
-                {selectedProp?.name} · outstanding
+                {selectedProp?.name} <span className="text-txt3">({selectedProp?.id})</span> · outstanding
                 {selected && selected.rows.length > 0 && (
                   <> ({selected.leaseCount} lease · {selected.transientCount} transient)</>
                 )}
@@ -309,7 +332,7 @@ export default function BeaBalanceExplorer({
             {selected && selected.rows.length > 0 && (
               <ExportMenu
                 filename={exportFilename("BalanceDue", selectedProp?.id ?? null, asOf)}
-                title={`Balance due — ${selectedProp?.name}`}
+                title={`Balance due — ${selectedProp?.name} (${selectedProp?.id})`}
                 matrix={buildMatrix(ROW_COLS, selected.rows)}
               />
             )}
