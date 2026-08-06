@@ -6,12 +6,16 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## 08/06/26 (session 9g) — BEA'S MISSING GUEST · CB IS NOW THE ONLY SOURCE OF TRUTH
 
-> **Pickup — 08/06/26. SHIPPED AND LIVE.** Branch level with `origin` at
-> **`b6ffde1`**; production **`dpl_2bpEFLvVwirx4cNFvGVghKMaRmjh` READY**, aliased
-> to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · `next build` green ·
+> **Pickup — 08/06/26. SHIPPED AND LIVE, two releases.** Branch level with
+> `origin` at **`25748cb`**; production **`dpl_BaTC5ScZmrqRT2exwxK2GN6enN1C`
+> READY**, aliased to `dashboard.rentstayable.com`. (The fix itself shipped first
+> as `b6ffde1` → `dpl_2bpEFLvVwirx4cNFvGVghKMaRmjh`; `25748cb` adds the
+> identifier columns, item 6.) `tsc --noEmit` exit 0 · `next build` green ·
 > **295/295 tests** (3 new).
 > - **Live smoke:** `/login` 200 · `/test` 200 · **`/bea` 307 → `/login`** (the
 >   guest PII is still gated, the check that matters) · `/` 307 · `/report` 307.
+> - **Live smoke after `25748cb`:** `/login` 200 · `/test` 200 · `/bea` 307 ·
+>   `/` 307 · `/report` 307 · `/rob` 307.
 > - **Rollback target `dpl_Fno12VQnnAWwAB24KqQsMcgDkDMF`** (`346842c`). Clean:
 >   the change is a read-only filter plus a display column and writes nothing.
 >   (I initially quoted the 9e deploy as the rollback target — wrong; that one is
@@ -122,6 +126,20 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > in two days ≈ $40/night, nightly accrual as documented). KE room 114 is now
 > $10,313.44 (was $10,138.68) and JW room 114 $4,729.46. All three still growing,
 > all three still worth someone's attention.
+>
+> **[x] 6. IDENTIFIERS ADDED TO BOTH §3 TABLES (Kyle, same session).** The tables
+> named the guest but carried nothing lookup-able.
+> - Row table gains a **Reservation** column. **Deliberately not a guest ID** —
+>   Cloudbeds mints a new guest profile per booking (proved in session 9f: guest
+>   IDs never repeated once across 92,282 records), so a guest ID identifies a
+>   booking, not a person, and would mislead in a collections workflow. The
+>   reservation number is what finds the exact folio.
+> - The All-properties table, the property cards and the drilled-in header now
+>   carry the **business property ID** (CLAUDE.md §3/§7), and the All export gains
+>   a **Property ID** column so a row lifted out of the spreadsheet still says
+>   where it came from.
+> - Scoped to `/bea` §3 only. Other surfaces' tables were not touched — say so if
+>   the same treatment is wanted elsewhere.
 >
 > **New/changed files:** `lib/balance-due.ts` (filter + `checkout`/`departure` +
 > `overdueCount`/`overdueTotal` + header note), `components/BeaBalanceExplorer.tsx`
