@@ -17,6 +17,22 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   the Elise funnel swap and its empty-stage warning. Rollback target for the
 >   latest is **`dpl_9qbuvwVb11w8MugWf5ntTBJoUz8X`** (`b57c75f`).
 > - Report-link specifics below refer to the `581036a` release.
+>
+> **▶ NEXT SESSION — START HERE. One blocker, and it is Kyle's:**
+> 1. **[ ] The Snowflake password.** Put the new EliseAI temporary password in
+>    `SNOWFLAKE_PASSWORD` — **`.env.local` AND Vercel** — expecting Snowflake to
+>    force a permanent one on first login; use the permanent value in both. Then
+>    **`npx tsx scripts/elise-sync.mts`** repopulates Tours booked / Tours
+>    attended / Apps approved and the `/ops` §2 warning clears itself. Nothing
+>    else is waiting on anything. Detail: item 3a / 3d.
+> 2. **[ ] Two things to confirm with people, not code:** Bea can see Michael
+>    Krick on `/bea` §3 (she reported it, so her confirmation closes it), and the
+>    first Teams card posted after `581036a` serves the right day — click
+>    yesterday's button and today's and check they differ. Both are unprovable
+>    from here (gated page; deployment-side signing secret).
+> 3. **[ ] Then the real backlog**, none of it blocked: the OR (8700) taxed
+>    long-term lease · the three large transient balances · `AUTH_SECRET` ·
+>    the Revenue trigger URL · the DP availability guard threshold.
 > - **The new rejection paths are confirmed in production**, and they answer as
 >   JSON (so our handler ran — middleware would have sent a 307): no token → 403
 >   · forged token → 403 `invalid or expired link` · `asOf=notadate` → **400
