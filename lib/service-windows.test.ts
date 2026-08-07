@@ -14,6 +14,18 @@ const JN = PROPERTIES.find((p) => p.code === "JN")!;
 const DP = PROPERTIES.find((p) => p.code === "DP")!;
 const LL = PROPERTIES.find((p) => p.code === "LL")!;
 
+// NO REAL PROPERTY CARRIES A sellableOverride ANY MORE — JN's was removed
+// 08/08/26 once paged block reads made it unnecessary (see config/properties.ts).
+// The mechanism is kept and still tested, because the next property whose
+// unsellable rooms are genuinely not blocked in Cloudbeds will need it. Tests
+// therefore build the override onto JN's real in-service windows rather than
+// asserting against live config, which would silently pass forever if the
+// mechanism broke.
+const JN_WITH_OVERRIDE: Property = {
+  ...JN,
+  sellableOverrides: [{ from: "2026-04-01", rooms: 20, reason: "Renovation: test fixture" }],
+};
+
 describe("isInService", () => {
   it("treats a property with no windows as always in service", () => {
     expect(LL.inServiceWindows).toBeUndefined();
@@ -63,25 +75,33 @@ describe("inServiceDays", () => {
 });
 
 describe("sellableRooms / overrideOooNights", () => {
-  it("caps JN at the sellable override once reopened", () => {
-    expect(sellableRooms(JN, "2026-07-26", 127)).toBe(20);
+  it("caps a property at its sellable override once reopened", () => {
+    expect(sellableRooms(JN_WITH_OVERRIDE, "2026-07-26", 127)).toBe(20);
     // Before the override window (and while dark) there is nothing sellable.
-    expect(sellableRooms(JN, "2026-03-31", 127)).toBe(0);
+    expect(sellableRooms(JN_WITH_OVERRIDE, "2026-03-31", 127)).toBe(0);
   });
 
-  it("derives JN's OOO as capacity minus sellable — Monica's 107/day", () => {
-    expect(overrideOooNights(JN, "2026-07-26", "2026-07-26", 127)).toBe(107);
+  it("derives OOO as capacity minus sellable", () => {
+    expect(overrideOooNights(JN_WITH_OVERRIDE, "2026-07-26", "2026-07-26", 127)).toBe(107);
     // 26 in-service days in July through the 26th.
-    expect(overrideOooNights(JN, "2026-07-01", "2026-07-26", 127)).toBe(107 * 26);
+    expect(overrideOooNights(JN_WITH_OVERRIDE, "2026-07-01", "2026-07-26", 127)).toBe(107 * 26);
   });
 
   it("charges no override nights on out-of-service days", () => {
-    expect(overrideOooNights(JN, "2026-03-01", "2026-03-31", 127)).toBe(0);
+    expect(overrideOooNights(JN_WITH_OVERRIDE, "2026-03-01", "2026-03-31", 127)).toBe(0);
   });
 
   it("returns zero for properties without an override", () => {
     expect(overrideOooNights(LL, "2026-07-01", "2026-07-26", 157)).toBe(0);
     expect(sellableRooms(LL, "2026-07-26", 157)).toBe(157);
+  });
+
+  it("leaves JN's real config with no override, so its OOO comes from Cloudbeds", () => {
+    // Guards the 08/08/26 removal: a re-added override would double-count the
+    // blocked_dates rooms against the OOO line and push Available negative.
+    expect(JN.sellableOverrides).toBeUndefined();
+    expect(overrideOooNights(JN, "2026-08-01", "2026-08-06", 127)).toBe(0);
+    expect(sellableRooms(JN, "2026-08-06", 127)).toBe(127);
   });
 
   it("never reports more sellable rooms than physically exist", () => {
@@ -92,12 +112,18 @@ describe("sellableRooms / overrideOooNights", () => {
 
 describe("activeOverrideNotes", () => {
   it("surfaces the reason when an override overlaps the range", () => {
-    expect(activeOverrideNotes(JN, "2026-07-01", "2026-07-26")).toHaveLength(1);
-    expect(activeOverrideNotes(JN, "2026-07-01", "2026-07-26")[0]).toMatch(/Renovation/);
+    expect(activeOverrideNotes(JN_WITH_OVERRIDE, "2026-07-01", "2026-07-26")).toHaveLength(1);
+    expect(activeOverrideNotes(JN_WITH_OVERRIDE, "2026-07-01", "2026-07-26")[0]).toMatch(/Renovation/);
   });
 
   it("is empty for a range entirely before the override", () => {
-    expect(activeOverrideNotes(JN, "2025-01-01", "2025-04-30")).toEqual([]);
+    expect(activeOverrideNotes(JN_WITH_OVERRIDE, "2025-01-01", "2025-04-30")).toEqual([]);
     expect(activeOverrideNotes(LL, "2026-07-01", "2026-07-26")).toEqual([]);
+  });
+
+  it("reports no override notes for any live property — the report's badge stays clean", () => {
+    for (const p of PROPERTIES) {
+      expect(activeOverrideNotes(p, "2026-08-01", "2026-08-06")).toEqual([]);
+    }
   });
 });

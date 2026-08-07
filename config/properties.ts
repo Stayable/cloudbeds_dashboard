@@ -100,19 +100,26 @@ export const PROPERTIES: Property[] = [
   // 2026); our store has real counts on exactly 120 days of 2025 and 118 of
   // 2026.
   //
-  // sellableOverrides: only ~20 of the 127 rooms are actually sellable, but just
-  // 20 are blocked `out_of_service` in Cloudbeds, so the API reports OOO 20 and
-  // Available 89 — i.e. the dashboard claims 89 bookable rooms at a property
-  // that can sell none. UNVERIFIED WITH JN OPS: 20 is inferred from Monica's
-  // reported OOO (107 = 127 - 20) plus her Available of 0-2. Confirm with the
-  // property, and DELETE this override once the rooms are blocked in Cloudbeds.
+  // sellableOverride REMOVED 08/08/26 — it was compensating for a bug of ours,
+  // not for anything wrong at the property. It forced OOO to 107 because the API
+  // appeared to report only 20 out-of-service rooms, leaving the dashboard
+  // claiming 89 bookable rooms at a property that can sell almost none.
+  //
+  // The 20 was never real: /getRoomBlocks pages at 20 records and we never paged
+  // (fixed in 022d6af). Paged, Cloudbeds reports 104 out-of-service rooms — and
+  // Kyle's calendar screenshots count 104 red bars exactly, room for room.
+  //
+  // The override's own arithmetic gives it away: 104 OOO + 3 `blocked_dates`
+  // = 107 unsellable, leaving exactly the 20 "sellable" it was built on. So it
+  // measured UNSELLABLE, while the field it feeds is OUT-OF-ORDER only. Our
+  // report already counts the blocked_dates rooms under Other blocks, so keeping
+  // it double-counted those 3 and drove Available to -2.
+  //
+  // OOO here is now Cloudbeds-derived like every other property (CLAUDE.md §6).
   {
     id: "812", code: "JN", apiPropertyId: "206628", name: "Jacksonville North", county: "Duval",
     active: true, excludeFromAggregate: true,
     inServiceWindows: [{ from: "2025-01-01", to: "2025-04-30" }, { from: "2026-04-01" }],
-    sellableOverrides: [
-      { from: "2026-04-01", rooms: 20, reason: "Renovation: ~107 of 127 rooms unsellable but not blocked in Cloudbeds (room count inferred, unconfirmed)" },
-    ],
   },
   { id: "2535", code: "SA", apiPropertyId: "208155", name: "St. Augustine", county: "St. Johns", active: true },
   { id: "8700", code: "OR", apiPropertyId: "210971", name: "Orlando OBT", county: "Orange", active: true },
