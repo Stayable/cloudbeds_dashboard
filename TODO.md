@@ -4,6 +4,120 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/07/26 (session 9i) — **OOO WAS READ UNPAGED. JN REPORTED 20 OF 104.**
+
+> **Pickup — 08/07/26 (ET). SHIPPED, LIVE, AND THE HELD REPORT IS POSTED.**
+> Branch level with `origin` at **`51200f9`**; production
+> **`dpl_DyxzrNa1rG2C1TiA9fcdKNW1NmsT` READY**, aliased. `tsc --noEmit` exit 0 ·
+> **308/308 tests** (2 new). Four releases: `3549f5a` (post hold) → `2f995cc`
+> (reconciliation tool) → `022d6af` (**the fix**) → `4912329` (tooling) →
+> `51200f9` (JN override removed).
+>
+> **▶ THE FINDING — `/getRoomBlocks` PAGES AT 20 RECORDS AND WE NEVER PAGED.**
+> All three call sites passed no pagination params, so any property with >20 block
+> records in the window silently lost the rest. No error: a valid short page.
+> Found from Kyle's Cloudbeds calendar screenshots, which showed dozens of red
+> "Reno Room" bars at JN where the API returned 20.
+>
+> | property | blocks bare → paged | OOO bare → true |
+> |---|---|---|
+> | JN (812) | 20 → **110** | 20 → **104** |
+> | KE (2295) | 20 → 32 | 24 → **31** |
+> | OR (8700) | 20 → 21 | Other 4 → 5 |
+>
+> Far worse over ranges, which is what MTD/YTD use: **JN 07/01–07/19 read 380 OOO
+> room-nights against a true 1,905 (5×).**
+>
+> **[x] THIS OVERTURNS THE 08/04 CONCLUSION (items 2 and 4 of that entry).**
+> "~7 rooms are out of service in Cloudbeds' occupancy data with NO room block
+> against them — operational fix, get them blocked" was **wrong**. The rooms were
+> blocked all along; our reader was short. **Data Insights was the accurate source
+> and our block count was the broken one** — the reverse of what we believed. The
+> parked question "which 7 KE rooms?" is void, and there is nothing for KE or JN
+> ops to do.
+>
+> **[x] VERIFIED TO THE ROOM, TWICE, AGAINST THE CALENDAR.**
+> - **JN:** 104 red bars counted across 5 screenshots = API's 104. And it closes to
+>   inventory: 104 red + 20 green (= banked room-nights) + 3 standalone grey = **127**.
+> - **KE:** 31 red bars = API's 31, every room number matching the predicted list
+>   with no extras and no misses; 20 of them labelled "Renovation", which
+>   **independently confirms KE's `capacityAdjustment: -20`** for the first time.
+>   All 5 `blocked_dates` rooms (114/151/199/219/239) confirmed as lease-expiry bars.
+> - **Colour mapping:** red = `out_of_service` = our OOO line. **Grey is NOT 1:1
+>   with Other blocks** — Cloudbeds paints checked-out/expired reservations grey
+>   too, so only some grey bars are `blocked_dates`. Grey cannot be counted by eye;
+>   the API is the arbiter. (I overstated this at JN before KE disproved it.)
+>
+> **[x] JN's `sellableOverrides` DELETED (`51200f9`) — it was papering over our bug.**
+> Its own arithmetic gives it away: 104 `out_of_service` + 3 `blocked_dates` = the
+> 107 it forced, leaving exactly the "20 sellable" it was built from. It measured
+> **unsellable**; the field it fed is **out-of-order only**, and the report already
+> counts those 3 rooms under Other blocks — that double-count is what drove JN's
+> **Available to −2**. Now Cloudbeds-derived like every other property (§6). The
+> *mechanism* is kept for a future property that needs it, with tests moved onto a
+> synthetic fixture plus two new tests pinning the removal.
+>
+> **[x] BANKED HISTORY REPAIRED FOR AUGUST — two scripts, both dry-run-first.**
+> - `scripts/repair-ooo-pagination.mts` (raise-only, skips `is_final`, never writes
+>   a failed read, leaves `other_blocks` alone so its comp half survives):
+>   **+51 room-nights over 08/01–08/06** — KE +43, LL +6, KW +1, JW +1. 15 days
+>   re-read *lower* and were left untouched (erosion).
+> - `scripts/correct-jn-override-ooo.mts` — the **only downward write in this
+>   codebase**, conditioned on `ooo_source='override'` and `is_final=false`:
+>   JN 107 → 102/102/102/103/103/104, **−26 room-nights**. Justified because the
+>   107 was never a Cloudbeds reading. Confirmed it survived the subsequent
+>   re-bank (raise-only kept 104; nothing reverted).
+>
+> **[x] THE HELD 08/06 REPORT IS POSTED.** `?force=1` against production returned
+> `posted: true`, HTTP **202**, `asOf 2026-08-06`, 8 properties, `gapsLast14d: 0`.
+> Final numbers: JN 104 / Available 1 / MTD 616 · KE 31 / Available 13 / MTD 186 ·
+> **zero negative-bearing properties**, no override notes.
+> - **`attached: 0`** — no PDF. `TEAMS_FLOW_ATTACHMENTS` is unset in production, so
+>   the card posted alone. That is the 08/04 parked decision, not a fault, but it
+>   *is* a visible difference from Monica's posts. Card file buttons need no PIN.
+> - Report holding worked as designed: `POST_HOLD_DATES` in the cron route gates
+>   **only the send** — snapshots still banked 8/8 at 14:31Z on the held day. The
+>   dated entry is now inert and self-expiring; `?force=1` overrides it.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[?] KE's YTD OOO is still short.** Jan–Jul are `is_final = true` so the
+>    repair skipped them. Rewriting closed months is a real decision, and eroded
+>    blocks mean a re-read recovers KE's long-lived Renovation set but not expired
+>    short maintenance blocks — **better but still not true**. Run
+>    `repair-ooo-pagination.mts 2026-01-01 2026-07-31 --include-final` to see the
+>    dry run before deciding.
+> 2. **[ ] JW +4.7 and SA +2.9 rooms vs Data Insights — unexplained.** NOT
+>    pagination (both return <20 blocks). Either genuinely unblocked-but-unsellable
+>    rooms, or a DI artefact. `scripts/dump-blocks.mts JW 2026-08-07` plus a
+>    calendar screenshot settles it the same way KE was settled.
+> 3. **[ ] DP MTD 43 vs Monica's 105 survives** every finding here — DP returns 17
+>    blocks, nothing truncated. Still unexplained (long-standing, `lib/cloudbeds.ts`
+>    block-nights note).
+> 4. **[ ] Audit other endpoints for the same unpaged read.** `/getRooms` pages
+>    correctly; `/getRoomBlocks` did not; session 9f already hit a short-page bug on
+>    guest records at JN and OR. Assume nothing else is safe until checked.
+> 5. **[ ] Trailing hold cleanup (cosmetic).** `POST_HOLD_DATES` still lists
+>    `2026-08-07`; inert, prune when convenient.
+> 6. **[ ] Snowflake password** — unchanged from 9h, still the only people-blocker.
+>
+> **Tools added:** `scripts/reconcile-ooo.mts` (banked vs live blocks vs
+> DI-derived, per property per day, `--csv`), `scripts/dump-blocks.mts` (paged,
+> resolves roomIDs → room codes so output is checkable against the calendar).
+> **Two corrections to the session-9a notes, both found by running them:** the DI
+> column is **`mfd_occupancy`**, not `adjusted_occupancy` (400 Unknown field), and
+> `capacity` is one of the silently-dropped count columns — so the capacity term
+> comes from our own banked inventory, which is what we want anyway (DI's own
+> capacity wobbled 168/169/171/175 at KE where the truth is 167).
+>
+> **Also learned:** the tool written to investigate the bug **contained the bug** —
+> `dump-blocks.mts` read page 1 only. Fixed in `4912329`. And the Smartsheet "OOO
+> Tracker" / "OOO Tracker Duplicate" sheets are **dead** (last activity 2025-09-01
+> and 2025-04-15, Status blank on all 438 rows, picklist still lists Gainesville
+> and has no Davenport) — they say 0 rooms out of order against Cloudbeds' 189.
+> Not a usable third source; do not reach for them.
+
+---
+
 ## 08/07/26 (session 9h) — REPORT LINKS FOLLOWED "LATEST" · ELISE FUNNEL SPEC
 
 > **Pickup — 08/07/26. SHIPPED AND LIVE.** Branch level with `origin` at
