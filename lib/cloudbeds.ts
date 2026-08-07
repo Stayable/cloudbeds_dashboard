@@ -234,6 +234,63 @@ type RawBlock = {
 };
 type RawBlocks = { roomBlocks: RawBlock[] };
 
+/** Every room block overlapping [startDate, endDate) — PAGED.
+ *
+ *  WHY THIS EXISTS (08/07/26, found from Kyle's calendar screenshots): all three
+ *  callers used to hit /getRoomBlocks with no pagination params, and the endpoint
+ *  defaults to **20 blocks per page**. A property with more than 20 block records
+ *  in the queried window silently lost the rest, and there was no error to notice
+ *  — the response is a valid short page.
+ *
+ *  Measured the day it was found, single stay date 2026-08-07:
+ *    JN (812)  20 blocks -> 110 blocks; OOO  20 ->  104 rooms
+ *    KE (2295) 20 blocks ->  32 blocks; OOO  24 ->   31 rooms
+ *    OR (8700) 20 blocks ->  21 blocks; Other 4 ->    5 rooms
+ *  and far worse over ranges, which is what the report's MTD/YTD lines use —
+ *  JN 07/01..07/19 read 380 OOO room-nights where the truth is 1,905 (5x).
+ *
+ *  This was the whole "rooms out of service with NO block against them" finding
+ *  (TODO 08/04 items 2 and 4): the rooms WERE blocked, we just never read past
+ *  the first page. Data Insights was right and our blocks were short. It is also
+ *  why JN needed an 87-room sellable override to look sane.
+ *
+ *  NOT explained by this: Davenport's MTD 43-vs-105 (TODO, still open) — DP
+ *  returns 17 blocks for that window, so nothing was truncated there.
+ *
+ *  ANY page failing fails the whole window. A 429 on page 2 must never return
+ *  page 1 as if it were the complete set — that is precisely the shape of the bug
+ *  being fixed here, and `ooo` is raise-only, so a short figure banked once is
+ *  hard to see and harmless-looking forever. Callers already treat !ok as a
+ *  failure rather than a zero. */
+const BLOCK_PAGE_SIZE = 100;
+
+async function getRoomBlocksPaged(
+  apiKey: string,
+  startDate: string,
+  endDate: string,
+): Promise<CloudbedsResult<RawBlocks>> {
+  const all: RawBlock[] = [];
+  for (let page = 1; page <= 40; page++) {
+    const res = await cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, {
+      startDate,
+      endDate,
+      pageNumber: String(page),
+      pageSize: String(BLOCK_PAGE_SIZE),
+    });
+    if (!res.ok) return res;
+    const batch = res.data?.roomBlocks ?? [];
+    all.push(...batch);
+    if (batch.length < BLOCK_PAGE_SIZE) return { ok: true, data: { roomBlocks: all } };
+  }
+  // 40 pages = 4,000 blocks for one window. Hitting this means the assumption
+  // behind the loop is wrong, so say so rather than silently truncating again.
+  return {
+    ok: false,
+    status: 0,
+    error: `getRoomBlocks exceeded ${40 * BLOCK_PAGE_SIZE} blocks for ${startDate}..${endDate} — paging stopped rather than return a short figure`,
+  };
+}
+
 export type OooRoom = {
   room: string; // room code (roomName); "" when the name map could not resolve it
   roomType: string;
@@ -364,7 +421,7 @@ export function summarizeOoo(rooms: OooRoom[]): { ooo: number; other: number; to
 async function getOooRooms(apiKey: string, asOf: string): Promise<CloudbedsResult<OooRoom[]>> {
   const [nameRes, blocksRes] = await Promise.all([
     getRoomNameMap(apiKey),
-    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
+    getRoomBlocksPaged(apiKey, asOf, asOf),
   ]);
   if (!blocksRes.ok) return blocksRes;
 
@@ -469,7 +526,7 @@ async function getRoomsWithStatus(
 ): Promise<CloudbedsResult<RoomStatus[]>> {
   const [nameRes, blocksRes, occupied] = await Promise.all([
     getRoomNameMap(apiKey),
-    cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: asOf, endDate: asOf }),
+    getRoomBlocksPaged(apiKey, asOf, asOf),
     apiPropertyId ? getOccupiedRoomNumbers(apiKey, apiPropertyId, asOf) : Promise.resolve(new Set<string>()),
   ]);
   if (!nameRes.loaded) {
@@ -1437,7 +1494,7 @@ export async function getBlockNights(apiKey: string, start: string, end: string)
   }
 
   const results = await Promise.all(
-    windows.map((w) => cbGet<RawBlocks>(apiKey, `/getRoomBlocks`, { startDate: w.s, endDate: w.e })),
+    windows.map((w) => getRoomBlocksPaged(apiKey, w.s, w.e)),
   );
   if (results.every((r) => !r.ok)) return results[0];
 
