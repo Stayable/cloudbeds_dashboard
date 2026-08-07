@@ -6,7 +6,12 @@ import { PROPERTIES } from "@/config/properties";
 import { buildReportCard } from "@/lib/report-card";
 import { renderReportPdf } from "@/lib/report-pdf";
 import { reportFileBase } from "@/lib/revenue-report";
-import { attachmentsEnabled, postAdaptiveCard, type TeamsAttachment } from "@/lib/teams";
+import {
+  attachmentsEnabled,
+  postAdaptiveCard,
+  type TeamsAttachment,
+  type TeamsPostResult,
+} from "@/lib/teams";
 import { signFileToken } from "@/lib/auth";
 
 // Daily occupancy/revenue report cron (Vercel Cron; see vercel.json). Banks
@@ -18,6 +23,14 @@ import { signFileToken } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+
+// POST HOLD (Kyle, 08/07/26). ET *run* dates on which the card is NOT sent to
+// Teams. Everything else still happens — snapshots bank, the report builds,
+// /report and the store stay current — so a held day leaves no data gap and
+// needs no catch-up beyond a manual `?asOf=` post if the day is wanted later.
+// Dates are inert once past, so this list self-expires; prune it when
+// convenient. `?force=1` overrides a hold for a deliberate manual send.
+const POST_HOLD_DATES = new Set<string>(["2026-08-07"]);
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -85,8 +98,13 @@ export async function GET(req: Request) {
     // history stays continuous when this takes over. The .xlsx stays available
     // on /report/latest.xlsx. Only rendered when the flow is ready for it —
     // see lib/teams.ts.
+    // A held day skips the card, the PDF render and the attachment upload —
+    // labelled `held` in the response so it can never read as a delivered
+    // report (the same reason the window skip is labelled `skipped`).
+    const held = POST_HOLD_DATES.has(easternToday()) && url.searchParams.get("force") !== "1";
+
     const files: TeamsAttachment[] = [];
-    if (attachmentsEnabled()) {
+    if (!held && attachmentsEnabled()) {
       const pdf = renderReportPdf(report);
       files.push({
         name: `${reportFileBase(report.asOf)}.pdf`,
@@ -104,10 +122,12 @@ export async function GET(req: Request) {
     // post is pinned to the day it actually rendered.
     const fileToken = await signFileToken(report.asOf);
 
-    const posted = await postAdaptiveCard(
-      buildReportCard(report, base, { pdfAttached: files.length > 0, fileToken }),
-      files,
-    );
+    const posted: TeamsPostResult = held
+      ? { ok: true, status: 0, attached: 0, detail: "post held for this run date" }
+      : await postAdaptiveCard(
+          buildReportCard(report, base, { pdfAttached: files.length > 0, fileToken }),
+          files,
+        );
 
     // Self-monitor: our store is the source of truth, so surface any missing
     // daily snapshots over the last 14 days (a cron miss / expired key / DB blip)
@@ -127,6 +147,8 @@ export async function GET(req: Request) {
     // above has already committed and is reported either way.
     return NextResponse.json({
       ok: posted.ok,
+      held,
+      posted: !held && posted.ok,
       status: posted.status,
       teamsFailure: posted.reason,
       teamsDetail: posted.detail,
