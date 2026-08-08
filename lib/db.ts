@@ -124,6 +124,96 @@ export async function eliseFunnelConfigured(): Promise<boolean> {
   }
 }
 
+/** What the last sync attempt did, plus when data last actually landed.
+ *
+ *  `lastSuccessAt` is deliberately separate from `lastAttemptAt`: a reader needs
+ *  BOTH to understand the situation — "we tried 20 minutes ago and it failed, and
+ *  the newest data we hold is from two days ago" is a different message from
+ *  "nothing has run at all". Null fields mean the table has no such row yet,
+ *  which is itself the honest answer for a store that has never synced. */
+export type EliseSyncStatus = {
+  lastAttemptAt: string | null;
+  lastAttemptOk: boolean | null;
+  lastError: string | null;
+  lastSuccessAt: string | null;
+  /** Consecutive failures ending at the most recent attempt. 0 when the last
+   *  attempt succeeded — so a single blip reads differently from a dead
+   *  credential failing every night. */
+  consecutiveFailures: number;
+};
+
+/** Record one sync ATTEMPT, success or failure. Called by both the cron route and
+ *  the manual script, so a hand-run recovery clears the dashboard banner exactly
+ *  as an automatic run would. Never throws: a status write must not be able to
+ *  fail a sync that otherwise worked. */
+export async function recordEliseSyncAttempt(a: {
+  ok: boolean;
+  error?: string | null;
+  funnelRows?: number | null;
+  metricRows?: number | null;
+}): Promise<void> {
+  try {
+    const sql = db();
+    await sql`
+      insert into elise_sync_status (ok, error, funnel_rows, metric_rows)
+      values (${a.ok}, ${a.error ?? null}, ${a.funnelRows ?? null}, ${a.metricRows ?? null})
+    `;
+  } catch (e) {
+    console.error("[elise] could not record sync status:", e);
+  }
+}
+
+/** timestamptz → ISO 8601 UTC string.
+ *
+ *  Neon hands a `timestamptz` back as a **JS Date**, and `String(date)` gives
+ *  "Sun Aug 09 2026 00:50:00 GMT+0800" — so slicing it for display produces
+ *  "Sun Aug 09 2026  UTC" and leaks the server's local zone. Exactly the trap
+ *  already documented for Snowflake DATEs in lib/snowflake.ts (`ymd`); this is
+ *  the same bug in a different table, so it gets the same explicit conversion
+ *  rather than a String() and a slice. */
+function toIso(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Read the sync status for the dashboard banner. Returns all-null rather than
+ *  throwing if the table is missing, so a store that predates this feature
+ *  renders as "never synced" instead of erroring the whole page. */
+export async function getEliseSyncStatus(): Promise<EliseSyncStatus> {
+  const empty: EliseSyncStatus = {
+    lastAttemptAt: null, lastAttemptOk: null, lastError: null,
+    lastSuccessAt: null, consecutiveFailures: 0,
+  };
+  try {
+    const sql = db();
+    const recent = (await sql`
+      select attempted_at, ok, error from elise_sync_status
+       order by attempted_at desc limit 50
+    `) as { attempted_at: unknown; ok: boolean; error: string | null }[];
+    if (!recent.length) return empty;
+
+    const success = (await sql`
+      select max(attempted_at) as at from elise_sync_status where ok = true
+    `) as { at: unknown }[];
+
+    let consecutiveFailures = 0;
+    for (const r of recent) {
+      if (r.ok) break;
+      consecutiveFailures++;
+    }
+    return {
+      lastAttemptAt: toIso(recent[0].attempted_at),
+      lastAttemptOk: recent[0].ok,
+      lastError: recent[0].error,
+      lastSuccessAt: toIso(success[0]?.at),
+      consecutiveFailures,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 /** Upsert funnel rows (nightly sync). Chunked positional insert. */
 export async function upsertEliseFunnel(
   rows: { buildingId: number; code: string; day: string; eventType: string; n: number }[],

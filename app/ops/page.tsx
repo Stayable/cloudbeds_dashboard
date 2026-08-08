@@ -17,7 +17,9 @@ import { buildOccProperties } from "@/lib/occupancy";
 import { buildReviewsView } from "@/lib/reviews";
 import { buildLeasingViews } from "@/lib/leasing";
 import { buildInsightViews } from "@/lib/elise-insights";
-import { getOccupancyRollup, getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseMetrics } from "@/lib/db";
+import { getOccupancyRollup, getSetting, getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseMetrics, getEliseSyncStatus } from "@/lib/db";
+import { eliseBanner } from "@/lib/elise-status";
+import EliseSyncBanner from "@/components/EliseSyncBanner";
 
 // Operations Dashboard — role-based (not person-named) operational view. Gated to
 // the ops level (PIN in Neon dashboard_pins) OR exec/CEO. Sections: OOO rooms
@@ -72,6 +74,7 @@ export default async function OpsPage({
     elisePipeline,
     eliseReady,
     eliseMetrics,
+    eliseSync,
   ] = await Promise.all([
     getPortfolio(),
     getOccupancyRollup(start, end),
@@ -83,6 +86,7 @@ export default async function OpsPage({
     getElisePipeline(),
     eliseFunnelConfigured(),
     getEliseMetrics(start, end),
+    getEliseSyncStatus(),
   ]);
 
   const properties = buildOccProperties(portfolio, rollup);
@@ -169,6 +173,12 @@ export default async function OpsPage({
               title="Leasing"
               sub={`Funnel + pipeline · EliseAI · ${rangeLabel} · Eastern`}
             />
+            {/* Why the funnel is stale, stated before the numbers rather than
+                after them — a reader who scrolls past the tiles has already
+                believed them. Renders nothing when syncs are healthy. */}
+            <div className="mb-4">
+              <EliseSyncBanner banner={eliseBanner(eliseSync, new Date().toISOString())} />
+            </div>
             <LeasingSection
               configured={eliseReady}
               views={leasingViews}

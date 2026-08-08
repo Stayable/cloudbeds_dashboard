@@ -4,7 +4,9 @@ import { PageHead } from "@/components/ui";
 import LeasingSection from "@/components/LeasingSection";
 import { resolveRange, easternToday } from "@/lib/dates";
 import { buildLeasingViews } from "@/lib/leasing";
-import { getEliseFunnel, getElisePipeline, eliseFunnelConfigured } from "@/lib/db";
+import { getEliseFunnel, getElisePipeline, eliseFunnelConfigured, getEliseSyncStatus } from "@/lib/db";
+import { eliseBanner } from "@/lib/elise-status";
+import EliseSyncBanner from "@/components/EliseSyncBanner";
 
 // Isolated EliseAI support view — leasing funnel + pipeline ONLY, as read from
 // the Snowflake data share. Gated to the `elise` level (PIN in Neon
@@ -74,10 +76,11 @@ export default async function ElisePage({
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
   const asOf = easternToday();
 
-  const [eliseFunnel, elisePipeline, eliseReady] = await Promise.all([
+  const [eliseFunnel, elisePipeline, eliseReady, eliseSync] = await Promise.all([
     getEliseFunnel(start, end),
     getElisePipeline(),
     eliseFunnelConfigured(),
+    getEliseSyncStatus(),
   ]);
 
   const leasingViews = buildLeasingViews(eliseFunnel, elisePipeline);
@@ -99,6 +102,13 @@ export default async function ElisePage({
           title={<>EliseAI Leasing — Snowflake Data Share</>}
           sub={<>Funnel + pipeline as our dashboard reads it from the Snowflake share · Eastern presets</>}
         />
+
+        {/* This surface exists so EliseAI can see the funnel exactly as we read
+            it. When the share stops answering, saying so here is the whole point
+            — otherwise they are looking at our stale copy and we look wrong. */}
+        <div className="mt-4">
+          <EliseSyncBanner banner={eliseBanner(eliseSync, new Date().toISOString())} />
+        </div>
 
         <div className="mt-4">
           <LeasingSection configured={eliseReady} views={leasingViews} from={start} to={end} asOf={end} />

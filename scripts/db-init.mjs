@@ -102,6 +102,27 @@ await sql`
 `;
 console.log("elise_pipeline_snapshot table ready.");
 
+// elise_sync_status: one row per sync ATTEMPT, success or failure. Added
+// 08/08/26 because the dashboard could see that leasing data was stale but had
+// no way to say WHY — the cron 500'd and recorded nothing, so a reader could not
+// distinguish "nothing happened in the funnel" from "the sync has been failing
+// for two days". The failure text is what lets the banner state the real reason
+// instead of a hardcoded guess that outlives its truth.
+// Failures are kept, not overwritten by the next attempt, so a recurring
+// credential problem is visible as a run of failures rather than a single blip.
+await sql`
+  create table if not exists elise_sync_status (
+    id            bigserial primary key,
+    attempted_at  timestamptz not null default now(),
+    ok            boolean not null,
+    error         text,
+    funnel_rows   integer,
+    metric_rows   integer
+  )
+`;
+await sql`create index if not exists elise_sync_status_at_idx on elise_sync_status (attempted_at desc)`;
+console.log("elise_sync_status table ready.");
+
 // elise_metric_daily: generic PII-free daily aggregate for every ENRICHMENT
 // dimension pulled from the Elise share (lead source, channel, AI-booked,
 // after-hours, tour type, cancellation reason, voice answered/transfer, handoff
