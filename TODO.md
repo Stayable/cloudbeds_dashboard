@@ -4,6 +4,98 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/08/26 (session 9j) — ELISE SAYS WHY IT'S BROKEN · KB SPEC PARKED
+
+> **Pickup — 08/08/26 (ET). SHIPPED AND LIVE.** Branch level with `origin` at
+> **`dc9dba7`**; production **`dpl_Aoxs64ikc6654TXiZJ4EQEcW1JfH` READY**, aliased.
+> `tsc --noEmit` exit 0 · **325/325 tests** (17 new). Live smoke: `/ops` 307,
+> `/elise` 307, `/login` 200.
+>
+> **[x] THE DAILY REPORT IS BACK TO NORMAL, UNATTENDED.** The 08/08 14:30 UTC cron
+> returned **200**, so 08/07's report posted to the Revenue chat by itself — the
+> dated hold went inert as designed and the Power Automate flow is on. The held
+> 08/06 report was sent manually the day before (`?force=1`, `posted: true`, 202).
+> Nothing about the report needs attention.
+>
+> **[x] ELISE: THE DASHBOARD NOW STATES THE FAILURE INSTEAD OF SHOWING STALE
+> NUMBERS SILENTLY** (Kyle: "make it so that the dashboard says the error and say
+> waiting for elise to reply"). `/ops` §2 and `/elise` both render:
+> *"Leasing data is not updating. Last attempt 08/08 16:50 UTC (today) — failed.
+> Newest data we hold is from 08/06 17:07 UTC (2 days ago). Reported error:
+> Incorrect username or password was specified. 3 consecutive failed attempts."*
+> plus the waiting-on-EliseAI note.
+> - **The note self-clears.** New `elise_sync_status` table records every attempt;
+>   `lib/elise-status.ts` composes the wording from it, and `BLOCKED_NOTE` renders
+>   ONLY while the stored status is failing. One successful sync deletes the whole
+>   banner with no code change — which is what `1fac49f`'s "no stale hardcoded
+>   banner" rule demanded.
+> - Recording lives **inside `runEliseSync()`**, not at each call site, so a
+>   hand-run recovery clears the banner exactly as the cron would.
+> - Seeded the four pre-existing attempts from evidence
+>   (`scripts/seed-elise-sync-status.mts`, dry-run first, refuses to double-seed),
+>   because with the cron disabled no new attempt would arrive to correct a false
+>   "never synced".
+>
+> **[x] DIAGNOSIS — THE PASSWORD DIED FIRST; OUR OWN CRON LOCKED THE ACCOUNT.**
+> 08/07 12:00 cron failed with *"Incorrect username or password"*; 08/08 12:00 with
+> *"temporarily locked"*; one deliberate login test on 08/08 got **390100** again,
+> proving the lockout had expired and the credential is the live problem. **So the
+> lockout is a symptom, not the cause.**
+> - **[x] `elise-sync` CRON REMOVED FROM `vercel.json`.** Leaving it scheduled
+>   would re-lock the account the moment EliseAI resets it — making us the cause of
+>   our own blocker. The route still works and documents how to re-enable; the note
+>   lives in the route, not `vercel.json`, because unknown top-level keys risk
+>   failing Vercel's schema validation on deploy.
+> - **Answered for the record: Elise is NOT solved.** Three funnel stages
+>   (`tour_booked`, `tour_attended`, `application_approved`) are still absent —
+>   purged in `1fac49f` on 08/07 expecting a re-sync, and every sync since has
+>   failed. `lib/snowflake.ts` asks for all seven stages, so the vocabulary is
+>   right; only the credential is missing.
+>
+> **[x] TWO BUGS CAUGHT BEFORE SHIPPING, both likely to recur elsewhere:**
+> 1. **Neon returns `timestamptz` as a JS Date.** `String(date)` gives
+>    "Sun Aug 09 2026 00:50:00 GMT+0800", so slicing rendered
+>    **"Sun Aug 09 2026  UTC"** and leaked the server's zone. Identical to the trap
+>    already documented for Snowflake DATEs (`lib/snowflake.ts` `ymd`). Normalised
+>    at the DB boundary AND parsed in the formatter, with a regression test on that
+>    exact string. **Grep for other `String(...)`-then-slice on a timestamptz.**
+> 2. **`daysBetween` floored elapsed hours**, so 08/06 17:07 read at 08/08 17:00
+>    rendered "1 day ago". For a staleness warning understating is the dangerous
+>    direction — it now counts UTC calendar days and errs toward "older than you
+>    think". The test asserted the human answer and the code was wrong, not the test.
+>
+> **[~] KNOWLEDGEBASE `/kb` — SPEC WRITTEN, PARKED AT KYLE'S REQUEST.**
+> `docs/superpowers/specs/2026-08-07-knowledgebase-design.md` (`a015ed7`).
+> **DO NOT invoke writing-plans until Kyle has reviewed it.** Design: search box
+> with cited section results, **no chatbot, no LLM, no database, no embeddings**;
+> markdown in `content/kb/*.md`, in-process index behind one `searchKb()`
+> interface; `/kb` is MAIN-pin gated automatically because `canAccess` already
+> falls through for unrecognised routes.
+> - **Three questions for Kyle at review:** (1) query logging in v1 — keep or veto,
+>   (2) hand-rolled ~100-line markdown renderer vs just taking `marked`,
+>   (3) confirm no per-document permissions is acceptable.
+> - **Corpus not yet in hand** (website + live SharePoint Excel + possibly one
+>   more). Kyle consolidates, we author into the repo. Build against fixtures;
+>   **launch still gates on real content** — an empty KB is worse than no KB.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[?] KB spec review** → then writing-plans. Blocked on Kyle only.
+> 2. **[ ] EliseAI credential.** Chase Steph for a new `rise8_reader` password
+>    (account `ihpsnqz-rise8_reader`). Then set it in `.env.local` **and** Vercel,
+>    run `npx tsx scripts/elise-sync.mts` — that repopulates the three stages,
+>    clears the banner, and is the moment to restore the cron entry.
+> 3. **[?] Retire `/elise` entirely?** Kyle raised it and it is still open. The
+>    honest case for it got stronger: the pipeline depends on someone else's
+>    account, and our funnel reproduces EliseAI's own Leasing Dashboard. Needs to
+>    know what Rob and Crystal actually use.
+> 4. **[?] KE's YTD OOO is still short** — Jan–Jul are `is_final`; see 9i item 1.
+> 5. **[ ] JW +4.7 / SA +2.9 vs Data Insights** — not pagination; a calendar
+>    screenshot settles it the way KE was settled (9i item 2).
+> 6. **[ ] DP MTD 43 vs 105** — unexplained by anything in 9i (9i item 3).
+> 7. **[ ] Audit other endpoints for unpaged reads** (9i item 4).
+
+---
+
 ## 08/07/26 (session 9i) — **OOO WAS READ UNPAGED. JN REPORTED 20 OF 104.**
 
 > **Pickup — 08/07/26 (ET). SHIPPED, LIVE, AND THE HELD REPORT IS POSTED.**
