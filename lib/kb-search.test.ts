@@ -91,6 +91,57 @@ describe("rankSections", () => {
     const b = doc("b", "B doc", "## X\n\nalpha\n");
     expect(rankSections("alpha", [a, b]).map((r) => r.slug)).toEqual(["a", "b"]);
   });
+
+  // Regression for the reviewer finding on lib/kb-search.ts:83-84: a raw
+  // .includes() phrase test is word-boundary-free, so query "art" matched
+  // the substring "art" embedded inside the heading "Chart data" and wrongly
+  // promoted that section into the top (heading-phrase) tier. "Notes" here has
+  // no such coincidence — only a genuine, repeated whole-word "art" in its
+  // body — and must not be outranked by the coincidental heading hit.
+  it("does not let a coincidental substring in a heading outrank a genuine match ('art' inside 'Chart')", () => {
+    const d = doc(
+      "a",
+      "A",
+      `## Chart data\n\nBody mentions art once here.\n\n## Notes\n\n${"art ".repeat(20).trim()}\n`,
+    );
+    const hits = rankSections("art", [d]);
+    expect(hits[0].heading).toBe("Notes");
+  });
+
+  // Over-restriction guard: the word-boundary fix must not stop a genuine
+  // multi-word phrase in a heading from earning the top tier and ranking first.
+  it("still awards the phrase bonus for a genuine multi-word heading match", () => {
+    const d = doc(
+      "a",
+      "A",
+      "## Eviction process\n\nUnrelated words here.\n\n## Other\n\nThe eviction process is described at length here.\n",
+    );
+    const hits = rankSections("eviction process", [d]);
+    expect(hits[0].heading).toBe("Eviction process");
+  });
+
+  it("matches a phrase at the very start or very end of a heading, where there is no adjacent character at all", () => {
+    const d = doc(
+      "a",
+      "A",
+      "## Eviction process\n\nfiller\n\n## Overview of eviction process\n\nfiller\n\n## Other\n\nThe eviction process is buried in this body text only.\n",
+    );
+    const headings = rankSections("eviction process", [d]).map((r) => r.heading);
+    // Both edge positions (phrase = whole heading; phrase at the tail end)
+    // must earn the heading-tier bonus and outrank a body-only match.
+    expect(headings.indexOf("Eviction process")).toBeLessThan(headings.indexOf("Other"));
+    expect(headings.indexOf("Overview of eviction process")).toBeLessThan(headings.indexOf("Other"));
+  });
+
+  it("matches a body phrase followed by punctuation, since '.' is not alphanumeric", () => {
+    const d = doc(
+      "a",
+      "A",
+      "## A\n\nThe eviction process. Nothing else relevant.\n\n## B\n\nEviction is mentioned. Process is mentioned separately, unrelated to the exact phrase.\n",
+    );
+    const hits = rankSections("eviction process", [d]);
+    expect(hits[0].heading).toBe("A");
+  });
 });
 
 describe("snippet", () => {

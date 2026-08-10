@@ -37,6 +37,24 @@ export function tokenize(s: string): string[] {
     .map(fold);
 }
 
+/** Escape a string for literal use inside a RegExp. Shared by containsPhrase
+ *  and snippet so the escaping rule has exactly one definition. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Whole-phrase test: true only if `phrase` appears in `haystack` with no
+ *  alphanumeric character immediately before or after the match (or string
+ *  edge, which trivially satisfies the lookaround). A bare `.includes` would
+ *  award the top-tier phrase bonus for query "art" inside the heading "Chart
+ *  data" — "art" is a real substring of "Chart" but not a real word there —
+ *  which promotes a coincidence above a genuine whole-word/phrase match. */
+function containsPhrase(haystack: string, phrase: string): boolean {
+  if (!phrase) return false;
+  const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(phrase.toLowerCase())}(?![a-z0-9])`);
+  return re.test(haystack.toLowerCase());
+}
+
 export type SearchResult = {
   slug: string;
   title: string;
@@ -80,8 +98,8 @@ export function rankSections(query: string, docs: KbDocument[]): SearchResult[] 
       const frequency = tf / (tf + 2 + words.length / 100);
 
       const score =
-        (headingText.toLowerCase().includes(phrase) ? W_HEADING_PHRASE : 0) +
-        (section.body.toLowerCase().includes(phrase) ? W_BODY_PHRASE : 0) +
+        (containsPhrase(headingText, phrase) ? W_HEADING_PHRASE : 0) +
+        (containsPhrase(section.body, phrase) ? W_BODY_PHRASE : 0) +
         W_TERM * matched.length +
         frequency;
 
@@ -129,7 +147,7 @@ export function snippet(body: string, terms: string[], width = 220): string {
 
   if (!terms.length) return prefix + escapeHtml(raw) + suffix;
 
-  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const pattern = terms.map(escapeRegExp).join("|");
   const re = new RegExp(pattern, "gi");
   const parts: string[] = [];
   let cursor = 0;
