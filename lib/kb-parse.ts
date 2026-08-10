@@ -119,6 +119,16 @@ export function splitSections(body: string): KbSection[] {
     }
   }
   flush();
+  // Detect unclosed fenced code blocks, which silently swallow remaining headings.
+  // This is data loss in a knowledge base — a missing closing fence means real
+  // sections stop appearing in search/anchors with no signal. Fail loud and early.
+  if (fence !== null) {
+    throw new Error(
+      `unclosed fenced code block: a ${fence} was opened but never closed. ` +
+        `Every heading after the opening fence is lost (swallowed into the preceding section body). ` +
+        `Close the fence with a matching ${fence} line.`
+    );
+  }
   return sections;
 }
 
@@ -135,6 +145,17 @@ export function parseKbDocument(slug: string, raw: string): KbDocument {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) {
     throw new Error(`${slug}: snapshotDate must be YYYY-MM-DD, got "${snapshotDate}"`);
   }
+  let sections: KbSection[];
+  try {
+    sections = splitSections(body);
+  } catch (e) {
+    // Re-throw body parsing errors with the slug for context, so the corpus
+    // author knows which file failed. Slug prefixing is centralized here.
+    if (e instanceof Error) {
+      throw new Error(`${slug}: ${e.message}`);
+    }
+    throw e;
+  }
   return {
     slug,
     title: need("title"),
@@ -142,6 +163,6 @@ export function parseKbDocument(slug: string, raw: string): KbDocument {
     sourceUrl: typeof data.sourceUrl === "string" && data.sourceUrl ? data.sourceUrl : null,
     snapshotDate,
     counties: Array.isArray(data.counties) ? data.counties : [],
-    sections: splitSections(body),
+    sections,
   };
 }

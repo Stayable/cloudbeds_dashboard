@@ -77,6 +77,23 @@ describe("splitSections", () => {
     expect(secs).toHaveLength(1);
     expect(secs[0].heading).toBeNull();
   });
+
+  it("throws when a fenced code block is unclosed", () => {
+    expect(() =>
+      splitSections("## A\n\nBody A\n\n```\nunclosed fence\n\n## B (should this be swallowed?)\n\nMore text\n")
+    ).toThrow(/unclosed|fenced|block/i);
+  });
+
+  it("properly parses a document with a closed fenced block followed by more headings", () => {
+    const secs = splitSections("## Real\n\n```bash\ncode block\n```\n\n## After\n\nMore text.\n");
+    expect(secs).toHaveLength(2);
+    expect(secs.map((s) => s.anchor)).toEqual(["real", "after"]);
+  });
+
+  it("gives three duplicate headings unique anchors", () => {
+    const secs = splitSections("## Process\n\nA\n\n## Process\n\nB\n\n## Process\n\nC\n");
+    expect(secs.map((s) => s.anchor)).toEqual(["process", "process-2", "process-3"]);
+  });
 });
 
 describe("parseKbDocument", () => {
@@ -105,5 +122,10 @@ describe("parseKbDocument", () => {
     const doc = parseKbDocument("min", min);
     expect(doc.counties).toEqual([]);
     expect(doc.sourceUrl).toBeNull();
+  });
+
+  it("names the file when an unclosed fenced block is encountered", () => {
+    const badFence = `---\ntitle: X\nsource: Y\nsnapshotDate: 2026-08-07\n---\n\n## A\n\nBody\n\n\`\`\`\nunclosed\n\n## B\n`;
+    expect(() => parseKbDocument("my-doc", badFence)).toThrow(/my-doc/);
   });
 });
