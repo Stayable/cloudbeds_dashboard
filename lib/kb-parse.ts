@@ -132,6 +132,19 @@ export function splitSections(body: string): KbSection[] {
   return sections;
 }
 
+/** Check if a date string is a valid YYYY-MM-DD calendar date.
+ *
+ *  Shape-only regex allows February 30, which Date.parse silently rolls to
+ *  March 2, understating age — the one direction this module must never fail in.
+ *  Round-trip parse-to-string to catch calendar impossibilities. */
+function isValidYmd(ymd: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
+  const ms = Date.parse(`${ymd}T00:00:00Z`);
+  if (Number.isNaN(ms)) return false;
+  const parsed = new Date(ms).toISOString().slice(0, 10);
+  return parsed === ymd;
+}
+
 export function parseKbDocument(slug: string, raw: string): KbDocument {
   const { data, body } = parseFrontmatter(raw);
   const need = (key: string): string => {
@@ -142,8 +155,10 @@ export function parseKbDocument(slug: string, raw: string): KbDocument {
     return v;
   };
   const snapshotDate = need("snapshotDate");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) {
-    throw new Error(`${slug}: snapshotDate must be YYYY-MM-DD, got "${snapshotDate}"`);
+  if (!isValidYmd(snapshotDate)) {
+    throw new Error(
+      `${slug}: snapshotDate must be a valid YYYY-MM-DD calendar date, got "${snapshotDate}"`
+    );
   }
   let sections: KbSection[];
   try {
@@ -185,8 +200,10 @@ export type SnapshotAge = { text: string; days: number; stale: boolean };
  *  so read a 47-hour-old figure as "1 day ago". For a staleness warning,
  *  understating age is the dangerous direction. */
 export function daysSince(ymd: string, todayYmd: string): number {
+  if (!isValidYmd(ymd) || !isValidYmd(todayYmd)) return 0;
   const a = Date.parse(`${ymd}T00:00:00Z`);
   const b = Date.parse(`${todayYmd}T00:00:00Z`);
+  // Both are now guaranteed valid; the parse should not fail.
   if (Number.isNaN(a) || Number.isNaN(b)) return 0;
   return Math.max(0, Math.round((b - a) / 86_400_000));
 }
@@ -194,8 +211,15 @@ export function daysSince(ymd: string, todayYmd: string): number {
 /** "as of 08/07/26 (12 days ago)" — RISE8 MM/DD/YY, plus a stale flag. */
 export function snapshotAge(ymd: string, todayYmd: string): SnapshotAge {
   const days = daysSince(ymd, todayYmd);
-  const [y, m, d] = ymd.split("-");
-  const stamp = y && m && d ? `${m}/${d}/${y.slice(2)}` : ymd;
+  // Only format the date as MM/DD/YY if it is a valid calendar date. Otherwise
+  // fall back to the raw ymd — obviously broken is better than plausibly wrong.
+  let stamp: string;
+  if (isValidYmd(ymd)) {
+    const [y, m, d] = ymd.split("-");
+    stamp = `${m}/${d}/${y.slice(2)}`;
+  } else {
+    stamp = ymd;
+  }
   const age = days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
   return { text: `as of ${stamp} (${age})`, days, stale: days > STALE_AFTER_DAYS };
 }

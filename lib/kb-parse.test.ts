@@ -136,6 +136,17 @@ describe("parseKbDocument", () => {
     const badFence = `---\ntitle: X\nsource: Y\nsnapshotDate: 2026-08-07\n---\n\n## A\n\nBody\n\n\`\`\`\nunclosed\n\n## B\n`;
     expect(() => parseKbDocument("my-doc", badFence)).toThrow(/my-doc/);
   });
+
+  it("rejects a calendar-invalid snapshotDate like February 30, naming the slug", () => {
+    const badDate = `---\ntitle: X\nsource: Y\nsnapshotDate: 2026-02-30\n---\n\nBody.\n`;
+    expect(() => parseKbDocument("bad-calendar", badDate)).toThrow(/bad-calendar.*calendar.*date/i);
+  });
+
+  it("accepts a valid leap day like 2028-02-29", () => {
+    const leapDay = `---\ntitle: X\nsource: Y\nsnapshotDate: 2028-02-29\n---\n\nBody.\n`;
+    const doc = parseKbDocument("leap", leapDay);
+    expect(doc.snapshotDate).toBe("2028-02-29");
+  });
 });
 
 describe("daysSince", () => {
@@ -151,6 +162,14 @@ describe("daysSince", () => {
 
   it("returns 0 for an unparseable date rather than NaN", () => {
     expect(daysSince("not a date", "2026-08-19")).toBe(0);
+  });
+
+  it("returns 0 for a calendar-impossible date like 2026-13-45", () => {
+    expect(daysSince("2026-13-45", "2026-08-19")).toBe(0);
+  });
+
+  it("returns 0 for February 30, which does not exist", () => {
+    expect(daysSince("2026-02-30", "2026-08-19")).toBe(0);
   });
 });
 
@@ -174,5 +193,19 @@ describe("snapshotAge", () => {
       .slice(0, 10);
     expect(snapshotAge(onThreshold, "2026-08-19").stale).toBe(false);
     expect(snapshotAge(overThreshold, "2026-08-19").stale).toBe(true);
+  });
+
+  it("does NOT render a plausible-looking but calendar-impossible stamp like 13/45/26", () => {
+    const result = snapshotAge("2026-13-45", "2026-08-19");
+    expect(result.text).not.toContain("13/45/26");
+    // Explicitly check that the raw invalid input appears instead
+    expect(result.text).toContain("2026-13-45");
+  });
+
+  it("does not understate age for February 30 by rolling to March 2", () => {
+    const result = snapshotAge("2026-02-30", "2026-08-19");
+    // February 30 is invalid; daysSince returns 0 so age reads "today",
+    // not the March 2 calculation.
+    expect(result.text).toContain("today");
   });
 });
