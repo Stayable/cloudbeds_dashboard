@@ -135,3 +135,80 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ---------------------------------------------------------------------------
+   .kb-prose — the ONLY place rendered knowledgebase markdown is styled.
+   Tailwind's preflight strips list markers, table borders and heading sizes, so
+   HTML that marked emits needs these back. Design tokens only; no literal
+   colours (see the token block above).
+   --------------------------------------------------------------------------- */
+.kb-prose {
+  @apply text-[14px] leading-[1.65] text-txt2;
+}
+.kb-prose > * + * {
+  @apply mt-3.5;
+}
+.kb-prose h3 {
+  @apply mt-6 text-[14.5px] font-semibold tracking-[-.01em] text-txt;
+}
+.kb-prose h4,
+.kb-prose h5,
+.kb-prose h6 {
+  @apply mt-5 text-[13.5px] font-semibold text-txt;
+}
+.kb-prose strong {
+  @apply font-semibold text-txt;
+}
+.kb-prose a {
+  @apply text-accent underline underline-offset-2;
+}
+.kb-prose ul {
+  @apply list-disc space-y-1.5 pl-5;
+}
+.kb-prose ol {
+  @apply list-decimal space-y-1.5 pl-5;
+}
+.kb-prose li > ul,
+.kb-prose li > ol {
+  @apply mt-1.5;
+}
+.kb-prose blockquote {
+  @apply border-l-[3px] border-line pl-4 text-txt3;
+}
+.kb-prose code {
+  @apply rounded bg-surface3 px-1 py-0.5 text-[12.5px];
+}
+.kb-prose pre {
+  @apply overflow-x-auto rounded-[8px] border border-line bg-surface2 p-3.5 text-[12.5px];
+}
+.kb-prose pre code {
+  @apply bg-transparent p-0;
+}
+.kb-prose hr {
+  @apply border-t border-line;
+}
+/* Excel-derived content is mostly tables — this is the load-bearing part.
+   The wrapper scrolls so a wide table never scrolls the page body sideways. */
+.kb-prose .kb-table-scroll {
+  @apply -mx-1 overflow-x-auto px-1;
+}
+.kb-prose table {
+  @apply w-full border-collapse text-[13px];
+}
+.kb-prose thead th {
+  @apply whitespace-nowrap border-b border-line bg-surface2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[.06em] text-txt3;
+}
+.kb-prose tbody td {
+  @apply border-b border-line px-3 py-2 align-top;
+}
+.kb-prose tbody tr:last-child td {
+  @apply border-b-0;
+}
+/* Search-result highlighting. */
+mark {
+  @apply rounded-[3px] bg-gold/35 px-0.5 text-txt;
+}
+/* Anchored sections must clear the sticky top chrome when linked to. */
+.kb-anchor {
+  scroll-margin-top: 104px;
+}

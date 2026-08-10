@@ -76,6 +76,7 @@ export const SHARED_PAGES: PageLink[] = [
   { href: "/", label: "Home" },
   { href: "/ops", label: "Operations" },
   { href: "/report", label: "Revenue Report" },
+  { href: "/kb", label: "Knowledgebase" },
 ];
 
 const PERSONAL: Record<string, PageLink> = {

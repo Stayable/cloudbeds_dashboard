@@ -91,6 +91,7 @@ describe("accessiblePages", () => {
       { href: "/", label: "Home" },
       { href: "/ops", label: "Operations" },
       { href: "/report", label: "Revenue Report" },
+      { href: "/kb", label: "Knowledgebase" },
     ];
     expect(accessiblePages("base")).toEqual(shared);
     expect(accessiblePages("ops")).toEqual(shared);
