@@ -4,6 +4,59 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/10/26 (session 9k) — ELISE IS UNBLOCKED. FUNNEL WHOLE, CRON BACK ON.
+
+> **Pickup — 08/10/26 (ET). SHIPPED AND LIVE.** Branch level with `origin` at
+> **`f1e00aa`**; production **`dpl_G4TwNaVENLhsW3XYAM96d4KPwFgk` READY**, aliased
+> to `dashboard.rentstayable.com`. `tsc --noEmit` exit 0 · **325/325 tests**
+> (no new tests — this was a credential + config change, not new behaviour).
+>
+> **[x] THE ELISEAI CREDENTIAL IS FIXED.** Kyle supplied the new `rise8_reader`
+> password. Set in `.env.local` and in Vercel (**Production + Preview**, type
+> `Sensitive`). `npx tsx scripts/elise-sync.mts` returned **6,839 funnel rows,
+> 34 snapshot rows, 38,643 enrichment metric rows, 0 skipped**.
+>
+> **[x] THE THREE PURGED STAGES ARE BACK** — `tour_booked` 865 rows,
+> `tour_attended` 425, `application_approved` 416. All seven stages present, newest
+> day 08/09–08/10. The `1fac49f` purge is fully recovered; nothing left to backfill.
+>
+> **[x] THE BANNER CLEARED ITSELF, WHICH IS THE DESIGN WORKING.** `elise_sync_status`
+> recorded `ok=true`, so the "leasing data is not updating" note on `/ops` §2 and
+> `/elise` stopped rendering **with no code change and no deploy** — exactly what
+> `dc9dba7` was built to do. The four failure rows stay in the table as history.
+>
+> **[x] CRON RESTORED** — `{ "path": "/api/cron/elise-sync", "schedule": "0 12 * * *" }`
+> is back in `vercel.json` (`f1e00aa`). The route header no longer says "disabled";
+> it now carries the incident and **the rule worth keeping: if auth fails again,
+> REMOVE THE CRON ENTRY FIRST, then chase the credential.** Our own daily retries
+> against a dead password are what locked the account on 08/08.
+>
+> **[x] VERIFIED IN PRODUCTION, NOT JUST LOCALLY.** A local sync only proves
+> `.env.local`. Hit the deployed route with the `CRON_SECRET`:
+> `GET dashboard.rentstayable.com/api/cron/elise-sync` → `{"ok":true,"funnel":6839,
+> "snapshot":34,"metrics":38643,"skipped":0}`. **That is the proof the Vercel
+> Production env var is right**, which matters because `Sensitive` vars cannot be
+> read back — a sync is the only way to check one.
+>
+> **[?] ONE LOOSE END — the Preview-scope env var is unconfirmed.** `vercel env add
+> --force` reports success for Preview, but `vercel env ls` still shows its original
+> 34-day-old date while Production moved to "6m ago". Likely just createdAt on a
+> row updated in place, but **it is not proven and cannot be read back.** Low
+> priority: this branch deploys with `target: production`, so Preview env is
+> effectively unused. Settle it the next time a preview deployment is needed.
+>
+> **▶ NEXT SESSION — START HERE (unchanged from 9j except item 2 is now done):**
+> 1. **[?] KB spec review** → then writing-plans. Still blocked on Kyle only.
+> 2. **[?] Retire `/elise` entirely?** Still open — and note the argument shifted:
+>    the "it depends on someone else's account" case is now weaker, since that
+>    dependency was repaired in a day. Still needs to know what Rob and Crystal use.
+> 3. **[?] KE's YTD OOO is still short** — Jan–Jul are `is_final`; see 9i item 1.
+> 4. **[ ] JW +4.7 / SA +2.9 vs Data Insights** (9i item 2).
+> 5. **[ ] DP MTD 43 vs 105** — unexplained (9i item 3).
+> 6. **[ ] Audit other endpoints for unpaged reads** (9i item 4).
+
+---
+
 ## 08/08/26 (session 9j) — ELISE SAYS WHY IT'S BROKEN · KB SPEC PARKED
 
 > **Pickup — 08/08/26 (ET). SHIPPED AND LIVE.** Branch level with `origin` at
