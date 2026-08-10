@@ -90,24 +90,52 @@ serious, but bounded and revocable.
 
 ## 4. Transport: `mcp-handler`, stateless
 
-**Decision: `mcp-handler` 2.1.0** (Vercel's framework-agnostic HTTP adapter,
-which wraps `@modelcontextprotocol/sdk` 1.30.0).
+**Decision: `mcp-handler` 2.1.0**, a framework-agnostic HTTP adapter that turns
+an MCP server definition into a web-standard `(Request) => Promise<Response>`.
 
-The alternatives were driving the SDK directly — more protocol code we own, for
-no capability we need — or hand-rolling JSON-RPC framing. The second is the one
-worth naming: this repo has just spent a review round on exactly that lesson
+The alternatives were driving the MCP SDK directly — more protocol code we own,
+for no capability we need — or hand-rolling JSON-RPC framing. The second is the
+one worth naming: this repo has just spent a review round on exactly that lesson
 with markdown parsing, and a wire protocol is a worse thing to hand-roll than a
 document format, because the failure mode is a client that silently stops
 working rather than a visible rendering bug.
 
-**Stateless mode specifically.** `mcp-handler`'s stateful SSE mode wants Redis to
-hold session state between requests. Every tool here answers from a single
-request with no continuation, so stateless costs nothing and avoids adding a
-datastore. This also suits Fluid Compute, where instances are reused rather than
-pinned to a session.
+**This costs three dependencies, not one**, and that is worth stating plainly
+against CLAUDE.md's "keep dependencies minimal": `mcp-handler` 2.x requires
+`@modelcontextprotocol/server` ^2 (2.0.0) and `zod` ^4 (4.4.3), and Node 20+.
+Verified on npm 08/11/26. Note this is the **v2 package line** — the older
+`@modelcontextprotocol/sdk` 1.x pairs with `mcp-handler` 1.x and is not what we
+are installing.
 
-Verify `mcp-handler`'s current API against its README at build time rather than
-from memory — it is a young package and its adapter signature has moved.
+**Stateless is the only mode, and that is a simplification we get for free.**
+`mcp-handler` 2.x removed the 2024-era HTTP+SSE transport entirely; **Redis is no
+longer needed or used**, and there is no session state between requests. It
+serves the 2026-07-28 spec natively and falls back to stateless Streamable HTTP
+for 2025-era clients from the same handler. This suits Fluid Compute, where
+instances are reused rather than pinned to a session.
+
+**There is no `basePath` option in 2.x** — the handler does not inspect the
+request pathname and serves every request it receives. That is precisely what
+makes the secret-in-the-path design work: we mount it under a dynamic segment,
+check the secret ourselves, and hand the untouched request to the handler.
+
+API shape, read from the published package rather than from memory:
+
+```ts
+import { createMcpHandler } from "mcp-handler";
+import { z } from "zod";
+
+const handler = createMcpHandler((server) => {
+  server.registerTool(
+    "tool_name",
+    { title: "…", description: "…", inputSchema: z.object({ … }) },
+    async (args) => ({ content: [{ type: "text", text: "…" }] }),
+  );
+}, { serverInfo: { name: "stayable-dashboard", version: "1.0.0" } });
+```
+
+Note `inputSchema` takes a **full** schema object (`z.object({...})`), not a raw
+shape — that changed in 2.x and is an easy silent mistake.
 
 ---
 
