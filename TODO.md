@@ -32,19 +32,25 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > fixtures; **Task 9 (author the real corpus) is the only content-blocked task**
 > and is what ship criterion 2 gates on.
 >
-> **[~] TASKS 1-4 COMPLETE AND REVIEWED CLEAN. TASK 5 IS MID-FIX-ROUND.**
-> `408/408 tests` at `ab539f8` (was 325 before this work). `tsc --noEmit` clean.
+> **[~] TASKS 1-7 COMPLETE AND REVIEWED CLEAN. HELD AT TASK 8** (laptop battery).
+> `432/432 tests` at `6ac3b0a` (was 325 before this work). `tsc --noEmit` clean,
+> `npm run build` clean with `/kb` in the route table. **All of it is PUSHED.**
 > - **Task 1** `ce1a08f` — `lib/kb-parse.ts`: frontmatter + heading chunking.
 >   Anchors have exactly ONE producer (`splitSections`); nothing downstream
 >   re-slugifies.
 > - **Task 2** `b8abdc3` — snapshot age that errs old.
 > - **Task 3** `89fbb65` — `lib/kb-search.ts`: ranking, snippets, outline.
 > - **Task 4** `06d5dac` — `lib/kb-markdown.ts` via **`marked` 18.0.9**.
-> - **Task 5** `ab539f8` + a fix round dispatched but **not yet re-reviewed** —
->   `lib/kb-corpus.ts`, `lib/kb-check.ts`, fixtures, `scripts/kb-check.mts`,
->   `next.config.mjs` tracing.
+> - **Task 5** `e7d641b` — corpus loading, fixtures, PII validator, `next.config.mjs`
+>   tracing. Took TWO fix rounds; the second is the interesting one, below.
+> - **Task 6** `58b97ed` — query logging. `kb_queries` DDL ran locally.
+> - **Task 7** `6ac3b0a` — **the search page is built.** Three states, honest
+>   no-result, `/kb` in the nav.
 >
-> **[!] FOUR REAL DEFECTS THE REVIEWS CAUGHT, all of which would have shipped:**
+> **▶ RESUME AT TASK 8.** `.superpowers/sdd/2026-08-10-knowledgebase-kb/progress.md`
+> ends with a HELD marker giving the exact next command and BASE sha.
+>
+> **[!] FIVE REAL DEFECTS THE REVIEWS CAUGHT, all of which would have shipped:**
 > 1. **An unclosed code fence silently swallowed every later heading** — a single
 >    missing ``` in a non-engineer-authored SOP would have removed real sections
 >    from search with no signal. Now throws, naming the file.
@@ -59,6 +65,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >    cannot see it: it is markdown link syntax resolving to a dangerous
 >    attribute, not markup. Now an allowlist on `link` and `image` that fails
 >    closed; a rejected URL keeps its text rather than silently vanishing.
+> 5. **My own first fix to the PII validator created a worse bug than it fixed.**
+>    Asking it to catch a bare 10-digit phone number made it fire on ordinary
+>    SharePoint links — and Task 9's corpus is authored FROM SharePoint links, so
+>    it would have failed the build on legitimate content while blaming guest PII
+>    in a URL containing none. Narrowed to NANP shape (area and exchange codes
+>    cannot begin with 0 or 1), which rejects `1234567890` and keeps `4075550142`.
+>    A fix round is not automatically an improvement.
 >
 > **[!] TWO DEPLOYMENT TRAPS THAT PASS LOCALLY AND FAIL IN PRODUCTION** — both
 > handled, both must be verified on the deployment at Task 10:
@@ -95,9 +108,19 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 >   room rate, room square footage, the exact pet fee, the after-hours emergency
 >   number, and an explicit cancellation window.
 >
+> **[?] ONE DECISION FOR KYLE, not a bug.** `kb_queries` stores the raw search
+> string, so someone typing "does the lease for <guest name> cover pets" persists
+> a guest name indefinitely. This is exactly what the spec asked for. But
+> CLAUDE.md §5 rule 2 is written about DISPLAY surfaces, and this is a write-only
+> analytics table with no scoped exception like `/bea` has. **Accept as-is, add
+> redaction, or add a retention window?** Blocks nothing.
+>
+> **[?] VERIFY:** Task 6 ran `db-init` with a local `DATABASE_URL`, so
+> `kb_queries` may already exist in PRODUCTION Neon. The DDL is idempotent and
+> append-only so it is safe either way — but confirm which database was touched.
+>
 > **▶ NEXT SESSION — START HERE:**
-> 1. **[~] Re-review the Task 5 fix round**, then Tasks 6-8 (query logging,
->    search page, document page). The ledger has the exact base SHAs.
+> 1. **[ ] Task 8** (document page), then 9 and 10. The ledger has the base SHAs.
 > 2. **[?] Get the four SharePoint files from Kyle** — Task 9 cannot start
 >    without them, and launch gates on real content.
 > 3. **[?] Get Kyle's ruling on the four content conflicts above.**
