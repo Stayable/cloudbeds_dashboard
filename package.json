@@ -16,6 +16,7 @@
     "botid": "^1.5.11",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "marked": "^18.0.9",
     "next": "^15.5.19",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
