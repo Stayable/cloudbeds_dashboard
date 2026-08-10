@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
 import { runEliseSync } from "@/lib/elise-sync";
 
-// Nightly EliseAI → Neon leasing-funnel sync.
+// Nightly EliseAI → Neon leasing-funnel sync. Scheduled 12:00 UTC in
+// `vercel.json`.
 //
-// ⚠ THE CRON ENTRY IS DISABLED (Kyle, 08/08/26). This route still works and is
-// still the production sync path — it simply is not scheduled. Removed from
-// `vercel.json` because the EliseAI reader password is rejected (Snowflake
-// 390100 "Incorrect username or password") and the account had been temporarily
-// locked: repeated failed logins FROM THIS CRON are what locked it. Leaving it
-// scheduled would re-lock the account the moment EliseAI resets it, making us the
-// cause of our own blocker.
+// HISTORY, because the failure mode is worth not repeating: on 08/07-08/08/26 the
+// EliseAI reader password stopped working (Snowflake 390100 "Incorrect username
+// or password") and this cron's repeated failed logins then locked the account
+// outright. The cron entry was removed rather than left to re-lock the account
+// the moment EliseAI reset it. A new password arrived 08/10/26, a manual
+// `npx tsx scripts/elise-sync.mts` succeeded (6,839 funnel rows, all seven
+// stages back), and the schedule was restored.
 //
-// To re-enable, once a working SNOWFLAKE_PASSWORD is set in Vercel, restore:
-//     { "path": "/api/cron/elise-sync", "schedule": "0 12 * * *" }
-// Until then recovery is manual — `npx tsx scripts/elise-sync.mts` records the
-// attempt and clears the dashboard banner exactly as the cron would, because both
-// go through runEliseSync().
+// If it starts failing on auth again, REMOVE THE CRON ENTRY FIRST, then chase the
+// credential — a daily retry against a bad password is what causes the lockout.
+// Manual recovery is `npx tsx scripts/elise-sync.mts`: it records the attempt and
+// clears the dashboard banner exactly as the cron would, because both go through
+// runEliseSync().
 // PII-free aggregates only. Guarded by CRON_SECRET: Vercel Cron sends
 // `Authorization: Bearer <CRON_SECRET>` automatically when the env var is set;
 // if it's unset the route is open (dev). snowflake-sdk needs the Node runtime.

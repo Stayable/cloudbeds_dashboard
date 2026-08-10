@@ -4,6 +4,7 @@
     { "path": "/api/cron/revenue-report", "schedule": "30 14 * * *" },
     { "path": "/api/cron/revenue-report", "schedule": "30 15 * * *" },
     { "path": "/api/cron/restate", "schedule": "0 16 * * *" },
-    { "path": "/api/cron/capture-blocks", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/capture-blocks", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/elise-sync", "schedule": "0 12 * * *" }
   ]
 }
