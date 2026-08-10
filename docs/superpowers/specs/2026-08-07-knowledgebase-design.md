@@ -1,6 +1,22 @@
 # Knowledgebase (`/kb`) — design
 
-**Date:** 2026-08-07 (ET) · **Status:** awaiting Kyle's review · **Scope:** v1, search only
+**Date:** 2026-08-07 (ET) · **Status:** **REVIEWED AND APPROVED by Kyle 08/10/26** ·
+**Scope:** v1, search only
+
+**Review outcome — the three open questions, answered:**
+
+1. **Query logging (§8) — KEPT in v1.** Not vetoed.
+2. **Markdown rendering (§7) — `marked`, not the hand-rolled renderer.** The
+   counter-argument recorded in §7 won: hand-rolled markdown parsers are a known
+   source of small bugs and Excel-derived tables are non-negotiable. §7 below is
+   updated; the module boundary that made the swap contained is what let this be a
+   one-line decision.
+3. **Per-document permissions (§9) — confirmed not needed.** One visibility level:
+   every MAIN-pin holder sees the whole corpus. The constraint that follows is
+   binding — **nothing enters `content/kb/**` that needs narrower distribution.**
+
+**Corpus:** Kyle is supplying the real source documents (see §2). Launch still
+gates on real content.
 
 ---
 
@@ -159,14 +175,31 @@ previous wording with no record.
 Excel-derived content means **tables are non-negotiable**, along with headings,
 paragraphs, lists, bold, code, and links.
 
-**Decision: a minimal purpose-built renderer (~100 lines), unit-tested**,
-covering only that subset. We control the corpus, so the subset is known, and
-this honours CLAUDE.md's "keep dependencies minimal".
+**DECISION (Kyle, 08/10/26): use `marked`.** The spec originally proposed a
+minimal purpose-built renderer (~100 lines) to honour CLAUDE.md's "keep
+dependencies minimal", and recorded the counter-argument against it. At review
+the counter-argument won: hand-rolled markdown parsers are a known source of
+small bugs, and `marked` is one small, well-tested dependency. Excel-derived
+content makes table correctness load-bearing, which is exactly where a
+hand-rolled parser fails quietly.
 
-**The honest counter-argument, recorded:** hand-rolled markdown parsers are a
-known source of small bugs, and `marked` is one small, well-tested dependency.
-If the renderer misbehaves in review or in use, swap it for `marked` — the
-renderer is one module behind one function, so that swap is contained.
+Consequences for implementation:
+
+- `lib/kb-markdown.ts` still exists and is still the only module that renders
+  markdown — it now wraps `marked` rather than implementing a parser. The
+  interface is unchanged, which is the whole reason this decision cost one line.
+- **`marked` does not sanitise.** It dropped its own sanitiser years ago and
+  says so. GitHub-flavoured markdown permits raw HTML, so `marked` will pass a
+  `<script>` in a document straight through. The corpus is authored by us and
+  git-reviewed, so this is not an untrusted-input path — but that is a *process*
+  guarantee, not a technical one, and process guarantees fail. Configure `marked`
+  with raw HTML disabled, and keep the §12 escaping test — it now tests our
+  configuration of `marked` instead of our parser, which is still the thing that
+  can regress.
+- Search snippets do **not** go through `marked`. They are escaped-then-
+  highlighted plain text (§5). That path is unchanged by this decision.
+- Tables, nested lists, links, and escaping stay in the test suite (§12). We are
+  testing that our configuration behaves, not re-testing `marked`.
 
 ---
 
@@ -201,8 +234,10 @@ Named as decisions, not omissions:
 - **Live SharePoint sync** — needs a headless Graph credential; the MCP
   connection here is interactive and unavailable to cron.
 - **Per-document permissions.** Everything in `/kb` is visible to every
-  MAIN-pin holder. Do not put anything in the corpus that needs narrower
-  distribution.
+  MAIN-pin holder. **Confirmed acceptable by Kyle at review, 08/10/26** — so the
+  constraint is now load-bearing rather than provisional: do not put anything in
+  the corpus that needs narrower distribution. If that ever changes, it is a new
+  decision and a schema change, not a tweak.
 
 ---
 
@@ -227,7 +262,7 @@ the spec says so rather than implying the check is complete.
 | `content/kb/*.md` | the corpus | — |
 | `lib/kb-parse.ts` | frontmatter + heading chunking → `KbDocument[]` | fs (load once) |
 | `lib/kb-search.ts` | tokenise, index, rank, snippet | `kb-parse` types only |
-| `lib/kb-markdown.ts` | the minimal renderer | — |
+| `lib/kb-markdown.ts` | render markdown → HTML (wraps `marked`, raw HTML off) | `marked` |
 | `lib/kb-log.ts` | query logging (§8) | `@neondatabase/serverless` |
 | `app/kb/page.tsx` | search + empty/no-result states | `kb-search`, `kb-log` |
 | `app/kb/[slug]/page.tsx` | document view | `kb-parse`, `kb-markdown` |
