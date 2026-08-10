@@ -100,6 +100,20 @@ describe("checkCorpus", () => {
     expect(checkCorpus([bad("Rooms 1010-1020 are out of service this week.")])).toEqual([]);
   });
 
+  // NANP forbids an area code or exchange code starting with 0 or 1 — the
+  // discriminator the bare-digit rule now requires. These two are not
+  // arbitrary: they are the literal shape of a SharePoint `sourcedoc` GUID
+  // prefix and a OneDrive `d=w...` share-link suffix, both of which land in
+  // sourceUrl values once Task 9's real corpus (authored from OneDrive) is
+  // in place.
+  it("does not false-positive on a 10-digit run whose area code starts with 1", () => {
+    expect(checkCorpus([bad("Confirmation number 1234567890 was issued.")])).toEqual([]);
+  });
+
+  it("does not false-positive on a 10-digit run whose area code starts with 0", () => {
+    expect(checkCorpus([bad("Invoice #0987654321 due on receipt.")])).toEqual([]);
+  });
+
   it("fails a Guest Name column header", () => {
     expect(checkCorpus([bad("| Guest Name | Room |\n| --- | --- |\n| x | 1 |")])[0].problem).toMatch(
       /guest/i,
@@ -137,6 +151,33 @@ describe("checkCorpus", () => {
       "---\ntitle: T\nsource: jane.doe@example.com\nsnapshotDate: 2026-08-07\n---\n\nClean body text with no PII.",
     );
     expect(checkCorpus([leaky])[0].problem).toMatch(/email/i);
+  });
+
+  // sourceUrl is the boundary the review drew: it is a machine-generated link,
+  // not authored prose, so it is deliberately NOT scanned. Pin both sides —
+  // an email in source: still fails (test above), the identical email in
+  // sourceUrl does not.
+  const withSourceUrl = (sourceUrl: string) =>
+    parseKbDocument(
+      "offender",
+      `---\ntitle: T\nsource: S\nsourceUrl: ${sourceUrl}\nsnapshotDate: 2026-08-07\n---\n\nClean body text with no PII.`,
+    );
+
+  it("does not scan sourceUrl for an email address", () => {
+    expect(
+      checkCorpus([withSourceUrl("https://contoso.sharepoint.com/sites/x?contact=jane.doe@example.com")]),
+    ).toEqual([]);
+  });
+
+  it("does not scan sourceUrl for the digit runs real SharePoint/OneDrive links carry", () => {
+    const realWorldLinks = [
+      "https://contoso.sharepoint.com/sites/x/EabcDEF1234567890ghijk?e=abc123",
+      "https://contoso.sharepoint.com/sites/x/doc2.aspx?sourcedoc=%7B1234567890AB-CDEF-1111-2222-333344445555%7D",
+      "https://contoso-my.sharepoint.com/personal/x/SOP.docx?d=w0987654321",
+    ];
+    for (const url of realWorldLinks) {
+      expect(checkCorpus([withSourceUrl(url)])).toEqual([]);
+    }
   });
 
   it("passes clean operational content", () => {

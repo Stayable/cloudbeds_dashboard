@@ -7,14 +7,34 @@
 //   - a phone number written with SOME punctuation between the groups — parens,
 //     dots, dashes, or a leading "+1" — e.g. (407) 555-0142, 407.555.0142,
 //     407-555-0142, +1 407 555 0142
-//   - a BARE unformatted 10-digit run, e.g. 4075550142. This exists because the
-//     corpus is built from spreadsheet/Excel pastes, and losing the punctuation
-//     on a phone column is exactly what that paste does. It is bounded on both
-//     sides (no adjacent digit) so it does NOT fire inside a longer digit run —
-//     a 12-digit ID, a comma-grouped dollar figure, a version string, a
-//     room-number range all pass through untouched. See lib/kb-check.test.ts
-//     (or the false-positive tests alongside the phone tests) for the exact
-//     cases checked.
+//   - a BARE unformatted NANP-SHAPED 10-digit run, e.g. 4075550142. This exists
+//     because the corpus is built from spreadsheet/Excel pastes, and losing the
+//     punctuation on a phone column is exactly what that paste does.
+//     "NANP-shaped" is the deliberate narrowing that keeps this useful rather
+//     than a landmine: North American numbering forbids an area code or
+//     exchange code starting with 0 or 1, so the pattern requires [2-9] in
+//     both of those leading positions. That is a real discriminator, not a
+//     hack — it is why 4075550142 (area 407, exchange 555) is still caught
+//     while 1234567890 and 0987654321 are not. Those two are not edge cases
+//     invented for this comment: they are the shape of a SharePoint
+//     `sourcedoc` GUID and a OneDrive `d=w...` share-link suffix, both of
+//     which showed up for real once sourceUrl entered the corpus (see below).
+//     The rule is still bounded on both sides ((?<!\d) / (?!\d), digit
+//     adjacency rather than \b — \b treats letters and digits as the same
+//     "word" class and would not by itself stop a false match sitting right
+//     after a letter) so it cannot match a 10-digit SLICE of something longer.
+//     A dollar figure, a date range, a version string, a room-number range,
+//     and a 12+ digit ID all pass through untouched — see the false-positive
+//     tests in lib/kb-corpus.test.ts.
+//
+//     What NANP-shaping does NOT buy: a confirmation number or invoice number
+//     that happens to fall in the NANP shape (area/exchange digits 2-9) WILL
+//     still false-positive — "Invoice #4075550142 due on receipt" is, by
+//     inspection, indistinguishable from a phone number, and no regex fixes
+//     that. If this fires on a real business identifier, the fix is to reword
+//     the source line (e.g. add punctuation, or split the digits) or to widen
+//     this rule deliberately with a new test — not to delete the rule quietly,
+//     because the next false negative it would have caught is a real one.
 //   - a "Guest Name" / "Guest Phone" / "Guest Email" column header
 //
 // It explicitly does NOT catch: an unpunctuated number that still runs longer
@@ -41,13 +61,13 @@ const RULES: { problem: string; re: RegExp }[] = [
   {
     problem: "looks like a phone number (guest PII — CLAUDE.md §5 rule 2)",
     // Two alternatives: a punctuated 3-3-4 group (with an optional +1/1
-    // country prefix), OR a bare 10-digit run guarded on both sides by
-    // (?<!\d) / (?!\d) so it cannot match a 10-digit SLICE of something longer
-    // — a 12-digit reservation ID, a $1,234,567,890 figure written without
-    // commas, etc. The lookaround checks digits specifically, not \b: \b
-    // treats letters and digits as the same "word" class, so it would not by
-    // itself stop a false match sitting right after a letter.
-    re: /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b|(?<!\d)\d{10}(?!\d)/g,
+    // country prefix) — left as-is, because a separator is a strong signal on
+    // its own and narrowing it would start dropping real international
+    // numbers — OR a bare NANP-shaped 10-digit run: [2-9]\d{2} (area),
+    // [2-9]\d{2} (exchange), \d{4} (subscriber), bounded by (?<!\d)/(?!\d).
+    // See the module comment above for exactly what this does and does not
+    // catch, and why the NANP shape is required rather than any 10 digits.
+    re: /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b|(?<!\d)[2-9]\d{2}[2-9]\d{2}\d{4}(?!\d)/g,
   },
   {
     problem: 'has a guest-identifying column header ("guest name" / "guest phone" / "guest email")',
@@ -70,16 +90,25 @@ export function checkCorpus(docs: KbDocument[]): KbProblem[] {
       problems.push({ slug: doc.slug, problem: "is empty — no body content after the frontmatter" });
     }
 
-    // The PII scan covers more than body text: headings, and the frontmatter
-    // SCALARS an author fills in by hand (title, source, sourceUrl). A leaked
-    // name or email in a `source:` field is just as real a leak as one in
-    // prose, and the constraint (CLAUDE.md §5 rule 2) is file-level, not
-    // section-level. counties is a controlled list of county names, not
-    // free text, so it is not scanned.
+    // The PII scan covers more than body text: headings, and the hand-authored
+    // frontmatter scalars title/source. A leaked name or email in a `source:`
+    // field is just as real a leak as one in prose, and the constraint
+    // (CLAUDE.md §5 rule 2) is file-level, not section-level.
+    //
+    // sourceUrl is DELIBERATELY EXCLUDED, not an oversight. It is a
+    // machine-generated link, not authored prose — guest PII does not arrive
+    // through a document's own source URL. What DOES arrive there routinely:
+    // long opaque digit/hex runs from SharePoint and OneDrive share links
+    // (a `sourcedoc` GUID, a `d=w...` suffix), which look exactly like the
+    // bare-digit phone shape this file is built to catch. Task 9's real
+    // corpus is authored from OneDrive links, so this is not hypothetical.
+    // Scanning sourceUrl buys no real PII coverage and guarantees false
+    // positives on every such link; excluding it is the fix, not a gap.
+    // counties is a controlled list of county names, not free text, so it is
+    // not scanned either.
     const scanText = [
       doc.title,
       doc.source,
-      doc.sourceUrl ?? "",
       ...doc.sections.map((s) => `${s.heading ?? ""}\n${s.body}`),
     ].join("\n");
 
