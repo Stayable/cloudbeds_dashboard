@@ -1988,21 +1988,40 @@ They must match. **If they do not, that is a release blocker, not a rounding not
 
 - [ ] **Step 5: Deliver to Kyle**
 
-Put the URL on the clipboard and save a backup file:
+**First, make the backup path un-committable.** `outputs/` in this repo is
+**versioned on purpose** (see `.gitignore:32` — reconciliation and methodology
+files live there deliberately), so writing the secret into `outputs/` would
+commit it to GitHub. Add this line to `.gitignore` and commit that change
+**before** creating the file:
+
+```
+# Never commit the MCP connector URL - the secret is IN the URL.
+.secrets/
+```
+
+Then write the backup and put the URL on the clipboard:
 
 ```bash
-node -e "process.stdout.write('https://dashboard.rentstayable.com/api/mcp/' + process.env.MCP_SECRET)" > outputs/mcp-connector-url.txt
-powershell -c "Set-Clipboard -Value (Get-Content -Raw outputs/mcp-connector-url.txt)"
+mkdir -p .secrets
+node -e "process.stdout.write('https://dashboard.rentstayable.com/api/mcp/' + process.env.MCP_SECRET)" > .secrets/mcp-connector-url.txt
+powershell -c "Set-Clipboard -Value (Get-Content -Raw .secrets/mcp-connector-url.txt)"
+git status --short   # MUST NOT list .secrets/ — if it does, stop and fix .gitignore
 ```
+
+The `git status` check is not ceremony. A secret that reaches GitHub is
+compromised even after a force-push, because it is already in the push logs and
+any fork.
 
 Then tell Kyle in chat:
 - **Name:** `Stayable Dashboard`
-- **Remote MCP server URL:** on his clipboard, backup at `outputs/mcp-connector-url.txt`
+- **Remote MCP server URL:** on his clipboard, backup at `.secrets/mcp-connector-url.txt`
 - Leave OAuth Client ID and Client Secret **empty**
 - The URL is a password — send it to Rob as a credential, not in a group chat
 - If `MCP_SECRET` is ever rotated, Rob's connector breaks silently and he needs the new URL
 
-Add `outputs/mcp-connector-url.txt` to `.gitignore` if `outputs/` is not already ignored — **the secret must never be committed.** Check before writing the file.
+**Never paste the URL into a commit message, a report file, TODO.md, or a task
+report.** Those are all committed. The clipboard and the gitignored file are the
+only two places it belongs.
 
 - [ ] **Step 6: Update TODO.md**
 
