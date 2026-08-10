@@ -65,6 +65,12 @@ that is not proportionate.
 - Rotation: change `MCP_SECRET`, redeploy, send Rob a new URL. Seconds, but it
   is a manual step and the old URL dies without warning to him.
 
+**A wrong secret returns 404, not 401.** A 401 confirms that something exists at
+that path and invites a guess at the shape of the credential; a 404 says only
+that there is nothing there, which is also what a stranger should believe. There
+is no `WWW-Authenticate` header for the same reason — that header exists to
+start an OAuth flow, and there is no flow to start.
+
 **Why it is nonetheless acceptable here:** the exposed data is aggregate and
 carries no guest PII (§6), the transport is HTTPS so the path is not visible to
 the network, and the blast radius of a leak is business-confidential figures —
@@ -122,6 +128,20 @@ conventionally use.
 | `get_contractor_schedule` | — | This week's contractor schedule (the sheet holds only the current week) |
 | `get_reviews` | `from?`, `to?` | 1-star review counts and response rate per property |
 | `get_leasing_funnel` | `from?`, `to?` | EliseAI funnel stages and pipeline |
+
+### What `granularity` means
+
+`daily` returns one row per stay date. `weekly` and `monthly` return one row per
+calendar week or month **within** `from`..`to`, each a ratio of sums over that
+bucket — never a mean of daily percentages, because a 30%-occupied day at a
+153-room property must not weigh the same as one at a 127-room property. This is
+the same rollup rule `getOccupancyRollup` and `/report` already use, and it is
+stated here because getting it wrong produces a plausible number that quietly
+disagrees with the dashboard.
+
+A bucket that is only partly covered by the range is returned with the days it
+actually has, labelled with its real first and last date rather than the nominal
+week or month, so a partial week is never mistaken for a full one.
 
 `list_properties` exists for grounding: without it the model has to guess that
 "Lakeland" means 4645, and a wrong property ID produces a confident wrong answer
