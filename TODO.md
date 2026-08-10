@@ -4,6 +4,109 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/11/26 (session 9l) — KNOWLEDGEBASE `/kb`: SPEC APPROVED, 5 OF 10 TASKS BUILT
+
+> **Pickup — 08/11/26 (ET). NOT DEPLOYED. Nothing is live yet.** Branch
+> `claude/nifty-thompson-ts8zny`, local only — **not pushed**. Session ended on a
+> laptop battery warning, mid-fix-round on Task 5.
+>
+> **Resume by reading the ledger first:**
+> `.superpowers/sdd/2026-08-10-knowledgebase-kb/progress.md`. It is the recovery
+> map — it names every commit, every deferred minor, and every ruling. Trust it
+> and `git log` over anything remembered. Then re-enter
+> **superpowers:subagent-driven-development** and continue the task loop.
+>
+> **[x] KB SPEC REVIEWED AND APPROVED BY KYLE (08/10/26).** The three parked
+> questions are answered, and the spec records each one in place:
+> 1. **Query logging — KEPT** in v1 (query text + result count, no identity).
+> 2. **Markdown renderer — `marked`, NOT the hand-rolled ~100 lines.** This
+>    reversed the spec's own proposal; its recorded counter-argument won. It cost
+>    one line to change because the renderer was already behind a single
+>    function, which was the stated reason for putting it there.
+> 3. **Per-document permissions — confirmed not needed.** One visibility level.
+>    The constraint is now load-bearing: nothing enters `content/kb/**` that
+>    needs narrower distribution.
+>
+> **[x] PLAN WRITTEN** — `docs/superpowers/plans/2026-08-10-knowledgebase-kb.md`
+> (`8363856`). 10 tasks, TDD throughout. Tasks 1-8 build against committed
+> fixtures; **Task 9 (author the real corpus) is the only content-blocked task**
+> and is what ship criterion 2 gates on.
+>
+> **[~] TASKS 1-4 COMPLETE AND REVIEWED CLEAN. TASK 5 IS MID-FIX-ROUND.**
+> `408/408 tests` at `ab539f8` (was 325 before this work). `tsc --noEmit` clean.
+> - **Task 1** `ce1a08f` — `lib/kb-parse.ts`: frontmatter + heading chunking.
+>   Anchors have exactly ONE producer (`splitSections`); nothing downstream
+>   re-slugifies.
+> - **Task 2** `b8abdc3` — snapshot age that errs old.
+> - **Task 3** `89fbb65` — `lib/kb-search.ts`: ranking, snippets, outline.
+> - **Task 4** `06d5dac` — `lib/kb-markdown.ts` via **`marked` 18.0.9**.
+> - **Task 5** `ab539f8` + a fix round dispatched but **not yet re-reviewed** —
+>   `lib/kb-corpus.ts`, `lib/kb-check.ts`, fixtures, `scripts/kb-check.mts`,
+>   `next.config.mjs` tracing.
+>
+> **[!] FOUR REAL DEFECTS THE REVIEWS CAUGHT, all of which would have shipped:**
+> 1. **An unclosed code fence silently swallowed every later heading** — a single
+>    missing ``` in a non-engineer-authored SOP would have removed real sections
+>    from search with no signal. Now throws, naming the file.
+> 2. **`2026-02-30` rolled to March 2 and UNDERSTATED age.** It passed the
+>    shape-only `YYYY-MM-DD` regex. Three places each had their own idea of a
+>    valid date; they now share one round-trip predicate.
+> 3. **The phrase-ranking bonus used a bare `.includes`**, so a heading "Chart
+>    data" won the top tier for the query "art". **This one was mandated by my
+>    own plan** — the plan's stated constraint says "exact phrase", so the
+>    constraint governed and the code snippet was the defect.
+> 4. **`[click me](javascript:alert(1))` rendered as a live link.** HTML-escaping
+>    cannot see it: it is markdown link syntax resolving to a dangerous
+>    attribute, not markup. Now an allowlist on `link` and `image` that fails
+>    closed; a rejected URL keeps its text rather than silently vanishing.
+>
+> **[!] TWO DEPLOYMENT TRAPS THAT PASS LOCALLY AND FAIL IN PRODUCTION** — both
+> handled, both must be verified on the deployment at Task 10:
+> - `readFileSync` on a computed path is **not traced by Next**, so `content/kb/`
+>   would be absent from the Vercel build and `/kb` would render an EMPTY corpus
+>   while working perfectly on localhost. `outputFileTracingIncludes` is in
+>   `next.config.mjs`; **Task 10 step 4.3 checks the prod corpus is non-empty.**
+> - A missing `kb_queries` table fails **silently**, because the logger swallows
+>   its own errors by design. Run `node scripts/db-init.mjs` and confirm.
+>
+> **[?] CONTENT — THE ONLY THING BLOCKING TASK 9. NEEDS KYLE.**
+> - **[x] Source #1, the website:** captured, 23 pages →
+>   `.superpowers/sdd/2026-08-10-knowledgebase-kb/source-website.md`.
+> - **[!] Sources #2-#5: I CANNOT REACH THEM.** All live in
+>   `bea_rentstayable_com`'s **personal OneDrive**. The M365 connector searches
+>   my own drive and the sites I belong to; it does not index another person's
+>   personal OneDrive, and a sharing link cannot be resolved to a file ID with
+>   the tools available. Three searches, nothing. **Kyle to download the four
+>   files into the repo folder** (or move them to a SharePoint site / his own
+>   OneDrive). Note #5 is the SAME file as #2 — identical document ID, different
+>   share token. Tab structure recorded: #2 tab1 transient / tab2 leases;
+>   #3 tab1 General / tab2 Guest Wifi Policy / tab3 Pet Policy; #4 a Word doc,
+>   contents unknown.
+> - **[?] FOUR CONTENT CONFLICTS need Kyle's ruling before authoring.** The site
+>   contradicts itself and I will not pick a winner on a policy:
+>   1. **Check-in time: 3:00 PM (FAQ) vs 4:00 PM** (homepage AND the Rules &
+>      Regulations doc dated 07/22/26).
+>   2. **Lakeland email: `lakeland@` (contact page) vs `frontdesk@`** (property page).
+>   3. **Weekly discount: "up to 25%" vs "20-35% typical".**
+>   4. **Deposit: a flat $100 (Deposit Terms) vs "varies by location"** (FAQ).
+> - **[x] Applied Kyle's correction:** OBT's own property page lists a pool.
+>   Recorded verbatim AND flagged — the site is wrong, not us.
+> - Things the site never answers, recorded as `NOT STATED ON SITE`: any dollar
+>   room rate, room square footage, the exact pet fee, the after-hours emergency
+>   number, and an explicit cancellation window.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[~] Re-review the Task 5 fix round**, then Tasks 6-8 (query logging,
+>    search page, document page). The ledger has the exact base SHAs.
+> 2. **[?] Get the four SharePoint files from Kyle** — Task 9 cannot start
+>    without them, and launch gates on real content.
+> 3. **[?] Get Kyle's ruling on the four content conflicts above.**
+> 4. **[ ] Task 10: push, deploy, and run the six live checks** — especially
+>    "`/kb` 307s to `/login`" and "the prod corpus is NOT empty".
+> 5. Older open items from session 9k are unchanged and still below.
+
+---
+
 ## 08/10/26 (session 9k) — ELISE IS UNBLOCKED. FUNNEL WHOLE, CRON BACK ON.
 
 > **Pickup — 08/10/26 (ET). SHIPPED AND LIVE.** Branch level with `origin` at
