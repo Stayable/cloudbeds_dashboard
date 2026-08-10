@@ -1041,3 +1041,17 @@ export async function getEarliestCountsDate(propertyCode: string | null): Promis
   `) as { min_date: string | null }[];
   return rows[0]?.min_date ?? null;
 }
+
+// --- Knowledgebase query log (spec §8) --------------------------------------
+// Query text + result count ONLY. No user identity, no level, no cookie, no
+// document contents — CLAUDE.md §5 rule 2 is unchanged by this table.
+
+/** Record one /kb search. Called only via lib/kb-log.ts, which owns the
+ *  never-throws behaviour. */
+export async function insertKbQuery(query: string, resultCount: number): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into kb_queries (query, result_count)
+    values (${query}, ${resultCount})
+  `;
+}

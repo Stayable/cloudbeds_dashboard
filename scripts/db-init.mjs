@@ -231,3 +231,26 @@ await sql`
   )
 `;
 console.log("known_rate_plan table ready.");
+
+// kb_queries: what people search the knowledgebase for, and how many sections
+// came back. Result count ONLY — no user identity, no cookie, no level, no
+// document contents (spec §8; CLAUDE.md §5 rule 2 unchanged).
+//
+// In v1 deliberately, against the minimal-scope instinct: what people search for
+// and FAIL to find is the single best signal for which document to add next, and
+// it cannot be reconstructed later. Deferring it would not save the work, it
+// would destroy the data. Kyle kept it at spec review, 08/10/26.
+await sql`
+  create table if not exists kb_queries (
+    id           bigserial primary key,
+    query        text not null,
+    result_count int  not null,
+    created_at   timestamptz not null default now()
+  )
+`;
+// "What found nothing, recently" is the query this table exists to answer.
+await sql`
+  create index if not exists kb_queries_misses_idx
+    on kb_queries (created_at desc) where result_count = 0
+`;
+console.log("kb_queries table ready.");
