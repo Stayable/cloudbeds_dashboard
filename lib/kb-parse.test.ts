@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { parseFrontmatter, slugifyHeading, splitSections, parseKbDocument } from "./kb-parse";
+import {
+  parseFrontmatter,
+  slugifyHeading,
+  splitSections,
+  parseKbDocument,
+  daysSince,
+  snapshotAge,
+  STALE_AFTER_DAYS,
+} from "./kb-parse";
 
 const DOC = `---
 title: Eviction filing process
@@ -127,5 +135,44 @@ describe("parseKbDocument", () => {
   it("names the file when an unclosed fenced block is encountered", () => {
     const badFence = `---\ntitle: X\nsource: Y\nsnapshotDate: 2026-08-07\n---\n\n## A\n\nBody\n\n\`\`\`\nunclosed\n\n## B\n`;
     expect(() => parseKbDocument("my-doc", badFence)).toThrow(/my-doc/);
+  });
+});
+
+describe("daysSince", () => {
+  it("counts whole calendar days between two YYYY-MM-DD dates", () => {
+    expect(daysSince("2026-08-07", "2026-08-19")).toBe(12);
+    expect(daysSince("2026-08-19", "2026-08-19")).toBe(0);
+  });
+
+  // A snapshot dated in the future is a data error, not a negative age.
+  it("never returns a negative age", () => {
+    expect(daysSince("2026-08-20", "2026-08-19")).toBe(0);
+  });
+
+  it("returns 0 for an unparseable date rather than NaN", () => {
+    expect(daysSince("not a date", "2026-08-19")).toBe(0);
+  });
+});
+
+describe("snapshotAge", () => {
+  it("renders the RISE8 MM/DD/YY stamp with the age in days", () => {
+    expect(snapshotAge("2026-08-07", "2026-08-19").text).toBe("as of 08/07/26 (12 days ago)");
+  });
+
+  it("says today and yesterday in words", () => {
+    expect(snapshotAge("2026-08-19", "2026-08-19").text).toBe("as of 08/19/26 (today)");
+    expect(snapshotAge("2026-08-18", "2026-08-19").text).toBe("as of 08/18/26 (yesterday)");
+  });
+
+  it("flags stale only past the threshold, and the threshold day itself is not stale", () => {
+    const at = new Date(Date.UTC(2026, 7, 19));
+    const onThreshold = new Date(at.getTime() - STALE_AFTER_DAYS * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const overThreshold = new Date(at.getTime() - (STALE_AFTER_DAYS + 1) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    expect(snapshotAge(onThreshold, "2026-08-19").stale).toBe(false);
+    expect(snapshotAge(overThreshold, "2026-08-19").stale).toBe(true);
   });
 });

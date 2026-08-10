@@ -166,3 +166,36 @@ export function parseKbDocument(slug: string, raw: string): KbDocument {
     sections,
   };
 }
+
+// --- Snapshot staleness (spec §6) -------------------------------------------
+// Every result row and document page states its snapshot date and age. The
+// corpus is a copy of a LIVE SharePoint file, so a copy is stale the moment
+// someone edits the original; the page says so rather than implying currency.
+
+/** Days after which a snapshot is visually flagged. One constant, one meaning. */
+export const STALE_AFTER_DAYS = 90;
+
+export type SnapshotAge = { text: string; days: number; stale: boolean };
+
+/** Whole calendar days between two YYYY-MM-DD dates, floor 0.
+ *
+ *  UTC midnight-to-midnight on purpose. Both inputs are date-only strings, so
+ *  there is no time component to floor away — which is the failure mode that bit
+ *  the Elise staleness counter (TODO.md session 9j): it floored elapsed HOURS and
+ *  so read a 47-hour-old figure as "1 day ago". For a staleness warning,
+ *  understating age is the dangerous direction. */
+export function daysSince(ymd: string, todayYmd: string): number {
+  const a = Date.parse(`${ymd}T00:00:00Z`);
+  const b = Date.parse(`${todayYmd}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
+/** "as of 08/07/26 (12 days ago)" — RISE8 MM/DD/YY, plus a stale flag. */
+export function snapshotAge(ymd: string, todayYmd: string): SnapshotAge {
+  const days = daysSince(ymd, todayYmd);
+  const [y, m, d] = ymd.split("-");
+  const stamp = y && m && d ? `${m}/${d}/${y.slice(2)}` : ymd;
+  const age = days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  return { text: `as of ${stamp} (${age})`, days, stale: days > STALE_AFTER_DAYS };
+}
