@@ -4,6 +4,97 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/11/26 (session 9m) — MCP SERVER FOR ROB: SPEC + PLAN + TASK 1 · KB HELD
+
+> **Pickup — 08/11/26 (ET). NOTHING DEPLOYED. Branch pushed through `1626dc1`.**
+> TWO plans are live in this repo and they are separate — do not merge their
+> ledgers:
+> - `docs/superpowers/plans/2026-08-11-mcp-server.md` — **1 of 10 tasks done**
+>   (ledger `.superpowers/sdd/2026-08-11-mcp-server/progress.md`)
+> - `docs/superpowers/plans/2026-08-10-knowledgebase-kb.md` — **7 of 10 done,
+>   HELD** (ledger `.superpowers/sdd/2026-08-10-knowledgebase-kb/progress.md`)
+>
+> **[!] UNCOMMITTED WORK IN THE TREE AT CHECKPOINT.** `lib/mcp/auth.ts`,
+> `lib/mcp/auth.test.ts`, `middleware.ts` — the Task 1 fix round, dispatched but
+> not finished. Cheap to lose: the exact fix is written out in the MCP ledger.
+> Either let the agent finish and commit, or `git checkout --` those three and
+> re-dispatch from the ledger entry.
+>
+> **[x] MCP SERVER — DESIGNED, APPROVED, PLANNED, AND THE ENDPOINT IS ALIVE.**
+> Rob (CEO) will connect from Claude Desktop by pasting one HTTPS URL. Kyle's
+> decisions, in order taken:
+> 1. **Remote connector, nothing installed on Rob's laptop.** No repo, no Node,
+>    no `.env` — and no production credential ever leaves Vercel.
+> 2. **Full OAuth 2.1 → reversed to a secret in the URL.** Kyle chose OAuth
+>    first, then reversed once the cost was concrete. The downsides are recorded
+>    in the spec rather than glossed: anyone with the URL has full read access,
+>    there is no per-user revocation, and **a second user is the trigger to
+>    revisit the decision, not to forward Rob's link.**
+> 3. **All four tool areas** — occupancy/revenue, the report files, live state,
+>    Smartsheet + EliseAI.
+> 4. **No guest PII.** The `/bea` §3 exception does NOT extend here: a secret URL
+>    in a desktop app's settings pane is a weaker gate than the PIN, so the
+>    weaker gate carries the less sensitive data.
+>
+> **[x] Task 1 shipped and PROVEN LIVE (local):** wrong secret → `404`; correct
+> secret → a real MCP `initialize` naming `stayable-dashboard`. `mcp-handler`
+> 2.1.0 + `@modelcontextprotocol/server` 2.0.0 + `zod` 4.4.3. 438 tests.
+>
+> **[!] I HAD THE MCP STACK WRONG FROM MEMORY** — corrected by reading the
+> published tarball, which is why the plan is buildable at all: v2 needs
+> `@modelcontextprotocol/server` ^2 and `zod` ^4 (NOT `@modelcontextprotocol/sdk`
+> 1.x, which pairs with mcp-handler 1.x); **three new dependencies, not one**;
+> 2.x removed SSE and Redis entirely; there is no `basePath`, which is exactly
+> what makes the secret-in-the-path design work.
+>
+> **[!] THE PLAN'S DELIVERY STEP WOULD HAVE COMMITTED THE SECRET.** It said to
+> save the connector URL under `outputs/` — which this repo versions on purpose.
+> The URL **is** the credential; there is no separate token to rotate. Now a
+> gitignored `.secrets/`, with the `.gitignore` change committed first and a
+> `git status` check gating it.
+>
+> **[!] TWO PLAN-MANDATED DEFECTS IN TASK 1, both mine.** My stated constraints
+> contradicted my own code, and the constraints govern — the same pattern as the
+> KB phrase-ranking bug:
+> 1. the secret compare returned early on a length mismatch, leaking length
+>    through timing → digest both sides, then `timingSafeEqual`
+> 2. `api/mcp(?:/.*)?` matches by PREFIX, so a future `/api/mcpfoo` would be
+>    silently un-gated → require a segment boundary
+>
+> **[?] CARRIED, not yet acted on:**
+> - **Every other matcher alternative has the same prefix looseness**
+>   (`api/cron`, `api/submit`, `api/report-file`, …). Pre-existing; deliberately
+>   NOT touched inside a task about the MCP endpoint. For the final review.
+> - **The rate limiter is one global in-memory bucket**, per-instance on
+>   serverless — best-effort at most, and Rob's own concurrent tool calls could
+>   429 each other once tools exist.
+> - **Once tools exist, send a malformed JSON-RPC body** with the correct secret
+>   and confirm `mcp-handler`'s own protocol errors leak no stack trace.
+>
+> **[?] TASK 10 NEEDS KYLE.** There is no Vercel CLI here, so `MCP_SECRET` cannot
+> be set in Production programmatically. I generate it and hand it over; Kyle
+> pastes it. Then Rob gets **Name `Stayable Dashboard`** + the URL (clipboard,
+> backup in gitignored `.secrets/`). Leave the OAuth fields EMPTY.
+>
+> **[~] KNOWLEDGEBASE — UNCHANGED, STILL HELD AT TASK 8.** Blockers are the same
+> two and both are Kyle's: the four SharePoint files (in Bea's personal OneDrive,
+> which the M365 connector cannot reach), and rulings on four contradictions the
+> website has with itself — check-in 3PM vs 4PM, Lakeland's email, the weekly
+> discount %, the deposit amount.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[~] Finish the MCP Task 1 fix** (uncommitted, above), re-review, commit.
+> 2. **[ ] MCP Tasks 2-9.** ~2 hours. Task 5 is the one likely to overrun — see
+>    the plan's Self-Review on `rollupToRows` reconstructing per-day counts from
+>    per-day percentages.
+> 3. **[?] Kyle: the four SharePoint files + the four content rulings** → KB
+>    Task 9.
+> 4. **[?] Kyle: set `MCP_SECRET` in Vercel** → MCP Task 10.
+> 5. **[?] KB open decision:** `kb_queries` stores raw search strings, so a guest
+>    name typed into the box is persisted. Accept / redact / retention window?
+
+---
+
 ## 08/11/26 (session 9l) — KNOWLEDGEBASE `/kb`: SPEC APPROVED, 5 OF 10 TASKS BUILT
 
 > **Pickup — 08/11/26 (ET). NOT DEPLOYED. Nothing is live yet.** Branch
