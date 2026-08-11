@@ -47,6 +47,12 @@ describe("renderMarkdown", () => {
   it("returns an empty string for empty input", () => {
     expect(renderMarkdown("").trim()).toBe("");
   });
+
+  it("wraps a table in its own horizontal scroller", () => {
+    const html = renderMarkdown("| A | B |\n| --- | --- |\n| 1 | 2 |\n");
+    expect(html).toContain('<div class="kb-table-scroll">');
+    expect(html.indexOf('kb-table-scroll')).toBeLessThan(html.indexOf("<table"));
+  });
 });
 
 // A `javascript:` (or any other dangerous-scheme) href is a SECOND route to

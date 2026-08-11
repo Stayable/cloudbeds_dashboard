@@ -10,12 +10,18 @@
 // git-reviewed, but that is a process guarantee and process guarantees fail, so
 // raw HTML is neutralised below and the behaviour is pinned by a test.
 
-import { Marked, type Tokens } from "marked";
+import { Marked, Renderer, type Tokens } from "marked";
 import { escapeHtml } from "./kb-search";
 
 // A private instance, so this configuration cannot leak into (or be clobbered
 // by) any other caller of marked in the process.
 const md = new Marked({ gfm: true, breaks: false });
+
+// Verified against the installed 18.0.9 source (node_modules/marked/lib/marked.esm.js):
+// Renderer.prototype.table only calls this.tablerow/this.tablecell, both left
+// untouched below, so calling through with `this` bound to marked's own
+// renderer instance produces identical markup to the built-in renderer.
+const defaultTable = Renderer.prototype.table;
 
 // A "javascript:" (or any other dangerous-scheme) href is a SECOND route to
 // executable markup, distinct from the raw-HTML route the html() override
@@ -81,6 +87,14 @@ md.use({
     },
     image(token: Tokens.Image) {
       return isSafeHref(token.href) ? false : escapeHtml(token.text);
+    },
+    table(token: Tokens.Table) {
+      // `this` is marked's own renderer context here (not this module's) —
+      // call through to the default implementation, then wrap it. A wide
+      // Excel-derived table must scroll inside its own box, never scroll the
+      // page body sideways (app/globals.css .kb-prose .kb-table-scroll).
+      const html = defaultTable.call(this, token);
+      return `<div class="kb-table-scroll">${html}</div>`;
     },
   },
 });
