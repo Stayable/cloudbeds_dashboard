@@ -14,6 +14,7 @@ import { renderReportPdf } from "@/lib/report-pdf";
 import { renderReportXlsx } from "@/lib/report-xlsx";
 import { easternToday, shiftYmd } from "@/lib/dates";
 import { reportFileBase } from "@/lib/revenue-report";
+import { parseYmdArg, ymdArgSchema } from "./args";
 import { snapshotFreshness } from "./freshness";
 import type { McpToolDef } from "./types";
 
@@ -35,10 +36,10 @@ export const REPORT_TOOLS: McpToolDef[] = [
     description:
       "The daily revenue report as structured data — per-property occupancy, room revenue, ADR, out-of-order and on-the-books figures. Use this to answer questions; use get_report_file only when the actual PDF or Excel file is wanted.",
     inputSchema: z.object({
-      asOf: z.string().optional().describe("Stay date, YYYY-MM-DD. Defaults to yesterday (Eastern), which is the most recent published report."),
+      asOf: ymdArgSchema.optional().describe("Stay date, YYYY-MM-DD. Defaults to yesterday (Eastern), which is the most recent published report."),
     }),
     handler: async (args: { asOf?: string }) => {
-      const asOf = args.asOf ?? shiftYmd(easternToday(), -1);
+      const asOf = args.asOf ? parseYmdArg("asOf", args.asOf) : shiftYmd(easternToday(), -1);
       const report = await buildRevenueReport(asOf);
       return { data: { asOf, report }, freshness: await snapshotFreshness() };
     },
@@ -49,11 +50,11 @@ export const REPORT_TOOLS: McpToolDef[] = [
     description:
       "The daily revenue report as a PDF or Excel file, so its contents can be read directly.",
     inputSchema: z.object({
-      asOf: z.string().optional().describe("Stay date, YYYY-MM-DD. Defaults to yesterday (Eastern)."),
+      asOf: ymdArgSchema.optional().describe("Stay date, YYYY-MM-DD. Defaults to yesterday (Eastern)."),
       format: z.enum(["pdf", "xlsx"]).default("pdf"),
     }),
     handler: async (args: { asOf?: string; format?: "pdf" | "xlsx" }) => {
-      const asOf = args.asOf ?? shiftYmd(easternToday(), -1);
+      const asOf = args.asOf ? parseYmdArg("asOf", args.asOf) : shiftYmd(easternToday(), -1);
       const format = args.format ?? "pdf";
       const report = await buildRevenueReport(asOf);
       const buffer = format === "xlsx" ? await renderReportXlsx(report) : renderReportPdf(report);

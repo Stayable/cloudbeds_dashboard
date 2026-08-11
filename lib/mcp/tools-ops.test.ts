@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { defaultReviewWindow, stripReviewsPII } from "./tools-ops";
+import { defaultReviewWindow, stripReviewsPII, OPS_TOOLS } from "./tools-ops";
+import { McpArgError } from "./types";
 import type { ReviewsView } from "@/lib/reviews";
 
 describe("defaultReviewWindow", () => {
@@ -80,5 +81,32 @@ describe("stripReviewsPII", () => {
     expect(serialized).not.toMatch(/John Smith|Jane Doe|555-1234|nightmare|spoke with/i);
     // No field that could carry free text in the first place.
     expect(serialized).not.toMatch(/"review"|"managerResponse"|"reviews"/);
+  });
+});
+
+// Both tools take optional from/to. Neither used to check they were real
+// calendar dates before handing them to buildReviewsView / getEliseFunnel —
+// validating here means the check runs (and fails fast) before any
+// Smartsheet/Snowflake I/O is attempted.
+describe("get_reviews and get_leasing_funnel date arguments", () => {
+  const getReviews = OPS_TOOLS.find((t) => t.name === "get_reviews")!;
+  const getLeasingFunnel = OPS_TOOLS.find((t) => t.name === "get_leasing_funnel")!;
+
+  it("get_reviews rejects a malformed from, naming the argument", async () => {
+    await expect(getReviews.handler({ from: "not-a-date", to: "2026-08-10" })).rejects.toThrow(McpArgError);
+    await expect(getReviews.handler({ from: "not-a-date", to: "2026-08-10" })).rejects.toThrow(/from/);
+  });
+
+  it("get_reviews rejects a calendar-impossible to (Feb 30)", async () => {
+    await expect(getReviews.handler({ from: "2026-02-01", to: "2026-02-30" })).rejects.toThrow(McpArgError);
+  });
+
+  it("get_leasing_funnel rejects a malformed from, naming the argument", async () => {
+    await expect(getLeasingFunnel.handler({ from: "not-a-date" })).rejects.toThrow(McpArgError);
+    await expect(getLeasingFunnel.handler({ from: "not-a-date" })).rejects.toThrow(/from/);
+  });
+
+  it("get_leasing_funnel rejects a calendar-impossible to (Feb 30)", async () => {
+    await expect(getLeasingFunnel.handler({ to: "2026-02-30" })).rejects.toThrow(McpArgError);
   });
 });

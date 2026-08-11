@@ -19,6 +19,7 @@ import { buildLeasingViews } from "@/lib/leasing";
 import { getContractorSchedule } from "@/lib/contractor-schedule";
 import { getEliseFunnel, getElisePipeline, getEliseSyncStatus, getSetting } from "@/lib/db";
 import { easternToday, shiftYmd } from "@/lib/dates";
+import { parseYmdArg, ymdArgSchema } from "./args";
 import { describeElise, smartsheetFreshness } from "./freshness";
 import type { McpToolDef } from "./types";
 
@@ -133,14 +134,17 @@ export const OPS_TOOLS: McpToolDef[] = [
     description:
       "One-star review counts and response rate per property. Defaults to the same locked date window the Operations dashboard uses. Counts only — review text and manager responses are never returned.",
     inputSchema: z.object({
-      from: z.string().optional().describe("Start date, YYYY-MM-DD."),
-      to: z.string().optional().describe("End date, YYYY-MM-DD."),
+      from: ymdArgSchema.optional().describe("Start date, YYYY-MM-DD."),
+      to: ymdArgSchema.optional().describe("End date, YYYY-MM-DD."),
     }),
     handler: async (args: { from?: string; to?: string }) => {
+      // Validate before any I/O: a malformed date should fail fast rather
+      // than reach Smartsheet/Neon and produce a wrong or empty window.
+      const from = args.from ? parseYmdArg("from", args.from) : undefined;
+      const to = args.to ? parseYmdArg("to", args.to) : undefined;
       const asOf = easternToday();
       const [payload, saved] = await Promise.all([getOneStarReviews(), getSetting("ops_reviews_window")]);
-      const win =
-        args.from && args.to ? { from: args.from, to: args.to } : defaultReviewWindow(asOf, saved);
+      const win = from && to ? { from, to } : defaultReviewWindow(asOf, saved);
       const view = buildReviewsView(payload.reviews, win.from, win.to);
       return {
         data: {
@@ -159,13 +163,13 @@ export const OPS_TOOLS: McpToolDef[] = [
     description:
       "Leasing funnel stages and the current prospect pipeline from EliseAI. Check the freshness note — this feed has failed before, and stale figures look identical to current ones.",
     inputSchema: z.object({
-      from: z.string().optional().describe("Start date, YYYY-MM-DD. Defaults to the last 30 days."),
-      to: z.string().optional().describe("End date, YYYY-MM-DD."),
+      from: ymdArgSchema.optional().describe("Start date, YYYY-MM-DD. Defaults to the last 30 days."),
+      to: ymdArgSchema.optional().describe("End date, YYYY-MM-DD."),
     }),
     handler: async (args: { from?: string; to?: string }) => {
       const asOf = easternToday();
-      const from = args.from ?? shiftYmd(asOf, -29);
-      const to = args.to ?? asOf;
+      const from = args.from ? parseYmdArg("from", args.from) : shiftYmd(asOf, -29);
+      const to = args.to ? parseYmdArg("to", args.to) : asOf;
       const [funnel, pipeline, status] = await Promise.all([
         getEliseFunnel(from, to),
         getElisePipeline(),

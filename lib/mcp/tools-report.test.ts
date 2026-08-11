@@ -22,6 +22,7 @@ vi.mock("@/lib/dates", async () => {
 });
 
 import { reportFilename, REPORT_TOOLS } from "./tools-report";
+import { McpArgError } from "./types";
 
 // McpPayload.data is `unknown` by design (lib/mcp/types.ts) — callers outside
 // this module have no business assuming its shape. Inside this test we know
@@ -81,6 +82,22 @@ describe("get_daily_report", () => {
     const result = await getDailyReport.handler({ asOf: "2026-07-01" });
     expect(result.freshness).toEqual({ source: "snapshot", asOf: "2026-08-10", note: "stub" });
   });
+
+  // An unchecked asOf used to reach buildRevenueReport untouched. A malformed
+  // date must be refused here, before it can crash the report builder or a
+  // SQL query built from it.
+  it("rejects a malformed asOf naming the argument, never reaching buildRevenueReport", async () => {
+    await expect(getDailyReport.handler({ asOf: "not-a-date" })).rejects.toThrow(McpArgError);
+    await expect(getDailyReport.handler({ asOf: "not-a-date" })).rejects.toThrow(/asOf/);
+    expect(mocks.buildRevenueReport).not.toHaveBeenCalled();
+  });
+
+  // Date.parse rolls Feb 30 forward to March 2 instead of erroring — shape
+  // alone would let this through.
+  it("rejects a calendar-impossible asOf (Feb 30)", async () => {
+    await expect(getDailyReport.handler({ asOf: "2026-02-30" })).rejects.toThrow(McpArgError);
+    expect(mocks.buildRevenueReport).not.toHaveBeenCalled();
+  });
 });
 
 describe("get_report_file", () => {
@@ -120,5 +137,11 @@ describe("get_report_file", () => {
   it("base64-encodes the xlsx renderer's bytes when format is xlsx", async () => {
     const result = asFile((await getReportFile.handler({ asOf: "2026-08-10", format: "xlsx" })).data);
     expect(Buffer.from(result.base64, "base64").toString()).toBe("xlsx-bytes");
+  });
+
+  it("rejects a malformed asOf naming the argument, never reaching buildRevenueReport", async () => {
+    await expect(getReportFile.handler({ asOf: "not-a-date" })).rejects.toThrow(McpArgError);
+    await expect(getReportFile.handler({ asOf: "not-a-date" })).rejects.toThrow(/asOf/);
+    expect(mocks.buildRevenueReport).not.toHaveBeenCalled();
   });
 });

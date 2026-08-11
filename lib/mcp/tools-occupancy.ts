@@ -10,6 +10,7 @@ import { z } from "zod";
 import { getOccupancyRollup, type OccupancyRollup } from "@/lib/db";
 import { easternToday, monthStart } from "@/lib/dates";
 import { PROPERTIES } from "@/config/properties";
+import { parseYmdArg, ymdArgSchema } from "./args";
 import { bucketRange, type Bucket, type Granularity } from "./buckets";
 import { propertySummary, resolveProperties } from "./properties";
 import { snapshotFreshness } from "./freshness";
@@ -113,8 +114,8 @@ export const OCCUPANCY_TOOLS: McpToolDef[] = [
     description:
       "Occupancy %, rooms sold, out-of-order nights, room revenue, ADR and RevPAR for a date range, per property. Weekly and monthly figures are a ratio of sums over the bucket.",
     inputSchema: z.object({
-      from: z.string().describe("Start date, YYYY-MM-DD (inclusive)."),
-      to: z.string().describe("End date, YYYY-MM-DD (inclusive)."),
+      from: ymdArgSchema.describe("Start date, YYYY-MM-DD (inclusive)."),
+      to: ymdArgSchema.describe("End date, YYYY-MM-DD (inclusive)."),
       granularity: z.enum(["daily", "weekly", "monthly"]).default("daily"),
       properties: propertiesArg,
     }),
@@ -144,10 +145,10 @@ export const OCCUPANCY_TOOLS: McpToolDef[] = [
     description:
       "One call for 'how are we doing': MTD and YTD occupancy, room revenue, ADR and RevPAR for every active property and the portfolio.",
     inputSchema: z.object({
-      asOf: z.string().optional().describe("Date to measure to, YYYY-MM-DD. Defaults to today (Eastern)."),
+      asOf: ymdArgSchema.optional().describe("Date to measure to, YYYY-MM-DD. Defaults to today (Eastern)."),
     }),
     handler: async (args: { asOf?: string }) => {
-      const asOf = args.asOf ?? easternToday();
+      const asOf = args.asOf ? parseYmdArg("asOf", args.asOf) : easternToday();
       const { properties, excluded } = resolveProperties();
       const codes = properties.map((p) => p.code);
       const yearStart = `${asOf.slice(0, 4)}-01-01`;

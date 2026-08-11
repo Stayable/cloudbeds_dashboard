@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { rollupToRows, OCCUPANCY_TOOLS } from "./tools-occupancy";
 import { bucketRange } from "./buckets";
+import { McpArgError } from "./types";
 import type { OccupancyRollup } from "@/lib/db";
 
 // Builds a fixture with REAL per-day occupied/inventory/roomRev/ooo, not just
@@ -150,6 +151,19 @@ describe("OCCUPANCY_TOOLS", () => {
     expect(data as any).toHaveProperty("ytd");
     expect(data as any).toHaveProperty("excluded");
     expect(freshness).toBeTruthy();
+  });
+
+  // asOf used to reach getOccupancyRollup unchecked — a malformed date would
+  // silently build a garbage yearStart string rather than erroring.
+  it("get_portfolio_summary rejects a malformed asOf, naming the argument", async () => {
+    const tool = OCCUPANCY_TOOLS.find((t) => t.name === "get_portfolio_summary")!;
+    await expect(tool.handler({ asOf: "not-a-date" })).rejects.toThrow(McpArgError);
+    await expect(tool.handler({ asOf: "not-a-date" })).rejects.toThrow(/asOf/);
+  });
+
+  it("get_portfolio_summary rejects a calendar-impossible asOf (Feb 30)", async () => {
+    const tool = OCCUPANCY_TOOLS.find((t) => t.name === "get_portfolio_summary")!;
+    await expect(tool.handler({ asOf: "2026-02-30" })).rejects.toThrow(McpArgError);
   });
 
   it("no declared tool exposes a guest-identifying field on its handler output shape", async () => {
