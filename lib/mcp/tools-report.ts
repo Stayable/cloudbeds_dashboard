@@ -13,23 +13,19 @@ import { buildRevenueReport } from "@/lib/cloudbeds";
 import { renderReportPdf } from "@/lib/report-pdf";
 import { renderReportXlsx } from "@/lib/report-xlsx";
 import { easternToday, shiftYmd } from "@/lib/dates";
+import { reportFileBase } from "@/lib/revenue-report";
 import { snapshotFreshness } from "./freshness";
 import type { McpToolDef } from "./types";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-/** Monica's naming convention (verified against the real published files in
- *  outputs/, e.g. "Occupancy Report as of August 1, 2026.pdf"): the file is
- *  named for the day AFTER the stay date, because the report is published the
- *  next morning. Keeping it identical means a file pulled here and one pulled
- *  from the dashboard are the same file by name as well as by content. */
+/** Delegates to the canonical `reportFileBase` (lib/revenue-report.ts), which
+ *  already implements Monica's naming convention and already backs four call
+ *  sites (report-file route, Teams cron, render-report script, report-card).
+ *  A local reimplementation here would be a fifth definition of the same rule
+ *  — exactly the failure mode this repo has been bitten by before: it agrees
+ *  with the canonical one today and silently diverges the first time someone
+ *  fixes an edge case there but not here. Just appends the extension. */
 export function reportFilename(asOf: string, format: "pdf" | "xlsx"): string {
-  const published = shiftYmd(asOf, 1);
-  const [y, m, d] = published.split("-");
-  return `Occupancy Report as of ${MONTHS[Number(m) - 1]} ${Number(d)}, ${y}.${format}`;
+  return `${reportFileBase(asOf)}.${format}`;
 }
 
 export const REPORT_TOOLS: McpToolDef[] = [
