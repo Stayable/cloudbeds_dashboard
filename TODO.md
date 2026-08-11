@@ -9,16 +9,15 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > **Pickup — 08/11/26 (ET). NOTHING DEPLOYED. Branch pushed through `1626dc1`.**
 > TWO plans are live in this repo and they are separate — do not merge their
 > ledgers:
-> - `docs/superpowers/plans/2026-08-11-mcp-server.md` — **1 of 10 tasks done**
+> - `docs/superpowers/plans/2026-08-11-mcp-server.md` — **1 of 10 tasks done,
+>   reviewed clean; resume at Task 2, BASE `5b3fab8`**
 >   (ledger `.superpowers/sdd/2026-08-11-mcp-server/progress.md`)
 > - `docs/superpowers/plans/2026-08-10-knowledgebase-kb.md` — **7 of 10 done,
 >   HELD** (ledger `.superpowers/sdd/2026-08-10-knowledgebase-kb/progress.md`)
 >
-> **[!] UNCOMMITTED WORK IN THE TREE AT CHECKPOINT.** `lib/mcp/auth.ts`,
-> `lib/mcp/auth.test.ts`, `middleware.ts` — the Task 1 fix round, dispatched but
-> not finished. Cheap to lose: the exact fix is written out in the MCP ledger.
-> Either let the agent finish and commit, or `git checkout --` those three and
-> re-dispatch from the ledger entry.
+> **[x] TASK 1 IS COMPLETE AND REVIEWED CLEAN** (`5b3fab8`). The fix round landed
+> after the checkpoint was written: the tree is clean, everything is pushed, and
+> the earlier "uncommitted work" warning no longer applies. **440 tests.**
 >
 > **[x] MCP SERVER — DESIGNED, APPROVED, PLANNED, AND THE ENDPOINT IS ALIVE.**
 > Rob (CEO) will connect from Claude Desktop by pasting one HTTPS URL. Kyle's
@@ -83,14 +82,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > discount %, the deposit amount.
 >
 > **▶ NEXT SESSION — START HERE:**
-> 1. **[~] Finish the MCP Task 1 fix** (uncommitted, above), re-review, commit.
-> 2. **[ ] MCP Tasks 2-9.** ~2 hours. Task 5 is the one likely to overrun — see
+> 1. **[ ] MCP Tasks 2-9.** ~2 hours. Task 5 is the one likely to overrun — see
 >    the plan's Self-Review on `rollupToRows` reconstructing per-day counts from
 >    per-day percentages.
-> 3. **[?] Kyle: the four SharePoint files + the four content rulings** → KB
+> 2. **[?] Kyle: the four SharePoint files + the four content rulings** → KB
 >    Task 9.
-> 4. **[?] Kyle: set `MCP_SECRET` in Vercel** → MCP Task 10.
-> 5. **[?] KB open decision:** `kb_queries` stores raw search strings, so a guest
+> 3. **[?] Kyle: set `MCP_SECRET` in Vercel** → MCP Task 10.
+> 4. **[?] KB open decision:** `kb_queries` stores raw search strings, so a guest
 >    name typed into the box is persisted. Accept / redact / retention window?
 
 ---
