@@ -30,6 +30,11 @@ export function buildMcpServer(server: McpServer): void {
       async (args: unknown) => {
         try {
           const payload = await tool.handler(args);
+          if (!payload || typeof payload !== "object" || !("freshness" in payload) || !payload.freshness?.note) {
+            // A tool that answers without stating how current its data is will be
+            // quoted as current. Refuse rather than mislead — spec §7.
+            throw new Error(`${tool.name} returned no freshness envelope`);
+          }
           return { content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }] };
         } catch (e) {
           // A caller mistake gets its own message so the model can correct
