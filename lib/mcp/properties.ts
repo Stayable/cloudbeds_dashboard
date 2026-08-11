@@ -78,7 +78,26 @@ export function resolveProperties(
 
 /** The identity fields a tool may return. Deliberately explicit rather than
  *  spreading the Property: a new internal field on Property must not silently
- *  become part of the public tool output. */
+ *  become part of the public tool output.
+ *
+ *  Final review, Critical 2: `excludeFromAggregate`, `capacityAdjustment` and
+ *  `adjustmentNote` were added so a model computing its OWN portfolio figure
+ *  (e.g. from get_occupancy's per-property `rows`) has the same information
+ *  the dashboard's aggregates already use to exclude Jacksonville North and
+ *  adjust Kissimmee East — without them, the exclusion rule was invisible to
+ *  the model and it was as likely to include JN as not. Tools that already
+ *  compute a `portfolio` total apply the rule themselves (see
+ *  AGGREGATE_EXCLUDED_CODES in tools-occupancy.ts); these fields exist for the
+ *  case where the model reasons over `rows` directly instead. */
 export function propertySummary(p: Property) {
-  return { id: p.id, code: p.code, name: p.name, county: p.county, active: p.active };
+  return {
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    county: p.county,
+    active: p.active,
+    excludeFromAggregate: p.excludeFromAggregate === true,
+    capacityAdjustment: p.capacityAdjustment ?? null,
+    adjustmentNote: p.adjustmentNote ?? null,
+  };
 }

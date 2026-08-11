@@ -100,6 +100,29 @@ describe("resolveProperties", () => {
 describe("propertySummary", () => {
   it("exposes identity fields and nothing else", () => {
     const s = propertySummary(PROPERTIES.find((p) => p.id === "4645")!);
-    expect(Object.keys(s).sort()).toEqual(["active", "code", "county", "id", "name"]);
+    expect(Object.keys(s).sort()).toEqual(
+      ["active", "adjustmentNote", "capacityAdjustment", "code", "county", "excludeFromAggregate", "id", "name"].sort(),
+    );
+  });
+
+  // Critical 2: without this flag visible, a model building its own portfolio
+  // total from get_occupancy's per-property rows has no way to know Jacksonville
+  // North must be left out.
+  it("surfaces excludeFromAggregate for Jacksonville North", () => {
+    const jn = propertySummary(PROPERTIES.find((p) => p.code === "JN")!);
+    expect(jn.excludeFromAggregate).toBe(true);
+  });
+
+  it("surfaces the capacity adjustment for Kissimmee East", () => {
+    const ke = propertySummary(PROPERTIES.find((p) => p.code === "KE")!);
+    expect(ke.capacityAdjustment).toBe(-20);
+    expect(ke.adjustmentNote).toMatch(/renovation/i);
+  });
+
+  it("defaults excludeFromAggregate to false and the adjustment fields to null for an ordinary property", () => {
+    const ll = propertySummary(PROPERTIES.find((p) => p.code === "LL")!);
+    expect(ll.excludeFromAggregate).toBe(false);
+    expect(ll.capacityAdjustment).toBeNull();
+    expect(ll.adjustmentNote).toBeNull();
   });
 });
