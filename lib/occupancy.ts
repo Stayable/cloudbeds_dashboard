@@ -6,6 +6,7 @@
 import type { OccProperty } from "@/components/OccupancyView";
 import type { PropertyDashboard } from "@/lib/cloudbeds";
 import type { OccupancyRollup } from "@/lib/db";
+import { DAILY_CAPTURE_ET_HOUR, shiftYmd } from "@/lib/dates";
 
 /**
  * Combine the live portfolio snapshot (getPortfolio) with the banked
@@ -117,4 +118,57 @@ export function adjustedOcc(
   const eff = p.capacity + p.adjustment;
   if (p.capacity <= 0 || eff <= 0) return null;
   return p.rawOcc * (p.capacity / eff);
+}
+
+/** Explains a blank occupancy view when the blank is expected, not a bug
+ *  (Kyle, CEO bug report, 08/10/26).
+ *
+ *  Root cause: yesterday's real occupancy/revenue is banked at 06:00 ET
+ *  (`app/api/cron/capture-daily`; backstopped by revenue-report's 10:30 ET
+ *  run). A separate, earlier cron (`capture-blocks`, 03:00 UTC) writes a row
+ *  for the same stay date containing out-of-order rooms ONLY — nights,
+ *  revenue and inventory all zero. `getOccupancyRollup` filters on
+ *  `nights > 0 AND inventory > 0`, so that blocks-only row is invisible to
+ *  every occupancy surface — "no row yet" and "blocks-only row" render
+ *  identically. Between midnight and 06:00 ET, that makes a normal pending
+ *  capture look exactly like an outage.
+ *
+ *  Returns the explanatory sentence ONLY when the blank is plausibly that
+ *  pending capture: nothing has landed for ANY property, and the range
+ *  reaches a day that has not yet had its chance to be captured. Returns
+ *  null otherwise — deliberately, so a genuinely empty/old range or an
+ *  outage that persists past the capture window is never hidden behind a
+ *  reassuring message:
+ *    - `reportingCount > 0`: some data landed, so a blank elsewhere in the
+ *      range is a different problem (or just an unconfigured property).
+ *    - `rangeEnd` short of yesterday: an old range with zero data is a real
+ *      gap, not a pending capture.
+ *    - current time at/past the capture hour: if it's still all-zero after
+ *      06:00 ET, the capture failed — that must surface as an outage, not
+ *      get papered over.
+ *
+ *  `todayEastern`/`easternMinutes` are passed in (not read from `new Date()`
+ *  here) so this stays a pure function callers can pass server-computed,
+ *  request-time values into — the same reason `lib/dates.ts` threads
+ *  `now`/`easternMinutesNow()` through rather than calling `Date.now()`
+ *  itself. */
+export function pendingCaptureNote(
+  rangeEnd: string,
+  reportingCount: number,
+  todayEastern: string,
+  easternMinutes: number,
+): string | null {
+  if (reportingCount > 0) return null;
+
+  const yesterday = shiftYmd(todayEastern, -1);
+  if (rangeEnd !== todayEastern && rangeEnd !== yesterday) return null;
+
+  if (easternMinutes >= DAILY_CAPTURE_ET_HOUR * 60) return null;
+
+  const h12 = ((DAILY_CAPTURE_ET_HOUR + 11) % 12) + 1;
+  const ampm = DAILY_CAPTURE_ET_HOUR < 12 ? "AM" : "PM";
+  return (
+    `Yesterday's occupancy is captured at ${h12}:00 ${ampm} ET each morning. ` +
+    "It hasn't landed yet — the live figures above are current."
+  );
 }

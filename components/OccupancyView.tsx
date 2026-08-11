@@ -176,9 +176,17 @@ const DAILY_COLS: ExportColumn<Daily>[] = [
 export default function OccupancyView({
   properties,
   exportDate,
+  pendingNote = null,
 }: {
   properties: OccProperty[];
   exportDate: string; // YYYY-MM-DD, for export filenames
+  /** From lib/occupancy.ts's `pendingCaptureNote`, computed server-side (it
+   *  needs request-time Eastern clock values, which a client component must
+   *  not compute itself — see that function's own comment). Non-null only
+   *  when the blank below is explained by the 06:00 ET capture not having
+   *  landed yet, not a genuine gap or outage. Optional so the other surfaces
+   *  that render this component (ops/monica/crystal) are unaffected. */
+  pendingNote?: string | null;
 }) {
   const [included, setIncluded] = useState<Record<string, boolean>>(() => {
     const o: Record<string, boolean> = {};
@@ -252,7 +260,7 @@ export default function OccupancyView({
           </>
         ) : (
           <p className="mt-2 text-[12.5px] text-txt3">
-            No properties selected / no data for range.
+            {pendingNote ?? "No properties selected / no data for range."}
           </p>
         )}
       </Card>

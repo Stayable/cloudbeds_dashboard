@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildOccProperties, displayOcc, adjustedOcc } from "@/lib/occupancy";
+import { buildOccProperties, displayOcc, adjustedOcc, pendingCaptureNote } from "@/lib/occupancy";
+import { DAILY_CAPTURE_ET_HOUR } from "@/lib/dates";
 import type { DashboardData, PropertyDashboard } from "@/lib/cloudbeds";
 import type { OccupancyRollup } from "@/lib/db";
 import type { Property } from "@/config/properties";
@@ -152,5 +153,71 @@ describe("occupancy is derived from snapshots, not Data Insights", () => {
     expect(ke.adr).toBeNull();
     expect(ke.revpar).toBeNull();
     expect(ke.daily).toEqual([]);
+  });
+});
+
+// pendingCaptureNote — the empty-state explanation for "Yesterday" rendering
+// blank between midnight and the 06:00 ET capture (Kyle, CEO bug report,
+// 08/10/26). Bug: report_daily_snapshot gets a row at 03:00 UTC from
+// capture-blocks (OOO only — nights/revenue/inventory all zero), which is
+// invisible to getOccupancyRollup's `nights > 0 AND inventory > 0` filter, so
+// "no row" and "blocks-only row" render identically. The fix moves the real
+// capture to 06:00 ET; this function decides whether the resulting blank grid
+// should explain itself. It must NOT fire for a genuinely empty/old range or
+// for an outage that persists past the capture time — either would hide a
+// real problem behind a reassuring message.
+describe("pendingCaptureNote", () => {
+  const TODAY = "2026-08-11";
+  const YESTERDAY = "2026-08-10";
+  const BEFORE_CAPTURE = DAILY_CAPTURE_ET_HOUR * 60 - 1; // 05:59 ET
+  const AT_CAPTURE = DAILY_CAPTURE_ET_HOUR * 60; // 06:00 ET
+  const AFTER_CAPTURE = DAILY_CAPTURE_ET_HOUR * 60 + 90; // 07:30 ET
+
+  it("explains a blank Yesterday range before the 6am ET capture", () => {
+    const note = pendingCaptureNote(YESTERDAY, 0, TODAY, BEFORE_CAPTURE);
+    expect(note).not.toBeNull();
+    expect(note).toMatch(/6:00 AM ET/);
+  });
+
+  it("explains a blank range ending today before the 6am ET capture", () => {
+    // A custom range whose end is today (or Last7/Last30/month before any of
+    // their days have landed) reaches the same not-yet-captured day.
+    const note = pendingCaptureNote(TODAY, 0, TODAY, BEFORE_CAPTURE);
+    expect(note).not.toBeNull();
+  });
+
+  it("does NOT fire once some properties are reporting — a partial gap is not the same problem", () => {
+    // Negative case: some data means the blank grid isn't the issue this
+    // message explains, even if the range still touches yesterday/today.
+    expect(pendingCaptureNote(YESTERDAY, 3, TODAY, BEFORE_CAPTURE)).toBeNull();
+  });
+
+  it("does NOT fire for an old, genuinely empty range — that is a real outage, not a pending capture", () => {
+    // Negative case: an old range with zero reporting properties must read as
+    // an outage. A reassuring "it hasn't landed yet" message here would hide
+    // the real problem.
+    expect(pendingCaptureNote("2026-07-01", 0, TODAY, BEFORE_CAPTURE)).toBeNull();
+  });
+
+  it("does NOT fire once the capture time has passed and it's still empty — that's a real outage too", () => {
+    expect(pendingCaptureNote(YESTERDAY, 0, TODAY, AFTER_CAPTURE)).toBeNull();
+  });
+
+  it("treats exactly 6:00 ET as already landed, not pending", () => {
+    expect(pendingCaptureNote(YESTERDAY, 0, TODAY, AT_CAPTURE)).toBeNull();
+  });
+
+  it("does NOT fire for a range that ends before yesterday, even at 3am ET", () => {
+    const dayBeforeYesterday = "2026-08-09";
+    expect(pendingCaptureNote(dayBeforeYesterday, 0, TODAY, BEFORE_CAPTURE)).toBeNull();
+  });
+
+  it("reads the same hour the cron uses, so the two can never drift apart", () => {
+    // Sanity check the message text against the shared constant rather than a
+    // literal "6" — this is exactly the "duplicated definitions fail silently"
+    // failure mode (MEMORY.md) if the wording and the cron guard ever diverge.
+    const note = pendingCaptureNote(YESTERDAY, 0, TODAY, BEFORE_CAPTURE);
+    const h12 = ((DAILY_CAPTURE_ET_HOUR + 11) % 12) + 1;
+    expect(note).toContain(`${h12}:00 AM ET`);
   });
 });

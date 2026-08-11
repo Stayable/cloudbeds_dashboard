@@ -4,10 +4,10 @@ import ZonesSection, { type ZoneProperty } from "@/components/ZonesSection";
 import ControlBar, { ControlLabel } from "@/components/ControlBar";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import { Bar, Label, MiniStat } from "@/components/ui";
-import { dayCount, resolveRange } from "@/lib/dates";
+import { dayCount, easternMinutesNow, easternToday, resolveRange } from "@/lib/dates";
 import { getOccupancyRollup } from "@/lib/db";
 import { getPortfolio, getPortfolioRooms } from "@/lib/cloudbeds";
-import { buildOccProperties } from "@/lib/occupancy";
+import { buildOccProperties, pendingCaptureNote } from "@/lib/occupancy";
 import { buildZoneGroups } from "@/lib/zones";
 import { ZONE_CONFIG } from "@/config/zones";
 
@@ -62,6 +62,12 @@ export default async function DashboardPage({
   const configuredCount = properties.filter((p) => p.configured).length;
   const days = dayCount(start, end);
   const rangeLabel = start === end ? start : `${start} → ${end}`;
+
+  // "0 of 8 reporting" between midnight and the 06:00 ET capture is expected,
+  // not an outage — see lib/occupancy.ts. Null everywhere else, including
+  // once the capture window has passed and it's STILL empty (that must read
+  // as an outage, not get explained away).
+  const pendingNote = pendingCaptureNote(end, reportingCount, easternToday(), easternMinutesNow());
 
   // Today's live portfolio snapshot (getDashboard) — always TODAY's figures
   // regardless of the selected occupancy range. `arrivals`/`departures` come
@@ -121,7 +127,13 @@ export default async function DashboardPage({
 
   return (
     <>
-      <ControlBar note={`${reportingCount} of ${configuredCount} properties reporting · Eastern`}>
+      <ControlBar
+        note={
+          pendingNote
+            ? `${reportingCount} of ${configuredCount} properties reporting · Eastern — ${pendingNote}`
+            : `${reportingCount} of ${configuredCount} properties reporting · Eastern`
+        }
+      >
         <ControlLabel>Period</ControlLabel>
         <PeriodControls preset={preset} start={start} end={end} />
       </ControlBar>
@@ -209,7 +221,7 @@ export default async function DashboardPage({
         <div className="lg:flex lg:gap-[18px]">
           <SectionNav items={NAV} />
           <div className="min-w-0 flex-1 space-y-6">
-            <OccupancyView properties={properties} exportDate={end} />
+            <OccupancyView properties={properties} exportDate={end} pendingNote={pendingNote} />
             <ZonesSection properties={zoneProperties} exportDate={end} />
           </div>
         </div>

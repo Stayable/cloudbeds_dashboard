@@ -10,10 +10,10 @@ import ChangePin from "@/components/ChangePin";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
 import ContractorSchedule from "@/components/ContractorSchedule";
 import { getContractorSchedule } from "@/lib/contractor-schedule";
-import { dayCount, resolveRange } from "@/lib/dates";
+import { dayCount, easternMinutesNow, easternToday, resolveRange } from "@/lib/dates";
 import { getOccupancyRollup } from "@/lib/db";
 import { getPortfolio, getPortfolioReservations, getPortfolioFinance } from "@/lib/cloudbeds";
-import { buildOccProperties } from "@/lib/occupancy";
+import { buildOccProperties, pendingCaptureNote } from "@/lib/occupancy";
 import { buildRevenueSummary } from "@/lib/revenue";
 import { buildReservationViews } from "@/lib/reservations";
 import { buildFinanceViews } from "@/lib/finance";
@@ -74,6 +74,11 @@ export default async function RobPage({
 
   const properties = buildOccProperties(portfolio, rollup);
   const days = dayCount(start, end);
+  // Same "0 reporting between midnight and 6am ET is expected" explanation
+  // OccupancyView surfaces on `/` — shared component, so wiring it here too
+  // covers Rob's occupancy section instead of leaving it unexplained.
+  const reportingCount = properties.filter((p) => p.rawOcc !== null).length;
+  const pendingNote = pendingCaptureNote(end, reportingCount, easternToday(), easternMinutesNow());
   const revenue = buildRevenueSummary(portfolio, rollup, days);
   const reservationViews = buildReservationViews(reservations);
   const financeViews = buildFinanceViews(finance);
@@ -128,7 +133,7 @@ export default async function RobPage({
               title="Occupancy"
               sub={`${rangeLabel} · ${days} day${days === 1 ? "" : "s"} · Eastern`}
             />
-            <OccupancyView properties={properties} exportDate={end} />
+            <OccupancyView properties={properties} exportDate={end} pendingNote={pendingNote} />
           </section>
 
           {/* Section 3 — Revenue & rate */}
