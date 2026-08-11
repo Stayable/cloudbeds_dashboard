@@ -6,7 +6,7 @@
 // `note` is written as a sentence precisely so the model can quote it.
 
 import { getFinalThrough, getSnapshotFreshness, type EliseSyncStatus } from "@/lib/db";
-import { eliseBanner } from "@/lib/elise-status";
+import { eliseBanner, formatWhen } from "@/lib/elise-status";
 import { PROPERTIES } from "@/config/properties";
 import type { Freshness } from "./types";
 
@@ -53,42 +53,75 @@ export function liveFreshness(nowIso: string): Freshness {
   };
 }
 
-/** Reuses the SAME wording the dashboard shows for a failing sync (`eliseBanner`
- *  in lib/elise-status.ts), so Rob is never told one thing in chat and another
- *  on /ops. `eliseBanner.headline` carries the short "Leasing data is not
- *  updating."/"...has never synced." sentence; `.note` carries the longer
- *  credential-specific detail (BLOCKED_NOTE). We fold `headline` in verbatim
- *  rather than re-deriving our own wording for the same fact. */
+/** Reuses the SAME classification and wording the dashboard shows
+ *  (`eliseBanner` in lib/elise-status.ts), so Rob is never told one thing in
+ *  chat and another on /ops.
+ *
+ *  This switches on `banner.kind` and ONLY `banner.kind` — it does not
+ *  re-derive "failing" / "stale" / "never" from the raw `status` fields.
+ *  That re-derivation is exactly what broke here once already: a version
+ *  that branched on `status.lastAttemptOk` / `status.lastSuccessAt` directly
+ *  collapsed "never attempted" and "attempted, always failed" into one
+ *  generic sentence (losing the reason — Critical 1) and let a `stale`
+ *  status fall through to the healthy branch with no caveat at all
+ *  (Critical 2). `eliseBanner` already did this classification; a second
+ *  definition of it here can only drift from the first.
+ *
+ *  `banner.headline` is the dashboard's short sentence for the kind.
+ *  `banner.note` (present for "never" and "failing") is the longer reason —
+ *  currently the standing EliseAI credential block. It is appended in EVERY
+ *  kind that has one, never dropped, because "why is it broken" is the
+ *  question this module exists to answer alongside "is it broken". */
 export function describeElise(status: EliseSyncStatus, nowIso: string): Freshness {
   const banner = eliseBanner(status, nowIso);
 
-  // Nothing has ever synced: there is no "newest data we hold" to date-stamp.
-  if (!status.lastSuccessAt) {
-    return {
-      source: "elise",
-      asOf: null,
-      note: `${banner.headline} There are no leasing figures to report.`,
-    };
-  }
+  switch (banner.kind) {
+    // Never attempted at all. No data to date — `asOf` stays null.
+    case "never":
+      return {
+        source: "elise",
+        asOf: null,
+        note: `${banner.headline} ${banner.note ?? ""}`.trim(),
+      };
 
-  // A failing (or never-run-since-last-success) sync: state the failure AND
-  // how old the data we are about to quote actually is. This is the case the
-  // whole module exists for — the numbers are real but stale, and nothing in
-  // a chat reply would otherwise say so.
-  if (status.lastAttemptOk === false) {
-    return {
-      source: "elise",
-      asOf: status.lastSuccessAt,
-      note: `${banner.headline} The newest leasing data on hand is from ${status.lastSuccessAt}. ${banner.note ?? ""}`.trim(),
-    };
-  }
+    // Failing now. `status.lastSuccessAt` may still be null here (it has
+    // never once succeeded) or set (it broke after working) — `asOf` follows
+    // whichever is true, and the reason is appended either way.
+    case "failing":
+      return {
+        source: "elise",
+        asOf: status.lastSuccessAt,
+        note: status.lastSuccessAt
+          ? `${banner.headline} The newest leasing data on hand is from ${formatWhen(status.lastSuccessAt, nowIso)}. ${banner.note ?? ""}`.trim()
+          : `${banner.headline} ${banner.note ?? ""}`.trim(),
+      };
 
-  // Healthy: last attempt succeeded, data is current as of that sync.
-  return {
-    source: "elise",
-    asOf: status.lastSuccessAt,
-    note: `Leasing data last synced from EliseAI at ${status.lastSuccessAt}.`,
-  };
+    // Succeeded, but long enough ago that /ops would already be flagging it.
+    // Chat must carry the same caveat instead of presenting old data as current.
+    case "stale":
+      return {
+        source: "elise",
+        asOf: status.lastSuccessAt,
+        note: `${banner.headline} Last successful sync was ${formatWhen(status.lastSuccessAt ?? "", nowIso)}.`,
+      };
+
+    // Healthy: no caveat. A module that cries stale on fresh data gets ignored
+    // the day it needs to be believed.
+    case null:
+      return {
+        source: "elise",
+        asOf: status.lastSuccessAt,
+        note: `Leasing data last synced from EliseAI at ${formatWhen(status.lastSuccessAt ?? "", nowIso)}.`,
+      };
+
+    // Exhaustiveness check: a fifth `kind` added to eliseBanner must fail
+    // `tsc` right here, not fall through and silently drop a caveat — which
+    // is precisely how this module broke twice already.
+    default: {
+      const _exhaustive: never = banner.kind;
+      return _exhaustive;
+    }
+  }
 }
 
 export function smartsheetFreshness(nowIso: string): Freshness {
