@@ -37,8 +37,16 @@ export type LiveRow = {
 
 /** `arrivals`/`departures` come back from Cloudbeds as STRINGS (verified in
  *  lib/cloudbeds.ts). Same parseInt-and-guard pattern app/page.tsx already
- *  uses for the same field, so a malformed string degrades to null rather
- *  than NaN or a silent zero. */
+ *  uses for the same field, so a malformed string (or "") degrades to null
+ *  rather than NaN or a silent zero — Number("") is 0, which is exactly the
+ *  manufactured-zero failure this task exists to prevent, so parseInt was
+ *  chosen over Number for that reason alone.
+ *
+ *  Deliberate, not an oversight: parseInt("3.5", 10) truncates to 3 rather
+ *  than rejecting the value. Arrival/departure counts are integers in every
+ *  real Cloudbeds payload seen so far, so a fractional string would already
+ *  indicate something wrong upstream; truncating is treated as an acceptable
+ *  minor imprecision rather than grounds to null out an otherwise-present count. */
 function parsedCount(raw: string): number | null {
   const n = parseInt(raw, 10);
   return Number.isFinite(n) ? n : null;

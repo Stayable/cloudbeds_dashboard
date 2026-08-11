@@ -136,6 +136,33 @@ describe("liveRows", () => {
     expect(rows[0].oooRooms).toBeNull();
   });
 
+  // Mirror of the previous test: the OOO read succeeds while the DASHBOARD
+  // read fails. oooRooms is computed unconditionally, before the unavailable
+  // branch, so it must survive here as the real summarised count — not null,
+  // and not 0 (0 would be exactly the manufactured-zero failure mode this
+  // task exists to prevent, just moved to a different field).
+  it("still reports the out-of-order count when only the dashboard read failed", () => {
+    const portfolio: PropertyDashboard[] = [
+      {
+        property: property({ id: "4645", code: "LL", name: "Lakeland" }),
+        configured: true,
+        result: { ok: false, status: 429, error: "Cloudbeds returned HTTP 429" },
+        physicalRooms: null,
+      },
+    ];
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ id: "4645", code: "LL", name: "Lakeland" }),
+        configured: true,
+        result: { ok: true, data: [oooRoom(), oooRoom({ room: "102" })] },
+      },
+    ];
+    const rows = liveRows(portfolio, ooo, ["LL"]);
+    expect(rows[0].unavailable).toBe(true);
+    expect(rows[0].arrivals).toBeNull();
+    expect(rows[0].oooRooms).toBe(2);
+  });
+
   it("still reports counts when the out-of-order key is unconfigured but the dashboard key is", () => {
     const portfolio: PropertyDashboard[] = [
       {
