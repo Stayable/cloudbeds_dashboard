@@ -4,6 +4,100 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/11/26 (session 9o) — MCP DELIVERED TO ROB + KATE · "YESTERDAY" DIAGNOSED AND FIXED
+
+> **Pickup — 08/11/26 (ET). ALL SHIPPED. Tree clean, everything pushed at
+> `0a4726d`, production deployment READY.** 598 tests.
+>
+> **[x] MCP SERVER IS LIVE AND IN USE.** Kyle set `MCP_SECRET`, sent Rob the
+> connector, and **Kate is using it too** (Director of Asset Management, Rob's
+> right hand — the data is squarely in her remit, so access is appropriate).
+>
+> **[?] BUT THEY SHARE ONE URL, AND THAT WAS THE TRIGGER I NAMED.** The design
+> is one-secret; there is no per-user identity. Consequences, unchanged and now
+> real: **revocation is all-or-nothing** (rotating breaks both, silently, with no
+> warning to either), and there is **no attribution** — the server cannot tell
+> their calls apart. **Recommended and NOT yet built:** a labelled secret set
+> (`rob:…`, `kate:…`) so each has an independently revocable URL and the route
+> can log which answered. Hours, not days. A third or fourth user is where the
+> OAuth conversation reopens instead.
+>
+> **[x] ROB'S "YESTERDAY IS BLANK" — DIAGNOSED, NOT A FAULT.** Root cause proven
+> from the live store, not inferred:
+> - `capture-blocks` (11pm ET) writes a row with **out-of-order rooms only** —
+>   nights, revenue and inventory all zero. Verified: 08-10 had 8 rows, 0 real
+>   counts, `ooo` populated, written 03:00 UTC.
+> - `getOccupancyRollup` filters `transient_nights + lease_nights > 0 AND
+>   inventory > 0`, so a blocks-only row is **invisible**. "No row" and
+>   "blocks-only row" look identical to every occupancy surface — so OOO was
+>   never the cause, and fixing OOO would have changed nothing.
+> - Occupancy landed at 10:30 ET. Rob looked at 09:51 ET. **Confirmed end to
+>   end:** at 14:30:40 UTC the capture ran and 08-10 went 0 → 8 of 8 unaided.
+> - Last 7 / Last 30 worked because they contain days that already existed.
+>
+> **[x] TWO FIXES SHIPPED (`ff49d8c`, `0a4726d`), reviewed before pushing
+> because a wrong DST guard would mean the capture NEVER runs — worse than the
+> bug:**
+> 1. **Capture moved to 06:00 ET, decoupled from delivery.** New
+>    `/api/cron/capture-daily`; Teams post stays at 10:30 ET and its own
+>    `persistDailySnapshots` call is retained as a backstop (verified a true
+>    no-op on an already-banked row — `bankDailySnapshot`'s WHERE makes Postgres
+>    skip the whole UPDATE, so `ooo` cannot be lowered and `flash_room_rev`
+>    cannot be overwritten). DST arithmetic independently re-derived:
+>    EDT 10:00 UTC → 06:00 ET fires / 11:00 UTC → 07:00 skips; EST 10:00 → 05:00
+>    skips / 11:00 → 06:00 fires. Exactly one per day, year round.
+> 2. **The blank state now explains itself** — *"Yesterday's occupancy is
+>    captured at 6:00 AM ET each morning. It hasn't landed yet — the live figures
+>    above are current."* Fires ONLY when nothing has landed for any property AND
+>    the range reaches yesterday/today AND it is before the capture hour. An old
+>    empty range, or a gap persisting past 6am, still reads as an outage **on
+>    purpose** — the message must never mask a real one. "6:00 AM" is derived
+>    from `DAILY_CAPTURE_ET_HOUR`, the same constant the cron guard reads.
+>
+> **[!] FIRST 6AM RUN IS 10:00 UTC on 08-12 (06:00 ET), banking stay date 08-11.
+> It has never fired in production.** If 08-11 is still empty at ~06:15 ET,
+> the guard rejected both entries — the 10:30 backstop means nothing is lost,
+> but it needs fixing that morning. **Worth checking.**
+>
+> **[?] OPEN — could 6am be earlier?** The blocker is night audit: Cloudbeds
+> posts room charges for a stay date during each property's night audit in the
+> small hours, so reading at midnight would bank near-zero revenue and climb all
+> morning. 6am is defensible because the system already ran at 6am (07-28..08-02)
+> with acceptable drift — 1 of 21 days moved >2% after first capture (max +3.2%),
+> versus max 0.8% in the 10:30 era. **I do NOT know when night audit actually
+> runs.** It is measurable from Cloudbeds transaction timestamps — one probe
+> script. If audits finish by ~2am ET, a 03:00 ET capture is safe. Offered, not
+> yet run.
+>
+> **[!] OOO CAN NEVER JOIN THAT WINDOW.** Blocks erode: the 11pm pass caught 6
+> out-of-order rooms at Davenport on 08-08 where the next morning saw 5. The
+> stored value is the MAX of the two passes, earliest-wins. OOO must be read
+> before midnight and revenue after it — no single capture time can serve both.
+>
+> **[x] Also fixed: Google Fonts was breaking every deploy.** `next/font/google`
+> fetched the typeface during `next build`, so a third-party network call sat in
+> the critical path of every release; Vercel's builder could not reach
+> `fonts.gstatic.com`. **I called it transient and was wrong** — the same commit
+> built at 13:04 and failed on redeploy at 13:19, then failed every retry. Now a
+> committed file via `next/font/local` (`c720b8c`). One file, not four: Google
+> serves IBM Plex Sans as a single variable font and returned byte-identical
+> bytes for all four weights.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[ ] Verify the 6am cron fired** — check `first_captured_at` for stay date
+>    08-11; it should read `08-12 10:00 UTC`, not `14:30`.
+> 2. **[?] Separate URLs for Rob and Kate** — recommended, not built.
+> 3. **[?] Measure night-audit timing** to see whether 6am can tighten toward 3am.
+> 4. **[?] KB Task 9 — still blocked on Kyle:** the four SharePoint files (Bea's
+>    personal OneDrive, unreachable by the M365 connector) and rulings on four
+>    website self-contradictions (check-in 3PM vs 4PM, Lakeland's email, weekly
+>    discount %, deposit amount).
+> 5. **[?] `kb_queries` privacy decision** — raw search text is stored, so a guest
+>    name typed into the box persists. Accept / redact / retention window?
+> 6. **[?] `cloudbeds-mcp02`** — stray Vercel project from June; dead?
+
+---
+
 ## 08/11/26 (session 9n) — MCP SERVER SHIPPED AND DELIVERED TO ROB
 
 > **[x] DELIVERED 08/11/26.** Kyle set `MCP_SECRET` in Vercel Production and sent
