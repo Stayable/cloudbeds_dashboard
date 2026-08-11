@@ -11,16 +11,26 @@
 // tenants and guests. /ops shows them behind a PIN; this surface has a weaker
 // gate and must never carry a name, email, phone number, or free text a guest
 // or manager wrote. See stripReviewsPII below for what that costs.
+//
+// Final review, Critical 3: the contractor schedule carries the SAME risk
+// class, in a column stripReviewsPII's own comment never considered — the
+// sheet's "Latest WhatsApp Update" is a maintenance crew's message copied
+// verbatim, and a message about a hotel room routinely names the occupant
+// ("guest in 214 says the AC is out"), a staff member, or a phone number. The
+// module-level reasoning below used to say "not guest data, passes through
+// unchanged" — true of the contractor/property NAMES, false of the free-text
+// columns riding alongside them. See stripContractorFreeText.
 
 import { z } from "zod";
 import { getEvictions, getOneStarReviews } from "@/lib/smartsheet";
 import { buildReviewsView, type ReviewsView } from "@/lib/reviews";
 import { buildLeasingViews } from "@/lib/leasing";
-import { getContractorSchedule } from "@/lib/contractor-schedule";
+import { getContractorSchedule, type ContractorSchedule } from "@/lib/contractor-schedule";
 import { getEliseFunnel, getElisePipeline, getEliseSyncStatus, getSetting } from "@/lib/db";
 import { easternToday, shiftYmd } from "@/lib/dates";
 import { parseYmdArg, ymdArgSchema } from "./args";
 import { describeElise, smartsheetFreshness } from "./freshness";
+import { mapUpstreamError } from "./error-mapper";
 import type { McpToolDef } from "./types";
 
 /** The 1-star review window: the locked one from Neon if set, else 30 days.
@@ -91,6 +101,73 @@ export function stripReviewsPII(view: ReviewsView): ReviewsSummary {
   };
 }
 
+/** Aggregate-only shape of one contractor-schedule row — no free text. */
+export type ContractorScheduleRowSummary = {
+  contractor: string;
+  property: string;
+  status: string;
+  date: string;
+};
+
+export type ContractorScheduleDaySummary = {
+  key: string;
+  date: string;
+  rows: ContractorScheduleRowSummary[];
+};
+
+/** Aggregate-only shape of the contractor schedule — no free text. */
+export type ContractorScheduleSummary = {
+  sheetName: string;
+  permalink: string;
+  days: ContractorScheduleDaySummary[];
+  defaultKey: string;
+  todayWeekday: string;
+  weekendRows: number;
+  undatedRows: number;
+  totalRows: number;
+};
+
+/**
+ * Strip the two free-text columns — `task` and `update` ("Latest WhatsApp
+ * Update") — out of ContractorSchedule before it can leave the process.
+ *
+ * WHAT THIS STRIPS AND WHY (Critical 3, final review): `ScheduleRow.update`
+ * is a maintenance crew's WhatsApp message copied verbatim into the sheet —
+ * the exact same risk class stripReviewsPII exists to block for 1-star
+ * reviews, on the SAME weaker (no-PIN) gate: a message about a hotel room
+ * routinely names the occupant ("guest in 214 says the AC is out"), a staff
+ * member, or a phone number. `task` is dropped alongside it for the same
+ * reason — a short work-order description can just as easily name a room's
+ * occupant. Contractor and property NAMES are not guest data (they're vendor/
+ * crew identities, unrelated to the /bea exception) and pass through, mirroring
+ * app/rob/page.tsx.
+ *
+ * Built via an explicit field-by-field mapping, like stripReviewsPII, so a new
+ * column added to the sheet later cannot slip through by simply spreading the
+ * row — it has to be added here on purpose.
+ */
+export function stripContractorFreeText(schedule: ContractorSchedule): ContractorScheduleSummary {
+  return {
+    sheetName: schedule.sheetName,
+    permalink: schedule.permalink,
+    days: schedule.days.map((d) => ({
+      key: d.key,
+      date: d.date,
+      rows: d.rows.map((r) => ({
+        contractor: r.contractor,
+        property: r.property,
+        status: r.status,
+        date: r.date,
+      })),
+    })),
+    defaultKey: schedule.defaultKey,
+    todayWeekday: schedule.todayWeekday,
+    weekendRows: schedule.weekendRows,
+    undatedRows: schedule.undatedRows,
+    totalRows: schedule.totalRows,
+  };
+}
+
 export const OPS_TOOLS: McpToolDef[] = [
   {
     name: "get_evictions",
@@ -105,9 +182,14 @@ export const OPS_TOOLS: McpToolDef[] = [
       // is nothing to strip here (verified by reading EvictionsView field by
       // field: key, label, open, closed, total, avgDays, avgDaysToFile).
       const payload = await getEvictions();
+      const ok = payload.configured && !payload.error;
       return {
-        data: { configured: payload.configured, error: payload.error, evictions: payload.views },
-        freshness: smartsheetFreshness(new Date().toISOString()),
+        data: {
+          configured: payload.configured,
+          error: payload.error ? mapUpstreamError("smartsheet", payload.error) : null,
+          evictions: payload.views,
+        },
+        freshness: smartsheetFreshness(new Date().toISOString(), ok),
       };
     },
   },
@@ -115,16 +197,15 @@ export const OPS_TOOLS: McpToolDef[] = [
     name: "get_contractor_schedule",
     title: "This week's contractor schedule",
     description:
-      "The contractor schedule for the current week. The source sheet holds only the current week — there is no history and no forward view.",
+      "The contractor schedule for the current week — contractor, property, status and date, per row. The source sheet holds only the current week — there is no history and no forward view. The sheet's task description and WhatsApp update text are never returned; they routinely name a guest, a room occupant, a staff member or a phone number.",
     inputSchema: z.object({}),
     handler: async () => {
-      // Vendor/crew names on this sheet are NOT guest data (lib/contractor-
-      // schedule.ts) — unrelated to the /bea guest-PII exception — so they
-      // pass through unchanged, matching app/rob/page.tsx.
       const result = await getContractorSchedule();
       return {
-        data: result.ok ? { schedule: result.data } : { error: result.error },
-        freshness: smartsheetFreshness(new Date().toISOString()),
+        data: result.ok
+          ? { schedule: stripContractorFreeText(result.data) }
+          : { error: mapUpstreamError("smartsheet", result.error) },
+        freshness: smartsheetFreshness(new Date().toISOString(), result.ok),
       };
     },
   },
@@ -146,14 +227,15 @@ export const OPS_TOOLS: McpToolDef[] = [
       const [payload, saved] = await Promise.all([getOneStarReviews(), getSetting("ops_reviews_window")]);
       const win = from && to ? { from, to } : defaultReviewWindow(asOf, saved);
       const view = buildReviewsView(payload.reviews, win.from, win.to);
+      const ok = payload.configured && !payload.error;
       return {
         data: {
           configured: payload.configured,
-          error: payload.error,
+          error: payload.error ? mapUpstreamError("smartsheet", payload.error) : null,
           window: win,
           reviews: stripReviewsPII(view),
         },
-        freshness: smartsheetFreshness(new Date().toISOString()),
+        freshness: smartsheetFreshness(new Date().toISOString(), ok),
       };
     },
   },

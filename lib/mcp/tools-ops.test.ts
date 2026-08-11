@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { defaultReviewWindow, stripReviewsPII, OPS_TOOLS } from "./tools-ops";
+import { describe, it, expect, vi } from "vitest";
+import { defaultReviewWindow, stripReviewsPII, stripContractorFreeText, OPS_TOOLS } from "./tools-ops";
 import { McpArgError } from "./types";
 import type { ReviewsView } from "@/lib/reviews";
+import type { ContractorSchedule } from "@/lib/contractor-schedule";
 
 describe("defaultReviewWindow", () => {
   // /ops uses a lockable window stored in Neon so everyone sees the same set of
@@ -81,6 +82,90 @@ describe("stripReviewsPII", () => {
     expect(serialized).not.toMatch(/John Smith|Jane Doe|555-1234|nightmare|spoke with/i);
     // No field that could carry free text in the first place.
     expect(serialized).not.toMatch(/"review"|"managerResponse"|"reviews"/);
+  });
+});
+
+// Critical 3 (final review): the sheet's "Latest WhatsApp Update" and "Task"
+// columns are a maintenance crew's free text — the same risk class
+// stripReviewsPII exists to block, on the same weaker (no-PIN) gate. Build a
+// fake schedule with an obvious "leak" in both free-text fields and assert
+// neither survives.
+describe("stripContractorFreeText", () => {
+  const fakeSchedule: ContractorSchedule = {
+    sheetName: "Contractor Schedule 08-03 to 08-07-26",
+    permalink: "https://app.smartsheet.com/sheets/abc123",
+    defaultKey: "Monday",
+    todayWeekday: "Monday",
+    weekendRows: 0,
+    undatedRows: 0,
+    totalRows: 1,
+    days: [
+      {
+        key: "Monday",
+        date: "2026-08-03",
+        rows: [
+          {
+            contractor: "ABC Roofing",
+            property: "Lakeland",
+            task: "Fix AC in room 214 for guest John Smith",
+            status: "In progress",
+            update: "Spoke with tenant Jane Doe, called her at 555-1234",
+            date: "2026-08-03",
+          },
+        ],
+      },
+      { key: "Tuesday", date: "", rows: [] },
+      { key: "Wednesday", date: "", rows: [] },
+      { key: "Thursday", date: "", rows: [] },
+      { key: "Friday", date: "", rows: [] },
+    ],
+  };
+
+  it("keeps contractor/property/status/date, dropping task and update entirely", () => {
+    const stripped = stripContractorFreeText(fakeSchedule);
+    expect(stripped.days[0].rows[0]).toEqual({
+      contractor: "ABC Roofing",
+      property: "Lakeland",
+      status: "In progress",
+      date: "2026-08-03",
+    });
+  });
+
+  it("carries no free-text field or leaked identity anywhere in the output", () => {
+    const stripped = stripContractorFreeText(fakeSchedule);
+    const serialized = JSON.stringify(stripped);
+    expect(serialized).not.toMatch(/John Smith|Jane Doe|555-1234|room 214/i);
+    // No field that could carry free text in the first place.
+    expect(serialized).not.toMatch(/"task"|"update"/);
+  });
+
+  it("preserves the schedule-level metadata (sheet name, permalink, counts)", () => {
+    const stripped = stripContractorFreeText(fakeSchedule);
+    expect(stripped.sheetName).toBe(fakeSchedule.sheetName);
+    expect(stripped.permalink).toBe(fakeSchedule.permalink);
+    expect(stripped.totalRows).toBe(1);
+    expect(stripped.days).toHaveLength(5);
+  });
+});
+
+describe("get_contractor_schedule error handling (Important 1)", () => {
+  it("never returns the raw upstream error text — maps it through mapUpstreamError", async () => {
+    const tool = OPS_TOOLS.find((t) => t.name === "get_contractor_schedule")!;
+    // Simulate the unconfigured case by clearing the env var the real
+    // getContractorSchedule reads (lib/contractor-schedule.ts readSmartsheetToken).
+    const original = process.env.SMARTSHEET_API_TOKEN;
+    delete process.env.SMARTSHEET_API_TOKEN;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { data, freshness } = await tool.handler({});
+      expect(JSON.stringify(data)).not.toMatch(/SMARTSHEET_API_TOKEN/);
+      expect((data as any).error).toMatch(/not configured/i);
+      expect(freshness.asOf).toBeNull();
+    } finally {
+      spy.mockRestore();
+      if (original === undefined) delete process.env.SMARTSHEET_API_TOKEN;
+      else process.env.SMARTSHEET_API_TOKEN = original;
+    }
   });
 });
 
