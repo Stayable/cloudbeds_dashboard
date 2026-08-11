@@ -121,9 +121,20 @@ describe("describeElise", () => {
 });
 
 describe("smartsheetFreshness", () => {
-  it("is read live from Smartsheet", () => {
-    const f = smartsheetFreshness(NOW);
+  it("is read live from Smartsheet when the read succeeded", () => {
+    const f = smartsheetFreshness(NOW, true);
     expect(f.source).toBe("smartsheet");
     expect(f.asOf).toBe(NOW);
+    expect(f.note).toMatch(/read live/i);
+  });
+
+  // Important 2 regression: an empty result plus a confident "read live just
+  // now" is the misleading combination this exists to prevent — the note
+  // must say the read failed, and asOf must not claim a value we don't have.
+  it("says the read failed rather than claiming a live figure when it did not succeed", () => {
+    const f = smartsheetFreshness(NOW, false);
+    expect(f.asOf).toBeNull();
+    expect(f.note).not.toMatch(/read live from smartsheet at/i);
+    expect(f.note).toMatch(/could not be read|not configured|failed/i);
   });
 });

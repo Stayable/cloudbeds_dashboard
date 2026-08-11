@@ -124,10 +124,22 @@ export function describeElise(status: EliseSyncStatus, nowIso: string): Freshnes
   }
 }
 
-export function smartsheetFreshness(nowIso: string): Freshness {
+/**
+ * Final review, Important 2: this used to say "Read live from Smartsheet at
+ * <now>" UNCONDITIONALLY — including when the caller's Smartsheet read had
+ * `configured === false` (no token set) or `error !== null` (the read
+ * attempted and failed). Empty data plus a confident "read live just now" is
+ * the exact misleading combination spec §7 exists to prevent: it asserts a
+ * read that did not happen. `ok` is now required from the caller (each of the
+ * three tools that call this computes it as `configured && !error`) rather
+ * than defaulting to true, so a call site cannot forget to pass it and slide
+ * back into the old unconditional wording. */
+export function smartsheetFreshness(nowIso: string, ok: boolean): Freshness {
   return {
     source: "smartsheet",
-    asOf: nowIso,
-    note: `Read live from Smartsheet at ${nowIso}.`,
+    asOf: ok ? nowIso : null,
+    note: ok
+      ? `Read live from Smartsheet at ${nowIso}.`
+      : `Smartsheet could not be read at ${nowIso}, so there is no live figure for this call.`,
   };
 }

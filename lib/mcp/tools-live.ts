@@ -16,6 +16,7 @@ import { getPortfolio, getPortfolioOoo, summarizeOoo, type PropertyDashboard, ty
 import { easternToday } from "@/lib/dates";
 import { resolveProperties, propertySummary } from "./properties";
 import { liveFreshness } from "./freshness";
+import { mapUpstreamError } from "./error-mapper";
 import type { McpToolDef } from "./types";
 
 export type LiveRow = {
@@ -70,10 +71,17 @@ export function liveRows(portfolio: PropertyDashboard[], ooo: PropertyOoo[], cod
 
     if (!p || !p.configured || !p.result?.ok) {
       const name = p?.property.name;
+      // Final review, Important 1: `p.result.error` used to ride straight
+      // into this note unscrubbed — it can be "Network error reaching
+      // Cloudbeds: <raw exception text>", which is exactly the kind of detail
+      // spec §8 says must never leave the process for a third-party desktop
+      // client. mapUpstreamError is the one shared translation (also used by
+      // tools-ops.ts) so this doesn't grow a second, slightly different
+      // version of the same idea.
       const reason = p?.configured === false
         ? "no Cloudbeds key is configured for this property."
         : p?.result && !p.result.ok
-          ? `Cloudbeds returned an error: ${p.result.error}`
+          ? mapUpstreamError("cloudbeds", p.result.error)
           : "Cloudbeds did not respond.";
       return {
         code,
