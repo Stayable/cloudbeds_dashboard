@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardHead, PageHead } from "@/components/ui";
+import { Card, CardHead, PageHead, TONE_CLASSES } from "@/components/ui";
 import { getCorpus, getDocument } from "@/lib/kb-corpus";
 import { renderMarkdown } from "@/lib/kb-markdown";
 import { snapshotAge } from "@/lib/kb-parse";
@@ -46,8 +46,11 @@ export default async function KbDocPage({ params }: { params: Promise<{ slug: st
 
       <div
         className={
+          // Colour triple shared with Notice via TONE_CLASSES (components/ui.tsx) —
+          // one meaning, one definition, so a warn-palette retune reaches this
+          // badge too. Layout classes (padding/radius/flex) stay page-local.
           "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border px-4 py-2.5 text-[12.5px] " +
-          (age.stale ? "border-warn/30 bg-warnbg text-warn" : "border-line bg-surface2 text-txt3")
+          (age.stale ? TONE_CLASSES.warn : TONE_CLASSES.muted)
         }
       >
         <span className="font-semibold">{age.text}</span>

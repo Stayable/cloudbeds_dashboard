@@ -436,6 +436,17 @@ export function FreshnessStrip({
   );
 }
 
+/** Tone → colour-triple (border/bg/text) classes, defined ONCE. `Notice` uses
+ *  this directly; any other surface needing the same warn/muted/neg colours
+ *  (e.g. the kb snapshot-age badge) reads from here too — one meaning, one
+ *  definition, so a retune of the warning palette reaches every surface at
+ *  once instead of drifting silently out of sync. */
+export const TONE_CLASSES: Record<"muted" | "warn" | "neg", string> = {
+  muted: "border-line bg-surface2 text-txt3",
+  warn: "border-warn/30 bg-warnbg text-warn",
+  neg: "border-neg/30 bg-negbg text-neg",
+};
+
 /** Inline notice — used for "awaiting key", "no data", error states. */
 export function Notice({
   tone = "muted",
@@ -444,13 +455,8 @@ export function Notice({
   tone?: "muted" | "warn" | "neg";
   children: ReactNode;
 }) {
-  const tones = {
-    muted: "border-line bg-surface2 text-txt3",
-    warn: "border-warn/30 bg-warnbg text-warn",
-    neg: "border-neg/30 bg-negbg text-neg",
-  } as const;
   return (
-    <div className={`rounded-[10px] border px-4 py-6 text-center text-sm ${tones[tone]}`}>
+    <div className={`rounded-[10px] border px-4 py-6 text-center text-sm ${TONE_CLASSES[tone]}`}>
       {children}
     </div>
   );
