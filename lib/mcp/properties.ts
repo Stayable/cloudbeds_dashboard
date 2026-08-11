@@ -36,11 +36,34 @@ export function resolveProperty(input: string): Property {
   throw new McpArgError(`"${input}" is not a Stayable property. Valid properties: ${validOptions()}.`);
 }
 
-/** Resolve a list, or every ACTIVE property when the caller names none.
- *  Defaulting to active-only keeps a portfolio question from being dragged down
- *  by a property that is not trading. */
-export function resolveProperties(input?: string[]): Property[] {
-  if (!input || input.length === 0) return PROPERTIES.filter((p) => p.active === true);
+/** Resolve a list, or the default portfolio when the caller names none.
+ *
+ *  `active` is typed `boolean | "unconfirmed"` because that third state really
+ *  happens. If a property is ever sitting in it, a no-argument portfolio
+ *  question would otherwise return fewer than all eight hotels with nothing in
+ *  the result saying so — a confident answer over a narrower scope than was
+ *  asked, the same failure this module exists to prevent, just moved from name
+ *  resolution to the default set. So the default branch returns `excluded`
+ *  alongside `properties`: whatever didn't make the active set, named, so the
+ *  caller can say so out loud instead of the gap being silent.
+ *
+ *  When the caller names properties explicitly, they asked for exactly those,
+ *  so nothing was dropped on their behalf and `excluded` is always empty.
+ *
+ *  `source` defaults to the real `PROPERTIES` list; it exists so a test can
+ *  point this at a fixture and prove the filter actually does something,
+ *  rather than relying on the fact that all 8 real properties currently
+ *  happen to be `active: true`. */
+export function resolveProperties(
+  input?: string[],
+  source: Property[] = PROPERTIES,
+): { properties: Property[]; excluded: Property[] } {
+  if (!input || input.length === 0) {
+    return {
+      properties: source.filter((p) => p.active === true),
+      excluded: source.filter((p) => p.active !== true),
+    };
+  }
   const seen = new Set<string>();
   const out: Property[] = [];
   for (const name of input) {
@@ -50,7 +73,7 @@ export function resolveProperties(input?: string[]): Property[] {
       out.push(p);
     }
   }
-  return out;
+  return { properties: out, excluded: [] };
 }
 
 /** The identity fields a tool may return. Deliberately explicit rather than
