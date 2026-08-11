@@ -56,6 +56,16 @@ that is not proportionate.
 - **Anyone holding the URL has full read access.** A screenshare of Rob's
   connector settings leaks it. There is no per-user identity and no per-user
   revocation — rotation is all-or-nothing.
+- **The secret lands in logs, permanently.** A path segment is recorded in
+  Vercel's request logs and in anything downstream of them, in plaintext and
+  retained. This is the sharpest edge of the capability-URL design and it
+  changes what rotation means: **anyone who has ever had project log access
+  holds the secret for as long as those logs exist**, and rotating it does not
+  reach them. Found in the final review, 08/11/26 — recorded here so it is a
+  known property rather than a later discovery. An `Authorization: Bearer`
+  header would not have this problem, which is the strongest argument the OAuth
+  option had; it was still judged not worth its cost for one reader of
+  aggregate figures.
 - **It is outside the MCP authorization spec, deliberately.** That spec forbids
   putting *OAuth bearer tokens* in a URI. A secret path segment is not an OAuth
   token; it is a capability URL, and we are opting out of the auth flow rather
