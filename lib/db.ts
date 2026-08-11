@@ -966,15 +966,24 @@ export async function getReportSnapshots(
 
 /** Earliest banked stay_date for a property (or across all if null), as
  *  YYYY-MM-DD. Null if no snapshots exist yet. Backs the report's
- *  "tracking since" note. */
+ *  "tracking since" note.
+ *
+ *  Same fix as getEarliestCountsDate below, same reason (final review,
+ *  Important 4): this was the first of two queries in this file missing a
+ *  try/catch, and `getRevenueReportInputs` calls it unconditionally — a dead
+ *  Neon connection took buildRevenueReport down with it instead of degrading. */
 export async function getEarliestSnapshotDate(propertyCode: string | null): Promise<string | null> {
-  const sql = db();
-  const rows = (await sql`
-    select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
-    from report_daily_snapshot
-    where ${propertyCode}::text is null or property_code = ${propertyCode}
-  `) as { min_date: string | null }[];
-  return rows[0]?.min_date ?? null;
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
+      from report_daily_snapshot
+      where ${propertyCode}::text is null or property_code = ${propertyCode}
+    `) as { min_date: string | null }[];
+    return rows[0]?.min_date ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Rate-plan drift alerting (07/28/26) ------------------------------------
@@ -1047,16 +1056,29 @@ export async function upsertRevenueSnapshot(
 /** Earliest stay_date with a real (non-zero) count snapshot — i.e. banked by
  *  the daily cron, not just the revenue backfill — for a property (or across
  *  all if null). Null if no counts have been banked yet. Backs the report's
- *  "counts accumulate since" caveat. */
+ *  "counts accumulate since" caveat.
+ *
+ *  Found while adding the MCP manifest's output-PII sweep (final review,
+ *  Important 4): this was the one query in this file with no try/catch, so a
+ *  dead Neon connection didn't degrade `buildRevenueReport` the way every
+ *  sibling query here degrades — it threw straight out of
+ *  `getEarliestCountsDate(null)` (buildRevenueReport's unconditional,
+ *  portfolio-wide call), taking /report, get_daily_report and get_report_file
+ *  down with it instead of returning a report with an honest "no counts
+ *  banked yet" caveat. Matches every other function in this file. */
 export async function getEarliestCountsDate(propertyCode: string | null): Promise<string | null> {
-  const sql = db();
-  const rows = (await sql`
-    select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
-    from report_daily_snapshot
-    where (${propertyCode}::text is null or property_code = ${propertyCode})
-      and (transient_nights + lease_nights + other_blocks + ooo) > 0
-  `) as { min_date: string | null }[];
-  return rows[0]?.min_date ?? null;
+  try {
+    const sql = db();
+    const rows = (await sql`
+      select to_char(min(stay_date), 'YYYY-MM-DD') as min_date
+      from report_daily_snapshot
+      where (${propertyCode}::text is null or property_code = ${propertyCode})
+        and (transient_nights + lease_nights + other_blocks + ooo) > 0
+    `) as { min_date: string | null }[];
+    return rows[0]?.min_date ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Knowledgebase query log (spec §8) --------------------------------------

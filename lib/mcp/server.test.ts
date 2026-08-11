@@ -24,7 +24,15 @@ const EXPECTED = [
 // folio (guest-scoped Cloudbeds objects), occupant/tenant (the other names
 // this repo uses for the same person). Widen this list if a future PII
 // review finds another synonym slipping through.
-const PII_FIELD_PATTERN = /guest|surname|email|phone|reservation|folio|occupant|tenant/i;
+//
+// `(?<!port)folio` — found while adding the Important-4 OUTPUT sweep below,
+// which reuses this same pattern: get_occupancy/get_portfolio_summary's new
+// `portfolio` field (Critical 2) contains "folio" as a bare substring
+// ("port" + "folio"), so the un-anchored pattern flagged a legitimate,
+// PII-free field name as a leak. The lookbehind excludes exactly that one
+// collision without weakening the real check — "folioNumber", "guestFolio"
+// etc. still match, because none of them are preceded by "port".
+const PII_FIELD_PATTERN = /guest|surname|email|phone|reservation|(?<!port)folio|occupant|tenant/i;
 
 /**
  * Walks every tool's inputSchema field-by-field — names AND each field's
@@ -156,6 +164,62 @@ describe("the guest-PII field check", () => {
       }),
     });
     expect(() => assertNoGuestPii([fine])).not.toThrow();
+  });
+});
+
+/**
+ * Final review, Important 4: `assertNoGuestPii` only ever walked each tool's
+ * INPUT schema — spec §6 promised a test asserting no tool's OUTPUT contains
+ * a name-shaped field, and that half was never built. Critical 3 (the
+ * contractor schedule forwarding a WhatsApp free-text column) is exactly the
+ * shape of leak this gap let through: an input-schema sweep can never see it,
+ * because the leak lives entirely in what a handler RETURNS.
+ *
+ * Calls every handler through the SAME wrapped path a real MCP request takes
+ * (buildMcpServer's registerTool callback — mirroring "the freshness guard"
+ * block below), with a minimal valid argument set, and regexes the serialized
+ * response text against PII_FIELD_PATTERN. Every I/O boundary in this surface
+ * already degrades to a safe default or a scrubbed error on a dead
+ * DB/Cloudbeds/Smartsheet (freshness.ts, error-mapper.ts, and the try/catch on
+ * every lib/db.ts query) — verified by running this with none of
+ * DATABASE_URL / CLOUDBEDS_API_KEY_* / SMARTSHEET_API_TOKEN set, exactly this
+ * repo's default local/CI environment.
+ */
+describe("the tool manifest's OUTPUT (Important 4)", () => {
+  const MINIMAL_ARGS: Record<string, unknown> = {
+    list_properties: {},
+    get_occupancy: { from: "2026-08-01", to: "2026-08-01" },
+    get_portfolio_summary: {},
+    get_daily_report: {},
+    get_report_file: {},
+    get_today: {},
+    get_evictions: {},
+    get_contractor_schedule: {},
+    get_reviews: {},
+    get_leasing_funnel: {},
+  };
+
+  it("has an argument set for every tool currently in the manifest", () => {
+    // A tool added later with no entry above would otherwise be silently
+    // skipped by the sweep below rather than failing loudly.
+    expect(Object.keys(MINIMAL_ARGS).sort()).toEqual(ALL_TOOLS.map((t) => t.name).sort());
+  });
+
+  it("no tool's output contains a name-shaped field, called end to end with no live credentials", async () => {
+    const registered: Record<string, (a: unknown) => Promise<any>> = {};
+    const fakeServer = {
+      registerTool: (name: string, _cfg: unknown, handler: (a: unknown) => Promise<any>) => {
+        registered[name] = handler;
+      },
+    };
+    buildMcpServer(fakeServer as any);
+
+    for (const tool of ALL_TOOLS) {
+      const res = await registered[tool.name](MINIMAL_ARGS[tool.name]);
+      const text = res.content?.[0]?.text as string;
+      expect(text, `${tool.name} returned no text content`).toBeTruthy();
+      expect(text, `${tool.name} output`).not.toMatch(PII_FIELD_PATTERN);
+    }
   });
 });
 
