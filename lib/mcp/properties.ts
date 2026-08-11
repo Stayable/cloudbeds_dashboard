@@ -82,13 +82,22 @@ export function resolveProperties(
  *
  *  Final review, Critical 2: `excludeFromAggregate`, `capacityAdjustment` and
  *  `adjustmentNote` were added so a model computing its OWN portfolio figure
- *  (e.g. from get_occupancy's per-property `rows`) has the same information
- *  the dashboard's aggregates already use to exclude Jacksonville North and
- *  adjust Kissimmee East — without them, the exclusion rule was invisible to
- *  the model and it was as likely to include JN as not. Tools that already
- *  compute a `portfolio` total apply the rule themselves (see
- *  AGGREGATE_EXCLUDED_CODES in tools-occupancy.ts); these fields exist for the
- *  case where the model reasons over `rows` directly instead. */
+ *  (e.g. from get_occupancy's per-property `rows`) can see the exclusion rule
+ *  the dashboard applies — without them it was invisible, and the model was as
+ *  likely to include Jacksonville North as not. Tools that already compute a
+ *  `portfolio` total apply the rule themselves (AGGREGATE_EXCLUDED_CODES in
+ *  tools-occupancy.ts); these fields exist for the case where the model
+ *  reasons over `rows` directly instead.
+ *
+ *  `capacityAdjustment` is exposed for DISCLOSURE, not for arithmetic, and the
+ *  distinction is load-bearing. The dashboard deliberately does NOT re-base
+ *  occupancy onto post-adjustment capacity — see the rule in lib/occupancy.ts
+ *  `displayOcc`. Kissimmee East's −20 is an interpretation, not a measurement,
+ *  so it belongs in its own labelled line ("% Occupied Adjusted (less 20 rms)")
+ *  and never folded into a headline compared against other properties. Doing it
+ *  the other way is how KE once read 83.0% on /ops and 73.7% on /report for the
+ *  same period, from three separately-maintained copies of the same idea.
+ *  A model that applies this field to the ratio would recreate that bug. */
 export function propertySummary(p: Property) {
   return {
     id: p.id,
