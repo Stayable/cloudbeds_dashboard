@@ -36,9 +36,10 @@ export default async function Nav() {
   return (
     <nav className="sticky top-0 z-40 border-b border-chromeLine bg-chrome">
       <div className="mx-auto flex h-14 max-w-[1560px] items-center gap-6 px-4 sm:px-6">
-        {/* Wordmark — lowercase "stayable" + the gold dot, per the brand. */}
+        {/* Wordmark — "Stayable" + the gold dot. Capital S per Kyle 08/12/26,
+            overriding the lowercase treatment in the original design comp. */}
         <div className="flex shrink-0 items-baseline gap-2">
-          <span className="text-[18px] font-bold tracking-[-.02em] text-white">stayable</span>
+          <span className="text-[18px] font-bold tracking-[-.02em] text-white">Stayable</span>
           <span className="h-[5px] w-[5px] -translate-y-[3px] rounded-full bg-gold" />
         </div>
 

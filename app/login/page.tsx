@@ -40,7 +40,7 @@ export default function LoginPage() {
     >
       <div className="w-full max-w-[392px] animate-fadeup">
         <div className="mb-8 flex items-baseline gap-2.5">
-          <span className="text-[26px] font-bold tracking-[-.02em] text-white">stayable</span>
+          <span className="text-[26px] font-bold tracking-[-.02em] text-white">Stayable</span>
           <span className="h-[7px] w-[7px] -translate-y-0.5 rounded-full bg-gold" />
           <span className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#7FA8DA]">
             Operating Dashboard
