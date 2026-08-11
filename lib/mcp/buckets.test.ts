@@ -65,4 +65,31 @@ describe("bucketRange — bad input", () => {
   it("rejects a range longer than two years", () => {
     expect(() => bucketRange("2020-01-01", "2026-08-01", "daily")).toThrow(McpArgError);
   });
+
+  // Date.parse silently rolls Feb 30 forward to March 2 instead of returning
+  // NaN, so shape-only validation lets a calendar-impossible date through.
+  it("rejects a day-of-month overflow (Feb 30)", () => {
+    expect(() => bucketRange("2026-02-01", "2026-02-30", "daily")).toThrow(McpArgError);
+  });
+
+  // April has 30 days. Without the round-trip check this silently clips to
+  // April 30 with no error and no partial flag — a wrong answer that looks
+  // entirely normal, which is worse than an obvious one.
+  it("rejects a day-of-month overflow (Apr 31)", () => {
+    expect(() => bucketRange("2026-04-01", "2026-04-31", "daily")).toThrow(McpArgError);
+  });
+
+  it("still rejects a month overflow", () => {
+    expect(() => bucketRange("2026-13-01", "2026-13-01", "daily")).toThrow(McpArgError);
+  });
+
+  // Over-rejection guard: these are all real dates. Getting the round-trip
+  // check wrong in the other direction — refusing valid calendar dates — is
+  // worse than the bug it fixes.
+  it("accepts real month-end and leap-day dates", () => {
+    expect(() => bucketRange("2028-02-01", "2028-02-29", "daily")).not.toThrow();
+    expect(() => bucketRange("2026-01-01", "2026-01-31", "daily")).not.toThrow();
+    expect(() => bucketRange("2026-04-01", "2026-04-30", "daily")).not.toThrow();
+    expect(() => bucketRange("2026-12-01", "2026-12-31", "daily")).not.toThrow();
+  });
 });

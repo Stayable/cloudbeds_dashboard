@@ -26,9 +26,30 @@ const MAX_DAYS = 732; // two years plus a leap day
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
+// Shape-only validation is not enough: Date.parse("2026-02-30T00:00:00Z")
+// does NOT return NaN, it silently rolls forward to 2026-03-02. The regex
+// only checks digit layout, so a day-of-month overflow (Feb 30, Apr 31)
+// would pass both checks while the string itself stays invalid. Downstream,
+// `from`/`to` are compared as raw strings ("d <= to", "cursor <= to") while
+// mondayIndex/lastDayOfMonth read the engine's ROLLED interpretation of that
+// same string — the two disagree, and the range silently clips at the wrong
+// boundary instead of erroring. Round-tripping the parsed date back to
+// YYYY-MM-DD and requiring it to equal the input catches this: a date that
+// changes when it round-trips did not exist.
+//
+// lib/kb-parse.ts hit this same bug (a calendar-invalid snapshotDate
+// understated a document's age) and fixed it with its own `isValidYmd` doing
+// the identical round-trip. That is two implementations of one meaning, a
+// known trap in this repo — consolidating both into a single date-validation
+// helper in lib/dates.ts is deliberately deferred rather than refactoring a
+// shared module while other agents are mid-commit elsewhere in the repo.
 function assertYmd(label: string, value: string): void {
-  if (!YMD.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+  if (!YMD.test(value)) {
     throw new McpArgError(`${label} must be a date in YYYY-MM-DD form, got "${value}".`);
+  }
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value) {
+    throw new McpArgError(`${label} must be a real calendar date in YYYY-MM-DD form, got "${value}".`);
   }
 }
 
