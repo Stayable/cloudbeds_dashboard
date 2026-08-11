@@ -34,3 +34,6 @@ outputs/EliseDataAccess_Email_070226.md
 
 # Python bytecode from scripts/
 __pycache__/
+
+# Never commit the MCP connector URL - the secret IS the credential.
+.secrets/
