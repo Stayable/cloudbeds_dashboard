@@ -4,6 +4,94 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/12/26 (session 9p) — `/kb` IS LIVE WITH REAL CONTENT · RULINGS WITHDRAWN
+
+> **Pickup — 08/12/26. SHIPPED AND LIVE.** Branch level with origin at
+> **`c9e9242`**; production **`dpl_AGohBwicXfGraLtydkppGc2kuxxH` READY**, aliased
+> to `dashboard.rentstayable.com`. Corpus clean, 603 tests, `tsc` and build clean.
+>
+> **[x] KB TASK 9 DONE — 15 documents authored** from the 08/10 website capture:
+> check-in, property directory, pets, deposit, fee schedule, house rules, WiFi,
+> mail, ID/screening, renewals, amenities, discounts, maintenance, privacy, and
+> a first-class "what the website does not answer" page.
+>
+> **[x] `kb_queries` CONFIRMED IN PRODUCTION NEON, 0 rows.** Closes the session-9l
+> open question about which database Task 6's DDL touched: `.env.local`'s
+> `DATABASE_URL` points at the same Neon cloud instance the app uses, so it was
+> production all along.
+>
+> **[x] LIVE, UNAUTHENTICATED: `/kb` → 307 `/login?next=%2Fkb`** (the ship-blocking
+> check), `/kb/<slug>` → 307, `/login` → 200. **The gated checks are NOT done** —
+> the MAIN pin is not in `.env.local`. Still unverified on the deployment:
+> **whether the production corpus is non-empty.** `readFileSync` on a computed
+> path is not traced by Next; `outputFileTracingIncludes` is configured for
+> exactly this and has never been exercised on a real deploy. If `/kb` lists no
+> documents, that is a build-config problem, not content.
+>
+> **[!] THE THREE INTERNAL RULINGS WERE WITHDRAWN, AND THAT IS THE POINT.**
+> The corpus first shipped stating check-in = 4:00 PM, Lakeland = `frontdesk@`,
+> and "no discount %" as settled, plus "Orlando OBT has no pool". Kyle reversed
+> it: *"it is better for them to verify — I'm just the coder."* Every one of those
+> is now recorded as a **disagreement with the evidence named**, out with the
+> properties. The pool guidance got safer by getting weaker — it now says do not
+> promise a pool at **any** property until confirmed, which protects a guest at
+> all eight rather than one.
+> **Rule going forward: the KB states what its sources say and who owns the
+> answer. It does not settle operational facts on the properties' behalf.**
+>
+> **[x] TWO DELIVERABLES IN `outputs/`** — no individual named in either:
+> - `PropertyInformationRequest_Stayable_081226.docx` — fillable form to all 8.
+>   Part A per-property (deposit, pet fee, after-hours number, which amenities
+>   actually exist); Part B the 7 places two published sources disagree.
+> - `KBOpenQuestions_Stayable_081226.xlsx` — internal tracker, 7 out for
+>   verification, 3 genuinely reconciled.
+> **Neither was visually rendered — LibreOffice is not installed on this machine,
+> so the docx/xlsx verify steps could not run.** Both were checked by reading
+> content back. Layout is unconfirmed; eyeball before sending.
+>
+> **[x] `kb-check` WIDENED DELIBERATELY.** Its phone/email rules cannot tell a
+> published front-desk number from a guest's, and would have blocked the property
+> directory — the most searchable thing in the corpus. Now an allowlist of the 8
+> published numbers + the 2 company email domains, tests pinning **both**
+> directions (an unlisted number beside an allowed one still fails).
+>
+> **[!] AUTO-INGEST FROM SHAREPOINT: EXPLICITLY NOT BUILT. DO NOT BUILD IT
+> UNPROMPTED.** Kyle asked for a trigger that hydrates the KB when a file lands
+> in a folder, then reversed on his own reasoning: **content must be sanitised and
+> checked for discrepancies and accuracy first.** Nothing auto-ingests today —
+> the corpus is committed markdown, nothing reads SharePoint at runtime. When it
+> is built, it is **option A: detect and notify**, never auto-publish. The
+> rejected shapes and why are in the session transcript; the short version is
+> that raw ingest bypasses the authoring step where contradictions get resolved
+> and the build-time PII gate.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[ ] Open `/kb` with the MAIN pin and confirm it lists 15 documents.** If
+>    empty, fix the file tracing before anything else.
+> 2. **[ ] Team responses to the Property Information Request** — expected ~08/13.
+>    Deposit, pet fee, after-hours number, pool per property, plus the 7 policy
+>    conflicts. Each answer updates its KB page **and** the tracker; they will
+>    drift if only one is touched.
+> 3. **[?] The three SharePoint documents** — Kyle is creating a dedicated folder
+>    on a SharePoint **site** (not personal OneDrive, which is what stalled this).
+>    Send the folder path. Doc B overlaps `guest-wifi` and `pet-policy`, so expect
+>    the first real document-vs-website conflicts there.
+> 4. **[?] `kb_queries` privacy** — raw search text is stored, so a guest name
+>    typed into the box persists. 0 rows today, so deciding now is free.
+> 5. **[ ] Verify the 6am capture cron** — first production run is 08-12 10:00 UTC
+>    banking stay date 08-11. Not yet due as of writing (see 9o).
+> 6. **[?] Separate MCP URLs for Rob and Kate** — unchanged from 9o.
+>
+> **Also delivered this session, unrelated to the KB:** a zoned room list for the
+> `checklist-app` project (`RoomZoning_Stayable_081226.json` + `.csv`, 1,172 rooms
+> across all 8). Generated from **live Cloudbeds inventory**, not by expanding the
+> zone ranges — the ranges describe a numbering scheme and include numbers that
+> are not rooms. All 8 room counts match our banked snapshot inventory exactly.
+> 5 rooms are unzoned (LL `APT1`; KW `310`–`313`), and JW/DP/KW zoning is still
+> provisional from unlabelled maps — 446 of the 1,172 rooms.
+
+---
+
 ## 08/11/26 (session 9o) — MCP DELIVERED TO ROB + KATE · "YESTERDAY" DIAGNOSED AND FIXED
 
 > **Pickup — 08/11/26 (ET). ALL SHIPPED. Tree clean, everything pushed at
