@@ -101,7 +101,7 @@ export const OCCUPANCY_TOOLS: McpToolDef[] = [
     handler: async () => ({
       data: { properties: PROPERTIES.map(propertySummary) },
       freshness: {
-        source: "snapshot" as const,
+        source: "config" as const,
         asOf: null,
         note: "The property list is configuration, not measured data; it changes only when a property is acquired or sold.",
       },

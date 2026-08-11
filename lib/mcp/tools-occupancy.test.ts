@@ -124,7 +124,9 @@ describe("OCCUPANCY_TOOLS", () => {
     const { data, freshness } = await tool.handler({});
     expect((data as any).properties.length).toBe(8);
     expect(freshness).toBeTruthy();
-    expect(freshness.source).toBe("snapshot");
+    // "config", not "snapshot" — the property list is static config, never
+    // a measured figure (lib/mcp/types.ts Freshness).
+    expect(freshness.source).toBe("config");
   });
 
   it("get_occupancy surfaces excluded properties rather than silently dropping them", async () => {

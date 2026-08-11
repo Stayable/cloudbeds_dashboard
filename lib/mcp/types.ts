@@ -8,7 +8,11 @@ import type { z } from "zod";
 
 /** Where a figure came from and how current it is. */
 export type Freshness = {
-  source: "snapshot" | "live" | "smartsheet" | "elise";
+  // "config" is for data that never comes from the snapshot store or a live
+  // read at all — e.g. list_properties, which reads static config. Labelling
+  // it "snapshot" for lack of a better option would say it was measured; it
+  // wasn't.
+  source: "snapshot" | "live" | "smartsheet" | "elise" | "config";
   /** Newest data point we hold — YYYY-MM-DD, or an ISO timestamp for live/sync. */
   asOf: string | null;
   /** Snapshot only: the last stay date frozen as final. */
