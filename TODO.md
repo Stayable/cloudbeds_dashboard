@@ -4,7 +4,53 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## 08/11/26 (session 9n) — MCP SERVER BUILT: 9 OF 10 TASKS, LIVE AND FAIL-CLOSED
+## 08/11/26 (session 9n) — MCP SERVER SHIPPED AND DELIVERED TO ROB
+
+> **[x] DELIVERED 08/11/26.** Kyle set `MCP_SECRET` in Vercel Production and sent
+> Rob the Name (`Stayable Dashboard`) + URL. Note at
+> `outputs/MCPConnector_Rob_081126.md`. **Awaiting Rob's first test.**
+>
+> **[x] VERIFIED LIVE AGAINST PRODUCTION, all ten tools:**
+> - wrong secret → 404; handshake → `serverInfo.name: stayable-dashboard`
+> - **PARITY PASSES EXACTLY** (the release blocker): Lakeland July 2026 —
+>   `get_occupancy` 81.67% / 3975 nights / ADR 35.42, and `get_daily_report`'s
+>   mtd block 81.67% / 3975 / 35.4245. Two independent code paths
+>   (`getOccupancyRollup` vs `buildRevenueReport`), same numbers. The
+>   one-derivation argument holds in production, not just in tests.
+> - malformed JSON-RPC → clean `-32700 Parse error`, no stack trace, no internal
+>   path. The open question about `mcp-handler`'s own errors is CLOSED.
+> - `get_contractor_schedule` carries no `whatsapp` / `update` / `task` field —
+>   Critical 3 verified fixed in production.
+> - no env-var names in any error response.
+>
+> **[!] THE DEPLOY WAS BLOCKED BY GOOGLE FONTS, NOT BY ANYTHING WE BUILT.**
+> `next/font/google` downloads the typeface during `next build`, so a
+> third-party network call sat in the critical path of every release. Vercel's
+> builder could not reach `fonts.gstatic.com` and every deploy failed. I called
+> it transient on first inspection and **that was wrong** — the same commit
+> `003282b` built at 13:04 and failed on redeploy at 13:19, then failed on every
+> retry. Fixed permanently in `c720b8c`: the font is now a committed file loaded
+> with `next/font/local`. ONE file, not four — Google serves IBM Plex Sans as a
+> single variable font and returned byte-identical bytes for all four weights
+> (verified by md5), so four copies would have been 137KB of duplicate.
+>
+> **▶ IF ROB REPORTS A PROBLEM, triage in this order:**
+> 1. **"Connector won't add" / login page** → he used a `*.vercel.app` URL.
+>    Vercel Auth is `all_except_custom_domains`; only
+>    `dashboard.rentstayable.com` is exempt.
+> 2. **404 / "can't connect"** → the URL was truncated or a character was
+>    dropped. It is 107 chars, ends `7eb0dcd3`. Re-send, do not retype.
+> 3. **Tools appear but every call errors** → check `MCP_SECRET` survived the
+>    last deploy, and that no rotation happened.
+> 4. **A number looks wrong** → ask which tool and which period. MTD from
+>    `get_portfolio_summary` is banked days only; `/report`'s MTD adds today's
+>    live pull. Both are correct and they legitimately differ for the CURRENT
+>    month. Closed months must match exactly — if one doesn't, that is a real
+>    bug, not a definition difference.
+
+---
+
+## 08/11/26 (session 9n, earlier) — BUILD NOTES: 9 OF 10 TASKS, LIVE AND FAIL-CLOSED
 
 > **Pickup — 08/11/26 (ET). DEPLOYED. One env var from working.** Branch level
 > with origin at **`e3dc4e4`**; every push to this branch auto-deploys as Vercel
