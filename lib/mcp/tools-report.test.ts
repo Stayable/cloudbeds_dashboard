@@ -23,15 +23,40 @@ vi.mock("@/lib/dates", async () => {
 
 import { reportFilename, REPORT_TOOLS } from "./tools-report";
 import { McpArgError } from "./types";
+import type { PropertyActual, RevenueReport } from "@/lib/revenue-report";
 
 // McpPayload.data is `unknown` by design (lib/mcp/types.ts) — callers outside
 // this module have no business assuming its shape. Inside this test we know
 // exactly what each handler puts there, so narrow it locally rather than
 // sprinkling `as any` at each call site.
-type DailyReportData = { asOf: string; report: unknown };
+type DailyReportData = { asOf: string; report: RevenueReport; caveats: string[] };
 type ReportFileData = { asOf: string; filename: string; mimeType: string; base64: string };
 const asDaily = (data: unknown) => data as DailyReportData;
 const asFile = (data: unknown) => data as ReportFileData;
+
+// A minimal-but-real DerivedRow — every field isCountDependentRow can see, so
+// a bad key in the blanking set would show up as a field that should have
+// been nulled but wasn't (or vice versa).
+function derivedRow(over: Partial<PropertyActual["yesterday"]["actual"]> = {}) {
+  return {
+    transientNights: 10, leaseNights: 5, otherBlocks: 1, ooo: 2, inventory: 100,
+    transientRev: 900, leaseRev: 400, occupied: 16, available: 82, pOcc: 0.16,
+    pOoo: 0.02, pAvail: 0.82, roomRev: 1300, adrCombined: 81.25, adrTransient: 90,
+    adrLease: 80, revpar: 13, occAdjLess20: null,
+    ...over,
+  };
+}
+
+function propertyActual(over: Partial<PropertyActual> = {}): PropertyActual {
+  return {
+    code: "LL",
+    name: "Lakeland",
+    yesterday: { actual: derivedRow(), lastYear: null, countsPartial: false },
+    mtd: { actual: derivedRow(), lastYear: null, countsPartial: false },
+    ytd: { actual: derivedRow(), lastYear: null, countsPartial: false },
+    ...over,
+  };
+}
 
 describe("reportFilename", () => {
   // Delegates to the canonical lib/revenue-report.ts `reportFileBase`, which
@@ -59,7 +84,7 @@ const getReportFile = REPORT_TOOLS.find((t) => t.name === "get_report_file")!;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.buildRevenueReport.mockResolvedValue({ stub: "report" });
+  mocks.buildRevenueReport.mockResolvedValue({ actual: [], onTheBooks: [], sourceNote: "stub" });
   mocks.snapshotFreshness.mockResolvedValue({ source: "snapshot", asOf: "2026-08-10", note: "stub" });
   mocks.renderReportPdf.mockReturnValue(Buffer.from("pdf-bytes"));
   mocks.renderReportXlsx.mockResolvedValue(Buffer.from("xlsx-bytes"));
@@ -81,6 +106,65 @@ describe("get_daily_report", () => {
   it("attaches freshness from snapshotFreshness", async () => {
     const result = await getDailyReport.handler({ asOf: "2026-07-01" });
     expect(result.freshness).toEqual({ source: "snapshot", asOf: "2026-08-10", note: "stub" });
+  });
+
+  // Critical 1: report-pdf.ts, report-xlsx.ts and RevenueReportView.tsx all
+  // blank a block's count-dependent cells when countsPartial is true — this
+  // was the one surface still handing the model the raw, understated number.
+  describe("blanking partial-count blocks (Critical 1)", () => {
+    it("nulls the count-dependent ACTUAL fields of a partial YTD block, leaving MTD/Yesterday intact", async () => {
+      mocks.buildRevenueReport.mockResolvedValue({
+        actual: [propertyActual({ ytd: { actual: derivedRow(), lastYear: null, countsPartial: true } })],
+        onTheBooks: [],
+        sourceNote: "stub",
+      });
+      const result = asDaily((await getDailyReport.handler({})).data);
+      const ytd = result.report.actual[0].ytd.actual as unknown as Record<string, unknown>;
+      expect(ytd.occupied).toBeNull();
+      expect(ytd.pOcc).toBeNull();
+      expect(ytd.adrCombined).toBeNull();
+      expect(ytd.ooo).toBeNull();
+      expect(ytd.available).toBeNull();
+      // Revenue/inventory/RevPAR are never blanked — PeriodBlock's own comment.
+      expect(ytd.roomRev).toBe(1300);
+      expect(ytd.inventory).toBe(100);
+      expect(ytd.revpar).toBe(13);
+      // Untouched blocks keep every field.
+      expect((result.report.actual[0].mtd.actual as any).occupied).toBe(16);
+      expect((result.report.actual[0].yesterday.actual as any).occupied).toBe(16);
+    });
+
+    it("never blanks lastYear — it is always a complete historical period", async () => {
+      const ly = derivedRow({ occupied: 99 });
+      mocks.buildRevenueReport.mockResolvedValue({
+        actual: [propertyActual({ ytd: { actual: derivedRow(), lastYear: ly, countsPartial: true } })],
+        onTheBooks: [],
+        sourceNote: "stub",
+      });
+      const result = asDaily((await getDailyReport.handler({})).data);
+      expect((result.report.actual[0].ytd.lastYear as any).occupied).toBe(99);
+    });
+
+    it("returns a caveat naming the property and period blanked, and none when nothing is partial", async () => {
+      mocks.buildRevenueReport.mockResolvedValue({
+        actual: [
+          propertyActual({
+            code: "KE",
+            name: "Kissimmee East",
+            ytd: { actual: derivedRow(), lastYear: null, countsPartial: true },
+          }),
+        ],
+        onTheBooks: [],
+        sourceNote: "stub",
+      });
+      const result = asDaily((await getDailyReport.handler({})).data);
+      expect(result.caveats).toHaveLength(1);
+      expect(result.caveats[0]).toMatch(/Kissimmee East \(KE\) YTD/);
+
+      mocks.buildRevenueReport.mockResolvedValue({ actual: [propertyActual()], onTheBooks: [], sourceNote: "stub" });
+      const clean = asDaily((await getDailyReport.handler({})).data);
+      expect(clean.caveats).toEqual([]);
+    });
   });
 
   // An unchecked asOf used to reach buildRevenueReport untouched. A malformed
