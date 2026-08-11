@@ -1,13 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import Nav from "@/components/Nav";
 import "./globals.css";
 
-// IBM Plex Sans — the design system's typeface. Self-hosted by next/font, so
-// there's no runtime request to Google and no layout shift on first paint.
-const plex = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// IBM Plex Sans — the design system's typeface. Self-hosted, and now served
+// from a file IN THIS REPO rather than fetched from Google at build time.
+//
+// WHY: `next/font/google` downloads the font during `next build`. On 08/11/26
+// Vercel's builder could not reach fonts.gstatic.com and every deploy failed
+// with NextFontError — a third-party network call sitting in the critical path
+// of every release, for an asset that never changes. The output was already
+// self-hosted; only the fetch was remote. Committing the file removes the
+// dependency entirely and the rendered result is identical.
+//
+// One file, not four: Google serves IBM Plex Sans as a single VARIABLE font and
+// returned byte-identical bytes for each of the 400/500/600/700 requests
+// (verified by hash). The `weight` range below is what makes those weights work
+// off the one axis — shipping four copies would have been 137KB of duplicate.
+const plex = localFont({
+  src: "./fonts/IBMPlexSans-latin-var.woff2",
+  weight: "100 700",
+  style: "normal",
   display: "swap",
   variable: "--font-plex",
 });
