@@ -8,6 +8,8 @@
 // future consumer read `section.anchor` rather than re-slugifying a heading.
 // Two definitions of one meaning is how you get green tests and wrong links.
 
+import { isValidYmd } from "@/lib/dates";
+
 export type KbSection = {
   /** null for the preamble that precedes the first heading. */
   heading: string | null;
@@ -130,19 +132,6 @@ export function splitSections(body: string): KbSection[] {
     );
   }
   return sections;
-}
-
-/** Check if a date string is a valid YYYY-MM-DD calendar date.
- *
- *  Shape-only regex allows February 30, which Date.parse silently rolls to
- *  March 2, understating age — the one direction this module must never fail in.
- *  Round-trip parse-to-string to catch calendar impossibilities. */
-function isValidYmd(ymd: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
-  const ms = Date.parse(`${ymd}T00:00:00Z`);
-  if (Number.isNaN(ms)) return false;
-  const parsed = new Date(ms).toISOString().slice(0, 10);
-  return parsed === ymd;
 }
 
 export function parseKbDocument(slug: string, raw: string): KbDocument {

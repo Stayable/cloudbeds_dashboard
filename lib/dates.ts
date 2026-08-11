@@ -3,6 +3,26 @@
 
 export type Preset = "today" | "yesterday" | "last7" | "last30" | "month" | "custom";
 
+/** Whether a string is a real YYYY-MM-DD calendar date.
+ *
+ *  Shape-only regex is not enough: `Date.parse("2026-02-30T00:00:00Z")` does
+ *  NOT return NaN, it silently rolls forward to 2026-03-02. A caller that only
+ *  checks digit layout would accept a date that never existed. Round-tripping
+ *  the parsed date back to YYYY-MM-DD and requiring it to equal the input
+ *  catches that: a date that changes when it round-trips did not exist.
+ *
+ *  THE SINGLE DEFINITION. `lib/kb-parse.ts` and `lib/mcp/buckets.ts` each used
+ *  to carry their own private copy of exactly this check — two independent
+ *  implementations of one meaning, the known failure mode recorded in
+ *  MEMORY.md ("Duplicated definitions fail silently"). Both now import this
+ *  one instead. */
+export function isValidYmd(ymd: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
+  const ms = Date.parse(`${ymd}T00:00:00Z`);
+  if (Number.isNaN(ms)) return false;
+  return new Date(ms).toISOString().slice(0, 10) === ymd;
+}
+
 /** Today's calendar date in Eastern time. */
 export function easternToday(): string {
   // en-CA formats as YYYY-MM-DD.
