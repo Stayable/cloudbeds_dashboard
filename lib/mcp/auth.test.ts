@@ -24,6 +24,16 @@ describe("mcpSecretOk", () => {
     expect(mcpSecretOk("a".repeat(63))).toBe(false);
   });
 
+  it("rejects a candidate longer than the real secret", () => {
+    process.env.MCP_SECRET = REAL;
+    expect(mcpSecretOk("a".repeat(65))).toBe(false);
+  });
+
+  it("rejects a candidate differing only in case", () => {
+    process.env.MCP_SECRET = REAL;
+    expect(mcpSecretOk("A".repeat(64))).toBe(false);
+  });
+
   it("rejects undefined and empty", () => {
     process.env.MCP_SECRET = REAL;
     expect(mcpSecretOk(undefined)).toBe(false);

@@ -29,6 +29,6 @@ export const config = {
   // path — it is called by Claude Desktop, which has no cookie and no PIN),
   // Next internals, and static files.
   matcher: [
-    "/((?!login|api/auth|api/cron(?:/.*)?|api/mcp(?:/.*)?|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/report-file(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/cron(?:/.*)?|api/mcp/.*|api/submit(?:/.*)?|api/feedback(?:/.*)?|api/crystal-note(?:/.*)?|api/report-file(?:/.*)?|api/change-pin(?:/.*)?|api/reviews-window(?:/.*)?|test(?:/.*)?|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };
