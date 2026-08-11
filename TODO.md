@@ -4,6 +4,90 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/11/26 (session 9n) — MCP SERVER BUILT: 9 OF 10 TASKS, LIVE AND FAIL-CLOSED
+
+> **Pickup — 08/11/26 (ET). DEPLOYED. One env var from working.** Branch level
+> with origin at **`e3dc4e4`**; every push to this branch auto-deploys as Vercel
+> **production**. **583 tests**, `tsc` clean, build clean.
+>
+> **[x] MCP TASKS 1-9 COMPLETE AND REVIEWED CLEAN**, plus a final whole-branch
+> review and its fix wave. Ten read-only tools for Rob in Claude Desktop:
+> `list_properties`, `get_occupancy`, `get_portfolio_summary`,
+> `get_daily_report`, `get_report_file`, `get_today`, `get_evictions`,
+> `get_contractor_schedule`, `get_reviews`, `get_leasing_funnel`.
+>
+> **[x] LIVE VERIFICATION AGAINST PRODUCTION (08/11/26):**
+> - wrong secret → **404**
+> - **correct secret → 404, because `MCP_SECRET` is not set in Vercel.** That is
+>   the fail-closed rule working in production: a missing env var makes every
+>   request dead, never every request valid.
+> - `/kb` unauthenticated → **307** (KB ship criterion, verified live)
+> - `/login` → 200
+> - a `*.vercel.app` deployment URL → **302 SSO wall**
+>
+> **[!] THE CONNECTOR URL MUST USE THE CUSTOM DOMAIN.** Vercel Authentication is
+> ON for this project as `all_except_custom_domains`. `dashboard.rentstayable.com`
+> is exempt; every `*.vercel.app` URL is not. Hand Rob a deployment URL and
+> Claude Desktop gets an SSO page instead of an MCP response — which looks like a
+> broken connector, not a protection setting.
+>
+> **▶ THE ONE THING BLOCKING DELIVERY — KYLE:**
+> Set **`MCP_SECRET`** in Vercel → `cloudbeds-dashboard` → Environment Variables
+> → **Production**. The value is in the gitignored `.secrets/mcp-secret.txt`
+> (64 hex chars, never printed to chat, never committed). Then redeploy, and the
+> live check above flips from 404 to a real MCP handshake. There is no Vercel CLI
+> in this environment, which is why this cannot be automated.
+> Then Rob gets **Name `Stayable Dashboard`** + the URL in
+> `.secrets/mcp-connector-url.txt`. Leave the OAuth fields EMPTY.
+>
+> **[!] THE FINAL REVIEW FOUND THREE CRITICALS, ALL ON THE OUTPUT SIDE.** Its own
+> diagnosis of why: *the spec is unusually good on reasoning and unusually weak on
+> output contracts — every tool's inputs are specified precisely and not one
+> tool's return shape is.*
+> 1. **`get_daily_report` returned figures every rendered surface blanks.** When
+>    `countsPartial` is true the PDF, Excel and web view all print "—"; the MCP
+>    JSON printed the number. Rob would have quoted an understated YTD occupancy
+>    with the PDF beside him showing a dash.
+> 2. **`get_portfolio_summary` had no portfolio figure** despite its name, and hid
+>    `excludeFromAggregate`, so the model would have silently included
+>    Jacksonville North and probably averaged percentages instead of summing
+>    nights.
+> 3. **`get_contractor_schedule` forwarded the "Latest WhatsApp Update" column
+>    verbatim** — crew messages that routinely name an occupant ("guest in 214
+>    says the AC is out"). **This one was my miss.** I had explicitly ruled
+>    contractor data acceptable as vendor names; the exposure was never the names,
+>    it was the free text beside them, and my own deferral list repeated the wrong
+>    framing. Same risk class `stripReviewsPII` blocks 90 lines earlier in the
+>    same file.
+>
+> **[!] THE PLAN CAUSED MOST OF THE DEFECTS, AND THAT IS THE LESSON.** Every one
+> of the nine tasks needed a fix round, and nearly all traced to my own plan
+> rather than to an implementer: a mathematically wrong reference implementation
+> shipped as the DEFAULT (per-day counts from period-average inventory); a brief
+> that named two builders to check for PII and omitted the third, which is exactly
+> why Critical 3 existed; a portfolio aggregate promised in the spec table and
+> never specified; and a Task 9 that built the freshness guarantee and quietly
+> dropped the output-PII half. **A detailed plan makes implementation fast and
+> carries its defects in verbatim. The review loop is the only thing that caught
+> them.**
+>
+> **[x] Also fixed along the way, unrelated to MCP:** two `lib/db.ts` queries had
+> no `try/catch` and would have crashed `/report` on a dead database; a PII regex
+> flagged the word "port**folio**"; and there is now ONE definition of
+> `isValidYmd` in `lib/dates.ts` instead of two.
+>
+> **[?] `cloudbeds-mcp02`** — a separate Vercel project in this team from ~June.
+> Nothing to do with this build. Superseded attempt worth deleting?
+>
+> **[~] KNOWLEDGEBASE: TASKS 1-8 COMPLETE.** Everything buildable is built.
+> Task 9 (author the real corpus) is blocked on Kyle for two things, unchanged:
+> the four SharePoint files (in Bea's personal OneDrive, which the M365 connector
+> cannot reach), and rulings on four contradictions the website has with itself —
+> check-in 3PM vs 4PM, Lakeland's email, the weekly discount %, the deposit
+> amount. Website source material is captured and waiting.
+
+---
+
 ## 08/11/26 (session 9m) — MCP SERVER FOR ROB: SPEC + PLAN + TASK 1 · KB HELD
 
 > **Pickup — 08/11/26 (ET). NOTHING DEPLOYED. Branch pushed through `1626dc1`.**
