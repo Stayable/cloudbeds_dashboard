@@ -49,14 +49,61 @@ import type { KbDocument } from "./kb-parse";
 
 export type KbProblem = { slug: string; problem: string };
 
+// --- Published company contact points are not guest PII ----------------------
+// The rules below cannot tell a guest's mobile number from the front desk's
+// published toll-free line, or a guest's inbox from a property mailbox. Both
+// belong in the corpus: "what is the phone number for Kissimmee West" is a
+// front-desk question the knowledgebase exists to answer, and every value here
+// is already published on rentstayable.com's public contact page.
+//
+// This is the deliberate widening the module comment asks for — an ALLOWLIST of
+// specific published values plus the two company email domains, each paired
+// with a test, rather than a quiet loosening of the patterns themselves. The
+// rules still fire on anything not on this list, which is where a leaked guest
+// number or a personal gmail address would land. A guest email is never
+// @rentstayable.com; a guest phone is never one of these eight.
+//
+// Adding a value here is a content decision, not a formatting fix: it must be a
+// company contact point that is already public.
+
+/** Email domains that belong to the company, not to a guest. */
+const COMPANY_EMAIL_DOMAINS = ["rentstayable.com", "rise8companies.com"];
+
+/** The eight published property front-desk numbers, digits only (contact page),
+ *  plus the emergency services number. */
+const PUBLISHED_PHONE_DIGITS = new Set([
+  "18446543175", // Jacksonville West (6802)
+  "18447552648", // Jacksonville North (812)
+  "18777354134", // St. Augustine (2535)
+  "18553055357", // Kissimmee West (5399)
+  "18333400306", // Kissimmee East (2295)
+  "18665594142", // Orlando OBT (8700)
+  "18443876651", // Lakeland (4645)
+  "18777590804", // Davenport (44199)
+]);
+
+function isAllowedContact(match: string): boolean {
+  const at = match.indexOf("@");
+  if (at >= 0) {
+    const domain = match.slice(at + 1).toLowerCase();
+    return COMPANY_EMAIL_DOMAINS.includes(domain);
+  }
+  // Normalise to digits and to a leading country code, so "(844) 654-3175",
+  // "+1 844 654 3175" and "8446543175" all resolve to one comparable key.
+  const digits = match.replace(/\D/g, "");
+  const keyed = digits.length === 10 ? `1${digits}` : digits;
+  return PUBLISHED_PHONE_DIGITS.has(keyed);
+}
+
 // All patterns carry the `g` flag: matchAll() requires it, and without it a
 // document with three leaked emails would only ever report the first — which
 // reads as "fixed" after the author cleans up one and re-runs, while two more
 // are still sitting in the file.
-const RULES: { problem: string; re: RegExp }[] = [
+const RULES: { problem: string; re: RegExp; allowContacts?: boolean }[] = [
   {
     problem: "looks like an email address (guest PII — CLAUDE.md §5 rule 2)",
     re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+    allowContacts: true,
   },
   {
     problem: "looks like a phone number (guest PII — CLAUDE.md §5 rule 2)",
@@ -68,6 +115,7 @@ const RULES: { problem: string; re: RegExp }[] = [
     // See the module comment above for exactly what this does and does not
     // catch, and why the NANP shape is required rather than any 10 digits.
     re: /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b|(?<!\d)[2-9]\d{2}[2-9]\d{2}\d{4}(?!\d)/g,
+    allowContacts: true,
   },
   {
     problem: 'has a guest-identifying column header ("guest name" / "guest phone" / "guest email")',
@@ -114,6 +162,7 @@ export function checkCorpus(docs: KbDocument[]): KbProblem[] {
 
     for (const rule of RULES) {
       for (const m of scanText.matchAll(rule.re)) {
+        if (rule.allowContacts && isAllowedContact(m[0])) continue;
         problems.push({ slug: doc.slug, problem: `${rule.problem}: "${m[0]}"` });
       }
     }

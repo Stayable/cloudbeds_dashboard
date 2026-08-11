@@ -114,6 +114,38 @@ describe("checkCorpus", () => {
     expect(checkCorpus([bad("Invoice #0987654321 due on receipt.")])).toEqual([]);
   });
 
+  // The published company contact points are allowlisted (see kb-check.ts). The
+  // property directory is one of the most-searched things in the corpus, and
+  // every value below is already on rentstayable.com's public contact page.
+  // Both directions are pinned: allowlisted values pass, and a guest's personal
+  // address or number sitting in the SAME sentence still fails — the widening
+  // must not become a hole.
+  it("allows a published property front-desk phone number", () => {
+    expect(checkCorpus([bad("Kissimmee West front desk: +1 (855) 305-5357.")])).toEqual([]);
+  });
+
+  it("allows a published property phone number written without punctuation", () => {
+    expect(checkCorpus([bad("Davenport front desk: 8777590804.")])).toEqual([]);
+  });
+
+  it("allows a company mailbox on the rentstayable.com domain", () => {
+    expect(checkCorpus([bad("Email jaxwest@rentstayable.com for details.")])).toEqual([]);
+  });
+
+  it("still fails a guest email even beside an allowed company mailbox", () => {
+    const problems = checkCorpus([
+      bad("Forward from jaxwest@rentstayable.com to jane.doe@gmail.com."),
+    ]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].problem).toContain("jane.doe@gmail.com");
+  });
+
+  it("still fails an unlisted phone number even beside an allowed one", () => {
+    const problems = checkCorpus([bad("Front desk (855) 305-5357, guest cell (407) 555-0142.")]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].problem).toContain("(407) 555-0142");
+  });
+
   it("fails a Guest Name column header", () => {
     expect(checkCorpus([bad("| Guest Name | Room |\n| --- | --- |\n| x | 1 |")])[0].problem).toMatch(
       /guest/i,
