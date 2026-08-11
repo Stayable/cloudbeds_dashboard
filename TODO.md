@@ -65,9 +65,23 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > that raw ingest bypasses the authoring step where contradictions get resolved
 > and the build-time PII gate.
 >
+> **[x] ANNOUNCEMENT DRAFTED FOR THE CORE GROUP** (on Kyle's clipboard at session
+> end; not confirmed sent). Six short blocks: the KB is an early build still in
+> development and testing, the `/kb` link, **PIN MAIN**, a SharePoint upload
+> folder for documents worth adding, a promise that everything is reviewed and
+> sanitised before it enters the system, and an invitation to send suggestions.
+> - **The upload folder is a SHARING link**, so it cannot be resolved to a path
+>   the M365 connector can read from. **Ask Kyle for the folder's location in
+>   `TheDrive`** — otherwise every upload has to be forwarded by hand, which is
+>   the same bottleneck that stalled the original three documents.
+> - **[!] THIS RAISES THE STAKES ON ITEM 1 BELOW.** The message points people at
+>   `/kb`. If the production corpus is empty, they land on a blank page on their
+>   first visit — the one impression that is hard to undo. **Check before it is
+>   sent, not after.**
+>
 > **▶ NEXT SESSION — START HERE:**
 > 1. **[ ] Open `/kb` with the MAIN pin and confirm it lists 15 documents.** If
->    empty, fix the file tracing before anything else.
+>    empty, fix the file tracing before anything else. **Blocks the announcement.**
 > 2. **[ ] Team responses to the Property Information Request** — expected ~08/13.
 >    Deposit, pet fee, after-hours number, pool per property, plus the 7 policy
 >    conflicts. Each answer updates its KB page **and** the tracker; they will
