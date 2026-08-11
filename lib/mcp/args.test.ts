@@ -17,6 +17,17 @@ describe("parseYmdArg", () => {
   it("rejects a calendar-impossible date (Feb 30), not just a malformed shape", () => {
     expect(() => parseYmdArg("from", "2026-02-30")).toThrow(McpArgError);
   });
+
+  // Review finding (2026-08-11): this used to collapse both failure tiers
+  // into one "must be a real calendar date" message, while bucketRange's
+  // assertYmd (lib/mcp/buckets.ts) kept two distinct ones — same mistake,
+  // different wording depending on which tool Rob called. Now aligned: a
+  // shape failure and a calendar-impossible date get different, matching
+  // wording in both places.
+  it("distinguishes a malformed shape from a calendar-impossible date, matching assertYmd's wording", () => {
+    expect(() => parseYmdArg("asOf", "last tuesday")).toThrow(/asOf must be a date in YYYY-MM-DD form/);
+    expect(() => parseYmdArg("asOf", "2026-02-30")).toThrow(/asOf must be a real calendar date in YYYY-MM-DD form/);
+  });
 });
 
 describe("ymdArgSchema", () => {
