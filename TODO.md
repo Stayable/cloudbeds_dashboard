@@ -4,6 +4,80 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/12/26 (session 9q) — WORDMARK CAPITALISED (UNCOMMITTED) · MCP SHARING PLAN
+
+> **Pickup — 08/12/26. NOTHING SHIPPED THIS SESSION. Two files are modified and
+> NOT committed**, so nothing is live: `components/Nav.tsx` and
+> `app/login/page.tsx`. Branch level with origin at **`73dc961`**.
+>
+> **[x] "stayable" → "Stayable" in the wordmark**, both places it renders, because
+> it is one brand mark and splitting it would look like a bug:
+> - `components/Nav.tsx:41` — the header on every gated page
+> - `app/login/page.tsx:43` — the login screen, the first thing the team sees
+>
+> The lowercase was **deliberate** (the original design comp, `Property management
+> dashboard system/Stayable Operating Dashboard.dc.html`, sets it lowercase in both
+> places). Kyle overrode it 08/12/26; the Nav comment now records the override so
+> the next person does not "restore" it as a regression. **No test pinned the
+> lowercase string** — grep for `>stayable<` found only these two files and the
+> untracked comp. `tsc --noEmit` exit 0. **The test suite was NOT run** — this is a
+> string-literal change with no test asserting on it either way.
+>
+> **[!] THE COMP IS NOW OUT OF SYNC WITH THE APP.** It is untracked, so it will not
+> be reviewed, and it is the reference anyone reaches for when rebuilding a page.
+> Either update it or stop treating it as the source of truth for the wordmark.
+>
+> **[?] MCP SHARING TO THE CORE TEAM — RECOMMENDED, NOT BUILT, AWAITING THE NAME
+> LIST.** Rob wants the connector URL shared with the core team (Bea, operations;
+> Crystal, VP; plus Rob and Kate who already have it). This is the exact trigger
+> named in 9n/9o, now arriving with four users instead of two.
+> - **The three failures of sharing one secret, all real today:** revocation is
+>   all-or-nothing (rotating for one person silently kills every other connector
+>   with no warning to any of them); there is **no attribution**, so a wrong quoted
+>   number cannot be traced to a question; and the URL **is** the credential — it
+>   travels through Teams and then sits in plain text in each person's Claude
+>   Desktop settings, where one screenshot in a group chat is permanent read access.
+> - **RECOMMENDATION — labelled secret set, ~1 hour, both safer and faster than the
+>   alternative.** Replace the single `MCP_SECRET` with `MCP_SECRETS` holding
+>   `label:secret` pairs (`rob:…`, `kate:…`, `bea:…`, `crystal:…`); one URL each.
+>   `mcpSecretOk` (`lib/mcp/auth.ts:25`) returns the matched **label** instead of a
+>   boolean, so calls become attributable; keep `MCP_SECRET` as a fallback so Rob's
+>   and Kate's existing URLs survive the rollout. No new dependency, no tool
+>   changes, nothing new for anyone to learn.
+> - **Fold in the rate limiter while there.** `route.ts:26` is `allow("mcp", 120,
+>   60_000)` — ONE global in-memory bucket, per serverless instance. With four users
+>   their concurrent tool calls throttle each other. Key it by label.
+> - **NOT OAuth yet.** Correct end state (per-user identity via M365, revoke by
+>   disabling the account) but days of work plus a browser sign-in per person, and
+>   Kyle already reversed that decision once on cost. **Trigger to revisit: the list
+>   passing ~6, or anyone outside the core team.** Labelled secrets do not block it.
+> - **[!] TELL BEA BEFORE SHE CONNECTS: MCP carries no guest PII, deliberately.**
+>   The `/bea` §3 balance-due exception does **not** extend to MCP — a secret URL in
+>   a settings pane is a weaker gate than the PIN, so it carries the less sensitive
+>   data. Ask the connector who owes rent and she gets nothing. Unexplained, that
+>   reads as broken; she must use `/bea` for balances.
+> - **[!] Every URL must be `dashboard.rentstayable.com`.** Vercel Auth is
+>   `all_except_custom_domains`; a `*.vercel.app` URL returns an SSO login page,
+>   which looks exactly like a broken connector.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[ ] Commit and deploy the wordmark change**, or revert it. It is the only
+>    thing in the tree and it is invisible to the team until pushed.
+> 2. **[ ] STILL NOT DONE FROM 9p, AND IT STILL BLOCKS THE ANNOUNCEMENT: open
+>    `/kb` with the MAIN pin and confirm it lists 15 documents.** Not attempted
+>    this session. If empty, it is file tracing, not content.
+> 3. **[?] Kyle: the name list for `MCP_SECRETS`** — Rob, Kate, Bea, Crystal, plus
+>    anyone else? Then build it.
+> 4. **[ ] STILL NOT DONE FROM 9p/9o: verify the 6am capture cron.** Its first
+>    production run was 08-12 10:00 UTC banking stay date 08-11, now in the past —
+>    check `first_captured_at` reads `08-12 10:00 UTC`, not `14:30`.
+> 5. Everything else in 9p is unchanged: the SharePoint folder path in `TheDrive`,
+>    the `kb_queries` privacy decision, and the two `outputs/` deliverables that
+>    were never visually rendered (LibreOffice is not installed — eyeball the
+>    layout before sending).
+
+---
+
 ## 08/12/26 (session 9p) — `/kb` IS LIVE WITH REAL CONTENT · RULINGS WITHDRAWN
 
 > **Pickup — 08/12/26. SHIPPED AND LIVE.** Branch level with origin at
