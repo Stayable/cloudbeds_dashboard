@@ -346,8 +346,21 @@ export type OccupancyRollup = {
   leaseNights: number;
   roomRev: number;
   ooo: number;
-  /** Days with a real capture, oldest first. A cron gap is a gap. */
-  days: { day: string; pOcc: number }[];
+  /** Days with a real capture, oldest first. A cron gap is a gap.
+   *
+   *  `occupied`/`inventory`/`roomRev`/`ooo` here are ADDITIVE (MCP task 5,
+   *  08/11/26): the per-day RAW counts, not just the derived `pOcc`
+   *  percentage. A caller that needs to roll these days up into weeks or
+   *  months (lib/mcp/tools-occupancy.ts) must sum the real per-day counts
+   *  within its bucket — reconstructing them from the period's average
+   *  inventory is only exact when inventory is constant across the whole
+   *  range, which it is not in general (in-service windows, capacity
+   *  changes, renovations). The SELECT below already reads all four columns
+   *  per day before folding them into the period totals, so stashing them
+   *  here costs nothing extra. Optional so every OccupancyRollup fixture
+   *  already in the repo (lib/occupancy.test.ts et al.), which predates this
+   *  and only sets `pOcc`, keeps type-checking unchanged. */
+  days: { day: string; pOcc: number; occupied?: number; inventory?: number; roomRev?: number; ooo?: number }[];
 };
 
 /** Per-property occupancy/ADR/RevPAR inputs over [from, to], from the snapshot
@@ -393,13 +406,17 @@ export async function getOccupancyRollup(from: string, to: string): Promise<Occu
         byCode.set(code, e);
       }
       const occupied = Number(r.occupied), inventory = Number(r.inventory);
+      const roomRev = Number(r.room_rev), ooo = Number(r.ooo);
       e.occupied += occupied;
       e.inventory += inventory;
       e.transientNights += Number(r.transient_nights);
       e.leaseNights += Number(r.lease_nights);
-      e.roomRev += Number(r.room_rev);
-      e.ooo += Number(r.ooo);
-      e.days.push({ day: r.day as string, pOcc: occupied / inventory });
+      e.roomRev += roomRev;
+      e.ooo += ooo;
+      // occupied/inventory/roomRev/ooo are the per-day raw counts (see the
+      // type's comment) — a rollup consumer sums these directly instead of
+      // reconstructing them from the period average.
+      e.days.push({ day: r.day as string, pOcc: occupied / inventory, occupied, inventory, roomRev, ooo });
     }
     return [...byCode.values()];
   } catch {
