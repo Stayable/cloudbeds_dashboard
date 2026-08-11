@@ -6,10 +6,21 @@
 // would make both rules unenforceable, and unenforceable rules rot.
 
 import type { McpServer } from "@modelcontextprotocol/server";
+import { OCCUPANCY_TOOLS } from "./tools-occupancy";
+import { REPORT_TOOLS } from "./tools-report";
+import { LIVE_TOOLS } from "./tools-live";
+import { OPS_TOOLS } from "./tools-ops";
 import { McpArgError, type McpToolDef } from "./types";
 
-/** Every tool the server exposes. Tools modules are appended here as they land. */
-export const ALL_TOOLS: McpToolDef[] = [];
+/** Every tool the server exposes. Four modules, built concurrently by four
+ *  agents that were each told not to register themselves so this file would
+ *  be the only collision point — this is that wiring, done once, here. */
+export const ALL_TOOLS: McpToolDef[] = [
+  ...OCCUPANCY_TOOLS,
+  ...REPORT_TOOLS,
+  ...LIVE_TOOLS,
+  ...OPS_TOOLS,
+];
 
 export function buildMcpServer(server: McpServer): void {
   for (const tool of ALL_TOOLS) {
