@@ -3,6 +3,16 @@
 
 export type Preset = "today" | "yesterday" | "last7" | "last30" | "month" | "custom";
 
+/** THE SINGLE DEFINITION of "when yesterday's daily capture runs," in Eastern
+ *  wall-clock hours (Kyle, 08/10/26 — matches the upstream "History and
+ *  Forecast" report's own move to 6am). Read by BOTH the capture cron's DST
+ *  window guard (`app/api/cron/capture-daily/route.ts`) and the empty-state
+ *  message that tells a user why "Yesterday" is still blank
+ *  (`lib/occupancy.ts` — `pendingCaptureNote`). One constant, not a "6" typed
+ *  twice: this repo has been bitten before by one meaning with two
+ *  definitions that quietly drift apart (see MEMORY.md). */
+export const DAILY_CAPTURE_ET_HOUR = 6;
+
 /** Whether a string is a real YYYY-MM-DD calendar date.
  *
  *  Shape-only regex is not enough: `Date.parse("2026-02-30T00:00:00Z")` does
