@@ -20,13 +20,15 @@ them, not on the property name.
 | Kissimmee West | 5399 | Osceola | 5399 W. Irlo Bronson Memorial Highway, Kissimmee, FL 34746 | +1 (855) 305-5357 | kisswest@rentstayable.com |
 | Kissimmee East | 2295 | Osceola | 2295 E. Irlo Bronson Memorial Highway, Kissimmee, FL 34744 | +1 (833) 340-0306 | kiss@rentstayable.com |
 | Orlando OBT | 8700 | Orange | 8700 S. Orange Blossom Trail, Orlando, FL 32809 | +1 (866) 559-4142 | obt@rentstayable.com |
-| Lakeland | 4645 | Polk | 4645 N. Socrum Loop Road, Lakeland, FL 33809 | +1 (844) 387-6651 | frontdesk@rentstayable.com |
+| Lakeland | 4645 | Polk | 4645 N. Socrum Loop Road, Lakeland, FL 33809 | +1 (844) 387-6651 | frontdesk@rentstayable.com **or** lakeland@rentstayable.com — unconfirmed, see below |
 | Davenport | 44199 | Polk | 44199 Hwy 27, Davenport, FL 33897 | +1 (877) 759-0804 | davenport@rentstayable.com |
 
-Lakeland's front desk address is **frontdesk@rentstayable.com**. The website's
-contact page also lists `lakeland@rentstayable.com` for the same property; the
-property page's `frontdesk@` address is the one to use and to give out
-(confirmed internally 08/12/26). The website has not been corrected yet.
+**Lakeland has two published addresses and we have not confirmed which is
+canonical.** The contact page lists `lakeland@rentstayable.com`; the Lakeland
+property page lists `frontdesk@rentstayable.com`. Both may be live and route to
+the same desk — that is exactly what is unknown. Lakeland has been asked to
+confirm on the Property Information Request. Until it comes back, do not give
+either out as *the* address without checking.
 
 ## Company and legal contact
 

@@ -16,8 +16,9 @@ then monthly.
 **property- and season-dependent**, and the published figures do not agree with
 each other (the offers page says weekly saves "up to 25%" and monthly "up to
 35%"; a blog article says the typical range is 20–35%). None of these is a
-commitment. Confirmed internally 08/12/26: no fixed number goes in the
-knowledgebase — **check the current rate sheet for the property**.
+commitment, and which — if either — staff should quote is pending an answer on
+the Property Information Request. Until then, **check the current rate sheet for
+the property**.
 
 Advance payment is what unlocks the weekly and monthly rate.
 

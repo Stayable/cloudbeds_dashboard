@@ -10,12 +10,22 @@ Applies at all eight properties.
 
 ## Check-in time
 
-**Standard check-in begins at 4:00 PM.** Check-in is available until 2:30 AM.
+**Our published sources disagree. This is pending confirmation from the
+properties — this page does not pick a winner.**
 
-The website's FAQ page says 3:00 PM. **That is wrong** — 4:00 PM is correct
-(confirmed internally 08/12/26), and it matches both the homepage and the Rules
-& Regulations document dated 07/22/26. The FAQ page has not been corrected yet,
-so a guest may quote 3:00 PM at you in good faith.
+- The **Rules & Regulations** (dated 07/22/26) and the **homepage** both say
+  check-in begins at **4:00 PM**, available until 2:30 AM.
+- The **FAQ** says **3:00 PM**.
+
+Two of the three say 4:00 PM, and the Rules & Regulations is the most recent and
+most operational of them — but nobody has verified it, so it is recorded as
+unsettled rather than decided. It has gone to the properties on the Property
+Information Request.
+
+Until it comes back: **check with the property before promising a time**, and
+expect a guest who read the FAQ to quote 3:00 PM in good faith.
+
+The fees attached to the published 4:00 PM window:
 
 - Arriving **before 4:00 PM**: a $25 early arrival fee applies.
 - Arriving **after 2:30 AM**: the night is forfeited with no refund.

@@ -29,22 +29,25 @@ off this list.
   claim. A blog article implies one can be produced but names no process or
   contact.
 
-## Open internally, not just on the website
+## Out with the properties for verification
 
-- **The security deposit amount.** The Deposit Terms page says a flat $100; the
-  homepage and FAQ say it varies by location. Being confirmed with the team as
-  of 08/12/26 — see [Deposit and damage fee](/kb/deposit-and-damage-fee).
+These have gone to all eight properties on the **Property Information Request**.
+None of them has an answer yet, and this knowledgebase does not invent one.
 
-## Known to be wrong on the website
+- **The security deposit amount.** Deposit Terms says a flat $100; the homepage
+  and FAQ say it varies by location — see
+  [Deposit and damage fee](/kb/deposit-and-damage-fee).
+- **The pet fee amount.** Never stated as a number anywhere.
+- **The after-hours emergency number.** Referred to but never published.
+- **Whether each property actually has a pool.** The site claims one at every
+  location and at least one page is believed wrong.
+- **Standard check-in time.** FAQ says 3:00 PM; the homepage and Rules &
+  Regulations say 4:00 PM.
+- **Lakeland's canonical front desk email.** Two addresses are published.
+- **Whether staff should quote a discount percentage at all.**
+- **Whether on-site laundry, the hot tub, and the children's play area** are
+  portfolio-wide or specific to Kissimmee West. Only that property's page lists
+  the last two, which is weak evidence either way.
 
-- **Orlando OBT (8700) is listed with a swimming pool. It has none.**
-- **The FAQ says check-in is 3:00 PM. It is 4:00 PM.**
-- **The contact page lists `lakeland@rentstayable.com` for Lakeland.** Use
-  `frontdesk@rentstayable.com`.
-
-## Uncertain
-
-- Whether **on-site laundry, the hot tub, and the children's play area** are
-  offered portfolio-wide or are specific to Kissimmee West. The site copy
-  suggests they are Kissimmee-West-specific, but only that property's page
-  lists them, which is weak evidence either way.
+Nothing above is a decision waiting to be typed up. Each is a real question the
+published material cannot settle, and the properties are the ones who know.

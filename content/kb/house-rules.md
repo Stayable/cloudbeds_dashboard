@@ -58,9 +58,10 @@ cans, not left outside the room. **$100 fine.**
 - **Only registered guests are allowed in the pool area.**
 - Violating a posted pool rule: **$50 per occurrence**.
 
-Note: the website lists a swimming pool on every property page, **including
-Orlando OBT (8700), which does not have a pool.** The website is wrong on this
-point. Do not promise a pool at Orlando OBT.
+Note: the website lists a swimming pool on every property page, and at least one
+of those is believed wrong — **Orlando OBT (8700) in particular, though this is
+unverified.** All eight properties have been asked to confirm. Until they
+answer, do not promise a pool at any property.
 
 ## Parking and vehicles
 
