@@ -14,6 +14,7 @@
 import { z } from "zod";
 import { getPortfolio, getPortfolioOoo, summarizeOoo, type PropertyDashboard, type PropertyOoo } from "@/lib/cloudbeds";
 import { easternToday } from "@/lib/dates";
+import { ymdArgSchema, parseYmdArg } from "./args";
 import { resolveProperties, propertySummary } from "./properties";
 import { liveFreshness } from "./freshness";
 import { mapUpstreamError } from "./error-mapper";
@@ -108,6 +109,87 @@ export function liveRows(portfolio: PropertyDashboard[], ooo: PropertyOoo[], cod
   });
 }
 
+/** One blocked room, in the SAME shape and wording as Bea's OOO explorer
+ *  (components/BeaOosExplorer.tsx ROOM_COLS): Room, Type, Type code, Category,
+ *  Reason, Until. Requested 08/13/26 so Jefferson can see which rooms are down
+ *  from Claude rather than only in the dashboard. Matching her columns exactly
+ *  is deliberate — two surfaces answering "which rooms are out of order" with
+ *  different fields is how they start disagreeing. */
+export type OooRoomRow = {
+  /** Room code (`roomName`). "Unknown" when the name map could not resolve it —
+   *  the same fallback Bea's table shows, rather than a Cloudbeds-internal
+   *  roomID, which is meaningless to ops and looks like a room number. */
+  room: string;
+  roomType: string;
+  roomTypeCode: string;
+  category: "Out-of-Order" | "Other";
+  /** FREE TEXT written by staff in Cloudbeds. Measured 08/13/26 across ~100
+   *  live reasons: overwhelmingly operational (renovation, HVAC, pest control,
+   *  flooring), and NO guest names — but three reasons named STAFF ("PM Sage's
+   *  room", a site supervisor, a purchase-order owner). Staff names in a
+   *  staff-only tool are not the guest PII CLAUDE.md §5 rule 2 forbids, which is
+   *  why this field ships. The field is unconstrained, though, so that is
+   *  current practice and not a guarantee. */
+  reason: string;
+  /** Block end date (`endDate`) — "Until" in Bea's table. */
+  until: string;
+};
+
+export type OooPropertyRows = {
+  code: string;
+  name: string;
+  /** Reconciles: ooo + other === total === rooms.length. Null when unreadable —
+   *  never a zeroed object, for the reason in this file's header. */
+  counts: { ooo: number; other: number; total: number } | null;
+  rooms: OooRoomRow[];
+  unavailable: boolean;
+  note?: string;
+};
+
+/** Pure shaping of an out-of-order read into Bea's columns. No I/O, so the
+ *  "unavailable, never zero" rule is unit-tested without the network — a
+ *  property whose read failed must not look like a property with no blocks. */
+export function oooRoomRows(ooo: PropertyOoo[], codes: string[]): OooPropertyRows[] {
+  const byCode = new Map(ooo.map((o) => [o.property.code, o]));
+
+  return codes.map((code) => {
+    const o = byCode.get(code);
+    const name = o?.property.name ?? code;
+
+    if (!o || !o.configured || !o.result?.ok) {
+      const reason = o?.configured === false
+        ? "no Cloudbeds key is configured for this property."
+        : o?.result && !o.result.ok
+          ? mapUpstreamError("cloudbeds", o.result.error)
+          : "Cloudbeds did not respond.";
+      return {
+        code,
+        name,
+        counts: null,
+        rooms: [],
+        unavailable: true,
+        note: `Blocked rooms for ${name} (${code}) could not be read from Cloudbeds: ${reason}`,
+      };
+    }
+
+    const data = o.result.data;
+    return {
+      code,
+      name,
+      counts: summarizeOoo(data),
+      rooms: data.map((r) => ({
+        room: r.room || "Unknown",
+        roomType: r.roomType,
+        roomTypeCode: r.roomTypeCode,
+        category: r.category === "ooo" ? ("Out-of-Order" as const) : ("Other" as const),
+        reason: r.reason,
+        until: r.endDate,
+      })),
+      unavailable: false,
+    };
+  });
+}
+
 export const LIVE_TOOLS: McpToolDef[] = [
   {
     name: "get_today",
@@ -136,6 +218,35 @@ export const LIVE_TOOLS: McpToolDef[] = [
           // all 8 hotels must say so out loud — see resolveProperties in
           // lib/mcp/properties.ts. Always [] when properties were named
           // explicitly.
+          excluded: excluded.map(propertySummary),
+        },
+        freshness: liveFreshness(new Date().toISOString()),
+      };
+    },
+  },
+  {
+    name: "get_ooo_rooms",
+    title: "Out-of-order rooms (which rooms, not how many)",
+    description:
+      "The actual list of blocked rooms per property — room number, room type, whether it is Out-of-Order or an Other block, the reason, and the date the block runs until. This is the same view as the OOO explorer on the dashboard. Use this when asked WHICH rooms are down; use get_today for a count. The reason is free text typed by staff in Cloudbeds, so it may be terse, may run long, and may name a staff member — quote it as a note from the property, not as an authoritative status.",
+    inputSchema: z.object({
+      properties: z
+        .array(z.string())
+        .optional()
+        .describe("Property names, codes or business IDs. Omit for every active property."),
+      asOf: ymdArgSchema
+        .optional()
+        .describe("Stay date, YYYY-MM-DD. Defaults to today (Eastern). Blocks overlapping this date are returned."),
+    }),
+    handler: async (args: { properties?: string[]; asOf?: string }) => {
+      const { properties, excluded } = resolveProperties(args.properties);
+      const codes = properties.map((p) => p.code);
+      const asOf = args.asOf ? parseYmdArg("asOf", args.asOf) : easternToday();
+      const ooo = await getPortfolioOoo(asOf).catch(() => []);
+      return {
+        data: {
+          asOf,
+          properties: oooRoomRows(ooo, codes),
           excluded: excluded.map(propertySummary),
         },
         freshness: liveFreshness(new Date().toISOString()),

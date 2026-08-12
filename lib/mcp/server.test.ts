@@ -10,6 +10,9 @@ const EXPECTED = [
   "get_daily_report",
   "get_report_file",
   "get_today",
+  // Added 08/13/26 for Jefferson: WHICH rooms are out of order, not how many.
+  // get_today keeps the count; this one carries Bea's OOO explorer columns.
+  "get_ooo_rooms",
   "get_evictions",
   "get_contractor_schedule",
   "get_reviews",
@@ -193,6 +196,7 @@ describe("the tool manifest's OUTPUT (Important 4)", () => {
     get_daily_report: {},
     get_report_file: {},
     get_today: {},
+    get_ooo_rooms: {},
     get_evictions: {},
     get_contractor_schedule: {},
     get_reviews: {},

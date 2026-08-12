@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { liveRows } from "./tools-live";
+import { liveRows, oooRoomRows } from "./tools-live";
 import type { PropertyDashboard, PropertyOoo, DashboardData, OooRoom } from "@/lib/cloudbeds";
 import type { Property } from "@/config/properties";
 
@@ -194,5 +194,116 @@ describe("liveRows", () => {
     ];
     const rows = liveRows(portfolio, ooo, ["LL"]);
     expect(Object.keys(rows[0]).join(" ")).not.toMatch(/name|guest|email|phone/i);
+  });
+});
+
+// get_ooo_rooms (08/13/26): WHICH rooms are blocked, in Bea's columns. The
+// count already lives on get_today; the risk unique to this shape is that a
+// property whose read FAILED looks identical to a property with no blocks —
+// an empty list reads as "nothing is out of order", which is the worst possible
+// wrong answer for someone deciding what to work on.
+describe("oooRoomRows", () => {
+  it("maps a blocked room into Bea's columns, with her wording", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL", name: "Lakeland" }),
+        configured: true,
+        result: { ok: true, data: [oooRoom({ room: "214", reason: "OOO-AC not working", endDate: "2026-08-20" })] },
+      },
+    ];
+    const rows = oooRoomRows(ooo, ["LL"]);
+    expect(rows[0].rooms).toEqual([
+      {
+        room: "214",
+        roomType: "Studio",
+        roomTypeCode: "1DS",
+        category: "Out-of-Order",
+        reason: "OOO-AC not working",
+        until: "2026-08-20",
+      },
+    ]);
+  });
+
+  it("labels a non-out-of-service block 'Other', never 'Out-of-Order'", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL" }),
+        configured: true,
+        result: { ok: true, data: [oooRoom({ category: "other" })] },
+      },
+    ];
+    expect(oooRoomRows(ooo, ["LL"])[0].rooms[0].category).toBe("Other");
+  });
+
+  it("counts reconcile with the room list", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL" }),
+        configured: true,
+        result: {
+          ok: true,
+          data: [oooRoom(), oooRoom({ room: "102" }), oooRoom({ room: "103", category: "other" })],
+        },
+      },
+    ];
+    const row = oooRoomRows(ooo, ["LL"])[0];
+    expect(row.counts).toEqual({ ooo: 2, other: 1, total: 3 });
+    expect(row.rooms).toHaveLength(row.counts!.total);
+  });
+
+  // THE ONE THAT MATTERS. A failed read must not be indistinguishable from
+  // "no rooms are blocked".
+  it("marks a failed read unavailable with null counts, not an empty success", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL", name: "Lakeland" }),
+        configured: true,
+        result: { ok: false, status: 429, error: "Cloudbeds 429: rate limited" },
+      },
+    ];
+    const row = oooRoomRows(ooo, ["LL"])[0];
+    expect(row.unavailable).toBe(true);
+    expect(row.counts).toBeNull();
+    expect(row.rooms).toEqual([]);
+    expect(row.note).toContain("could not be read");
+  });
+
+  it("does not leak the raw upstream error into the note", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL" }),
+        configured: true,
+        result: { ok: false, status: 0, error: "Network error reaching Cloudbeds: ECONNREFUSED 10.0.0.5:443" },
+      },
+    ];
+    expect(oooRoomRows(ooo, ["LL"])[0].note).not.toContain("10.0.0.5");
+  });
+
+  it("reports an unconfigured property as unavailable rather than empty", () => {
+    const ooo: PropertyOoo[] = [
+      { property: property({ code: "LL" }), configured: false, result: null },
+    ];
+    const row = oooRoomRows(ooo, ["LL"])[0];
+    expect(row.unavailable).toBe(true);
+    expect(row.counts).toBeNull();
+    expect(row.note).toContain("no Cloudbeds key");
+  });
+
+  it("reports a property missing from the read entirely as unavailable", () => {
+    const row = oooRoomRows([], ["LL"])[0];
+    expect(row.unavailable).toBe(true);
+    expect(row.counts).toBeNull();
+    expect(row.code).toBe("LL");
+  });
+
+  it("falls back to 'Unknown' when the room name could not be resolved", () => {
+    const ooo: PropertyOoo[] = [
+      {
+        property: property({ code: "LL" }),
+        configured: true,
+        result: { ok: true, data: [oooRoom({ room: "" })] },
+      },
+    ];
+    expect(oooRoomRows(ooo, ["LL"])[0].rooms[0].room).toBe("Unknown");
   });
 });
