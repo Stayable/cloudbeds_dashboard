@@ -7,10 +7,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 ## 08/13/26 (session 9r) — PER-PERSON MCP CONNECTOR TOKENS: **LIVE AND WORKING**
 
 > **Pickup — 08/13/26. SHIPPED, DEPLOYED AND CONFIRMED WORKING.**
-> Branch `claude/nifty-thompson-ts8zny` is **15 commits ahead of origin**, and
-> pushing this branch auto-deploys Vercel **production**. 661 tests / 67 files,
-> `tsc --noEmit` exit 0, `npm run build` clean. Final whole-branch review verdict:
-> **safe to push.**
+> Branch `claude/nifty-thompson-ts8zny` is pushed and level with origin; every
+> push to it auto-deploys Vercel **production**. **674 tests / 68 files**,
+> `tsc --noEmit` exit 0, `npm run build` clean. The whole-branch review passed and
+> its one Critical (see below) was fixed before the push.
 >
 > **[x] WHAT SHIPPED — the single shared `MCP_SECRET` is replaced.** Spec
 > `docs/superpowers/specs/2026-08-12-mcp-connector-tokens-design.md`, plan
