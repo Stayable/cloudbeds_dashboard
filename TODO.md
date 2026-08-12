@@ -83,46 +83,101 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > per-person URLs, id 8 `bke@` labelled "General Use Shared" for anyone who
 > genuinely cannot add their own.
 >
+> **[x] KNOWLEDGEBASE: BEA'S ANSWERS APPLIED (`e847681`, `bd0e1a7`, `901baa3`,
+> `7871604`).** Two new files landed in
+> `sites/TheDrive/Shared Documents/Dashboard - Knowledgebase` — that folder path
+> was an open question since 9p and is now settled. Corpus clean, 15 documents.
+> - **Five gaps closed**, each attributed to Bea in the page itself: check-in is
+>   **4:00 PM** (the site's FAQ is wrong); deposit **$100/room** transient and
+>   **$250/unit** on a lease; pet fee **$15/day or $50/week** transient,
+>   **$25/pet/month + $250/unit** on a lease; **there is no discount percentage**
+>   because rates come from Cloudbeds; **Orlando OBT's pool is permanently
+>   closed** while the site still advertises it.
+> - **Added, and absent from the website entirely:** late checkout runs to
+>   **1:00 PM for $25 and then becomes a full additional day** — the most
+>   operationally useful line in her document. Plus 18+ on a lease vs 21+
+>   transient, and no housekeeping for lease residents.
+> - **Stopped publishing something false:** the screening section was headed
+>   "Guest screening (Autohost)". Screening is in **AKIA**. The website's Terms
+>   still name Autohost and are out of date.
+> - **AKIA contacts for all eight properties**, phone and channel email.
+> - **[x] LAKELAND'S "TWO FRONT DESK ADDRESSES" — OPEN SINCE 9l, DISSOLVED.** It
+>   was never two spellings of one address: `frontdesk@` is the desk and
+>   `lakeland@` is its AKIA channel, the same two-channel split all eight have.
+>   The website published one on the contact page and the other on the property
+>   page, which is the whole reason it read as a contradiction.
+> - **[!] HELD FOR LEGAL:** what documentation may be requested for a service
+>   animal or an ESA. The fee exemption is published; the documentation guidance
+>   is not. Transient stays are a public accommodation and leases are housing, the
+>   permitted inquiry differs, and one desk-level rule covering both is how a GSA
+>   demands paperwork they cannot require.
+>
+> **[!] THE EMERGENCY CALL TREE: PROCEDURE PUBLISHED, ROSTER DELIBERATELY NOT.**
+> The Smartsheet `Emergency Call Tree SOP 2026` pairs **~40 staff members with
+> personal mobile numbers**. Published: the escalation shape (property staff →
+> Bianca → Shay, who are on all eight lists), the two routing rules (urgent →
+> call the property, otherwise leave a note for the morning shift), and the five
+> emergency categories including the two that carry an explicit **advise the guest
+> to call the police**. Also published: **Lakeland's shared on-call line
+> 863-210-6420** — the only property whose after-hours contact does not change
+> when staff change, and therefore the pattern the other seven should copy.
+> **NOT published:** the roster. A second copy would drift the first time somebody
+> swapped a shift, and a wrong number in an emergency procedure costs time at the
+> one moment there is none. A test now pins that a named person's mobile still
+> FAILS the build even beside the allowlisted on-call number.
+>
+> **[!] DATA ERROR TO FIX AT SOURCE:** Jacksonville North's first after-hours
+> contact is recorded with a **9-digit number**. It cannot dial. First slot, whole
+> property, after hours. Not fixable from this repo.
+>
+> **[x] NEW MCP TOOL `get_ooo_rooms` (`5335b14`).** Jefferson needed OOO room
+> numbers. **It was never a permission problem** — the MCP has no per-user scoping
+> at all (`requiredScopes` deferred), so he already had exactly Rob's access;
+> `get_today` simply returned a count and no tool returned the list. Returns
+> Bea's OOO explorer columns verbatim (Room, Type, Type code, Category, Reason,
+> Until) so two surfaces cannot drift apart.
+> - The `reason` field is staff-written free text — the same column class as 9n's
+>   Critical 3. **Measured before shipping rather than assumed:** ~100 live reasons
+>   are operational, with **no guest names**, but three name STAFF (a PM, a site
+>   supervisor, and Jefferson himself on a purchase order). Staff names in a
+>   staff-only tool are not the guest PII §5.2 forbids. The field is
+>   unconstrained, so that is current practice, not a guarantee.
+> - Registered in the 9n output-PII sweep, so it is now called end to end and its
+>   response scanned on every run.
+>
 > **▶ NEXT SESSION — START HERE:**
-> 1. **[ ] RETRY THE "CAN'T ADD A CUSTOM CONNECTOR" USERS.** That was probably the
->    OAuth-discovery bug, now fixed. If they can each add their own, **drop the
->    shared row 8 plan entirely** and everyone keeps individual revocability.
->    Row 8 is unused so far, so nothing is lost by retiring it.
-> 2. **[ ] Mint Rob his own URL** — he is still the only person on the legacy row,
->    which is why row 1 cannot be retired yet.
-> 3. **[ ] Then retire row 1**, but only after Rob confirms his own works —
->    revoking it kills Rob and Kate simultaneously.
-> 4. **[ ] Monica's token (id 5) has never been used.** Everyone else's shows
+> 1. **[ ] RETRY THE "CAN'T ADD A CUSTOM CONNECTOR" USERS.** That presented as a
+>    per-account permissions limit and was actually the OAuth-discovery bug, now
+>    fixed. If each can add their own, **drop the shared row 8 entirely** — it is
+>    still unused, so nothing is lost, and everyone keeps individual revocability.
+> 2. **[ ] Mint Rob his own URL.** He is the only person still on the legacy row,
+>    which is the sole reason row 1 cannot be retired.
+> 3. **[ ] Then retire row 1** — but only after Rob confirms his own works.
+>    Revoking it kills Rob and Kate simultaneously.
+> 4. **[ ] Prove revoke actually kills a connector.** Mint one, connect it, revoke
+>    it, confirm it dies. Mint and connect are both proven now; the revoke half is
+>    the only untested link between the hash lookup and the `revoked_at` filter.
+> 5. **[ ] Confirm `exec` is refused at `/connectors`** in a browser. The test
+>    pins it and `admin` login is proven, but the live exec case is unverified.
+> 6. **[ ] Delete `MCP_SECRET` from Vercel.** Provably dead — the table is serving
+>    real traffic. Leaving it implies it still works.
+> 7. **[ ] Monica's token (id 5) has never been used** while everyone else's shows
 >    activity. Either she has not set it up or it failed for her.
-> 2. **[ ] AFTER deploying, run these in order — they cannot be proven locally:**
->    unauthenticated `/connectors` → **307** to `/login` (if it 200s, stop);
->    log in with the exec PIN and confirm `/connectors` is **refused**; log in with
->    `ILLUSTRIOUS` and confirm it lands there; confirm the legacy row is listed
->    owned by Rob; **confirm Rob's existing connector still works** (its
->    `Last used` stops saying `never`); issue a URL to yourself, connect it from
->    Claude Desktop using **`dashboard.rentstayable.com`** (a `*.vercel.app` URL
->    returns Vercel's SSO page and looks exactly like a broken connector), then
->    **revoke it and confirm the connector dies.** That last step is the only
->    end-to-end proof the hash lookup and the `revoked_at` filter work together.
-> 3. **[ ] Only then delete `MCP_SECRET` from Vercel.** Nothing reads it, but
->    leaving it implies it still works.
-> 4. **[ ] RETIRE THE LEGACY SHARED ROW.** Issue a URL each to
->    `rb@rise8companies.com` and `kate@rentstayable.com`, send them, and when
->    `/connectors` shows both in use **and no legacy use for 7 consecutive days**,
->    revoke row id 1. Until then revocation is still all-or-nothing for whoever
->    holds that URL — and it has already travelled through Teams.
-> 5. **[!] TELL BEA BEFORE SHE CONNECTS: the MCP carries no guest data,
->    deliberately.** The `/bea` §3 balance-due exception does not extend to MCP —
->    a URL in a settings pane is a weaker gate than the PIN, so it carries the
->    less sensitive data. Ask the connector who owes rent and it returns nothing.
->    Unexplained, that reads as broken; she must use `/bea` for balances.
-> 6. **[ ] Request access to "Managed authorization" (Beta)** in the Add-connector
+> 8. **[ ] Ask Bea to export the call tree** to the same SharePoint folder
+>    (File → Export). The `.url` she uploaded is a share link and unreadable. No
+>    decoder is involved — that was the wrong diagnosis.
+> 9. **[?] Which of a property's two emails to give a guest** — one line from
+>    Kyle. Both are live; the AKIA channel is where the conversation gets worked.
+> 10. **[ ] Two stale website pages**, both now contradicted by the KB: the FAQ
+>    says 3:00 PM check-in, and the Terms name Autohost as the screening partner.
+>    Whoever owns rentstayable.com. Until fixed, guests will quote them at staff.
+> 11. **[ ] Request access to "Managed authorization" (Beta)** in the Add-connector
 >    dialog — free, gated on an approval whose timing is not ours, and it is what
->    would eventually replace `/connectors` with real M365 identity and automatic
->    offboarding. Verified from the live dialog on 08/12: the OAuth Client ID and
->    Secret fields **do** exist, so Entra's lack of dynamic client registration is
->    not the blocker I previously thought. **There is no field for a custom header**
->    — which is why the secret stays in the URL path.
+>    would replace `/connectors` with real M365 identity and automatic offboarding.
+>    Verified 08/12: the OAuth Client ID and Secret fields **do** exist, so Entra's
+>    lack of dynamic client registration is not the blocker previously assumed.
+>    **There is no field for a custom header** — which is why the secret stays in
+>    the URL path.
 >
 > **[?] FIVE GAPS THE FINAL REVIEW CALLED LOAD-BEARING, none built — your calls:**
 > - **No way to revoke the admin *session*,** only tokens. Killing a live `admin`
