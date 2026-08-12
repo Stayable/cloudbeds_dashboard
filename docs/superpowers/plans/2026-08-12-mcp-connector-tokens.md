@@ -102,10 +102,16 @@ describe("connectorUrl", () => {
     );
   });
 
-  it("takes no host input at all, so no caller can influence the origin", () => {
-    expect(connectorUrl.length).toBe(1);
+  it("pins the base URL to the one domain exempt from Vercel Auth", () => {
     expect(CONNECTOR_BASE_URL).toBe("https://dashboard.rentstayable.com");
-    expect(CONNECTOR_BASE_URL).not.toContain("vercel.app");
+  });
+
+  it("ignores any host-shaped string a caller passes as the token", () => {
+    // Guards the shape of the bug, not just its value: even if a caller tried
+    // to smuggle an origin in, the output origin is still ours.
+    expect(connectorUrl("evil.vercel.app/x")).toBe(
+      "https://dashboard.rentstayable.com/api/mcp/evil.vercel.app/x",
+    );
   });
 });
 
@@ -298,7 +304,7 @@ shared constant would not work here.
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/mcp/tokens.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Add the DDL**
 
@@ -346,11 +352,19 @@ produce a *.vercel.app connector, and a last_used_at write throttle."
 
 ---
 
-### Task 2: `resolveMcpToken` replaces `mcpSecretOk`
+### Task 2: `resolveMcpToken` and the MCP route
+
+**Why these are one task:** deleting `mcpSecretOk` breaks its only caller, so
+splitting them would mean committing a state where `npx tsc --noEmit` fails —
+which contradicts this plan's own Global Constraints. The module and its only
+consumer are one change. **This is the commit where the shared `MCP_SECRET` env
+var stops being read at all.**
 
 **Files:**
 - Modify: `lib/mcp/auth.ts` (replace the whole file)
 - Modify: `lib/mcp/auth.test.ts` (replace the whole file)
+- Modify: `app/api/mcp/[secret]/route.ts:1-36`
+- Modify: `app/api/mcp/[secret]/route.test.ts` (replace the whole file)
 
 **Interfaces:**
 - Consumes: `hashToken`, `shouldTouch`, `findLiveTokenByHash`, `touchToken` from `lib/mcp/tokens.ts` (Task 1).
@@ -359,6 +373,7 @@ produce a *.vercel.app connector, and a last_used_at write throttle."
   - `resolveMcpToken(candidate: string | undefined): Promise<McpCaller | null>`
   - `MIN_TOKEN_LENGTH: number`
   - `mcpSecretOk` is **deleted**.
+  - The MCP route's rate-limit key becomes `` `mcp:${caller.id}` ``.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -544,36 +559,13 @@ export async function resolveMcpToken(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/mcp/auth.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Typecheck and commit**
+Do **not** commit yet — `tsc` fails at this point, because the route still
+imports the now-deleted `mcpSecretOk`. Steps 5-8 fix that, and the commit at
+Step 9 covers both files together.
 
-`tsc` will now fail on `app/api/mcp/[secret]/route.ts`, which still imports
-`mcpSecretOk`. That is expected and fixed in Task 3 — commit the module now so
-the two changes stay reviewable separately.
-
-```bash
-git add lib/mcp/auth.ts lib/mcp/auth.test.ts
-git commit -m "feat(mcp): resolveMcpToken replaces the shared-secret check
-
-Looks a candidate up by SHA-256 hash, fails closed on a dead database,
-and throttles last_used_at writes. mcpSecretOk is gone; the route is
-updated in the next commit."
-```
-
----
-
-### Task 3: Wire the MCP route and key the rate limiter per token
-
-**Files:**
-- Modify: `app/api/mcp/[secret]/route.ts:1-36`
-- Modify: `app/api/mcp/[secret]/route.test.ts` (replace the whole file)
-
-**Interfaces:**
-- Consumes: `resolveMcpToken`, `McpCaller` from `lib/mcp/auth.ts` (Task 2).
-- Produces: nothing new.
-
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 5: Write the failing test for the route**
 
 Replace `app/api/mcp/[secret]/route.test.ts` entirely:
 
@@ -695,12 +687,12 @@ describe("POST /api/mcp/[secret]", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 6: Run test to verify it fails**
 
 Run: `npx vitest run "app/api/mcp/[secret]/route.test.ts"`
 Expected: FAIL — the route still imports `mcpSecretOk`, which no longer exists.
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 7: Write the route implementation**
 
 In `app/api/mcp/[secret]/route.ts`, change the import on line 3 and the `guard`
 function (lines 21-28) to:
@@ -736,31 +728,39 @@ with:
 // MCP_SECRET any more.
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 8: Run test to verify it passes**
 
 Run: `npx vitest run "app/api/mcp/[secret]/route.test.ts"`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Confirm no reference to the old env var survives**
+- [ ] **Step 9: Confirm no reference to the old env var survives**
 
 Run: `grep -rn "mcpSecretOk\|MCP_SECRET" --include=*.ts --include=*.tsx . | grep -v node_modules`
 Expected: no hits in `lib/` or `app/`. Hits in `docs/` or `TODO.md` are history and stay.
 
-- [ ] **Step 6: Typecheck, full suite, commit**
+- [ ] **Step 10: Typecheck, full suite, commit both files together**
+
+`tsc` must now pass — if it does not, the route and the module disagree and this
+task is not done.
 
 ```bash
 npx tsc --noEmit
 npx vitest run
-git add "app/api/mcp/[secret]/route.ts" "app/api/mcp/[secret]/route.test.ts"
-git commit -m "feat(mcp): route resolves tokens from the table, rate limit per token
+git add lib/mcp/auth.ts lib/mcp/auth.test.ts "app/api/mcp/[secret]/route.ts" "app/api/mcp/[secret]/route.test.ts"
+git commit -m "feat(mcp): resolve connector tokens from the table
 
-Fixes the single global bucket from TODO 9q. A rejected token no longer
-consumes limiter budget at all."
+Looks a candidate up by SHA-256 hash, fails closed on a dead database,
+and throttles last_used_at writes. mcpSecretOk is gone and the route no
+longer reads MCP_SECRET at all.
+
+Also keys the rate limiter per token, fixing the single global bucket
+from TODO 9q — four users no longer throttle each other, and a rejected
+token consumes no limiter budget."
 ```
 
 ---
 
-### Task 4: The `admin` level and the `/connectors` gate
+### Task 3: The `admin` level and the `/connectors` gate
 
 **Files:**
 - Modify: `lib/auth.ts:13`, `:25`, `:29-35`, `:40-42`, `:60-69`, `:88-96`
@@ -947,7 +947,7 @@ credential-issuing page. admin otherwise sees everything exec does."
 
 ---
 
-### Task 5: Mint and revoke API routes
+### Task 4: Mint and revoke API routes
 
 **Files:**
 - Create: `config/mcp-users.ts`
@@ -957,7 +957,7 @@ credential-issuing page. admin otherwise sees everything exec does."
 - Create: `app/api/connectors/[id]/revoke/route.test.ts`
 
 **Interfaces:**
-- Consumes: `generateToken`, `hashToken`, `connectorUrl`, `insertToken`, `revokeToken`, `countLiveTokens`, `MAX_LIVE_TOKENS` from `lib/mcp/tokens.ts` (Task 1); `AUTH_COOKIE`, `verifyCookie` from `lib/auth.ts` (Task 4).
+- Consumes: `generateToken`, `hashToken`, `connectorUrl`, `insertToken`, `revokeToken`, `countLiveTokens`, `MAX_LIVE_TOKENS` from `lib/mcp/tokens.ts` (Task 1); `AUTH_COOKIE`, `verifyCookie` from `lib/auth.ts` (Task 3).
 - Produces:
   - `MCP_USERS: { email: string; name: string }[]` from `config/mcp-users.ts`.
   - `POST /api/connectors` → `{ ok: true, url }` | `{ ok: false, error }`
@@ -1348,7 +1348,7 @@ the admin level server-side, independent of what the page renders."
 
 ---
 
-### Task 6: The `/connectors` page
+### Task 5: The `/connectors` page
 
 **Files:**
 - Create: `app/connectors/page.tsx`
@@ -1358,7 +1358,7 @@ the admin level server-side, independent of what the page renders."
 - Create: `lib/mcp/connector-view.test.ts`
 
 **Interfaces:**
-- Consumes: `listTokens`, `McpTokenRow` from `lib/mcp/tokens.ts` (Task 1); `MCP_USERS` from `config/mcp-users.ts` (Task 5); `POST /api/connectors` and `POST /api/connectors/[id]/revoke` (Task 5).
+- Consumes: `listTokens`, `McpTokenRow` from `lib/mcp/tokens.ts` (Task 1); `MCP_USERS` from `config/mcp-users.ts` (Task 4); `POST /api/connectors` and `POST /api/connectors/[id]/revoke` (Task 4).
 - Produces:
   - `relativeAge(iso: string | null, nowMs: number): string` from `lib/mcp/connector-view.ts`
 
@@ -1810,7 +1810,7 @@ clicks. Revoked rows stay visible struck through so history survives."
 
 ---
 
-### Task 7: Seed the `ILLUSTRIOUS` PIN and migrate the legacy shared secret
+### Task 6: Seed the `ILLUSTRIOUS` PIN and migrate the legacy shared secret
 
 **Files:**
 - Create: `scripts/seed-connectors.mjs`
@@ -1992,7 +1992,7 @@ These need a real deployment and cannot be proven locally. Run them **in this
 order** after pushing.
 
 - [ ] **`/connectors` is gated.** Unauthenticated `GET https://dashboard.rentstayable.com/connectors` → **307** to `/login`. If it returns 200, stop — the page is public.
-- [ ] **`exec` cannot reach it.** Log in with the exec PIN, visit `/connectors` → redirected. This is the clause-ordering guarantee from Task 4, live.
+- [ ] **`exec` cannot reach it.** Log in with the exec PIN, visit `/connectors` → redirected. This is the clause-ordering guarantee from Task 3, live.
 - [ ] **`ILLUSTRIOUS` works and lands on `/connectors`.**
 - [ ] **The legacy row appears in the list**, owned by `rb@rise8companies.com`.
 - [ ] **Rob's existing connector still works.** Do not skip this — it is the one thing that would break someone who is using this today. Easiest check: the legacy row's `Last used` stops saying `never` once he makes a call.
