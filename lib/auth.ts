@@ -10,7 +10,7 @@
 
 export const AUTH_COOKIE = "sd_auth";
 
-export type Level = "base" | "exec" | "crystal" | "monica" | "bea" | "ops" | "elise";
+export type Level = "base" | "exec" | "admin" | "crystal" | "monica" | "bea" | "ops" | "elise";
 
 // Per-user dashboard levels (each unlocks only its own /<level> route; exec/CEO
 // sees everything). PINs live in Neon (lib/pins.ts) — there is no env-var PIN.
@@ -22,13 +22,15 @@ export const USER_PINS: { level: Exclude<Level, "base" | "exec"> }[] = [
   { level: "elise" },
 ];
 
-export const ALL_LEVELS: Level[] = ["base", "exec", "crystal", "monica", "bea", "ops", "elise"];
+export const ALL_LEVELS: Level[] = ["base", "exec", "admin", "crystal", "monica", "bea", "ops", "elise"];
 
-/** Which level a path needs. /rob (the CEO's own view) => exec; each per-user
- *  route => its own level; everything else => base. */
+/** Which level a path needs. /rob (the CEO's own view) => exec; /connectors
+ *  (MCP credential issuance) => admin; each per-user route => its own level;
+ *  everything else => base. */
 export function requiredLevel(pathname: string): Level {
   const seg = pathname.split("/")[1] ?? "";
   if (seg === "rob") return "exec";
+  if (seg === "connectors") return "admin";
   const user = USER_PINS.find((u) => u.level === seg);
   if (user) return user.level;
   return "base";
@@ -36,9 +38,12 @@ export function requiredLevel(pathname: string): Level {
 
 /** The dashboard a level lands on after login. Everyone lands on the shared
  *  Home `/` (nav bar reaches everything else they're permitted); the `elise`
- *  level is fully isolated and lands on its own /elise route instead. */
+ *  level is fully isolated and lands on its own /elise route instead; `admin`
+ *  lands on `/connectors`, the page its PIN exists for. */
 export function homeForLevel(level: Level): string {
-  return level === "elise" ? "/elise" : "/";
+  if (level === "elise") return "/elise";
+  if (level === "admin") return "/connectors";
+  return "/";
 }
 
 /** Levels that are FULLY ISOLATED — they may reach ONLY their own /<level>
@@ -51,17 +56,22 @@ export const RESTRICTED_LEVELS = new Set<Level>(["elise"]);
  *  1. `/elise` — RESERVED for the `elise` pin only. Not even exec/CEO may
  *     reach it (checked before the exec short-circuit below).
  *  2. `elise` itself can reach nothing else — fully isolated.
- *  3. `exec` (CEO) sees everything else — shared pages, every personal
+ *  3. `/connectors` — RESERVED for the `admin` pin only, and likewise checked
+ *     BEFORE the exec short-circuit. It issues MCP credentials; the CEO has no
+ *     need to mint them and fewer holders is better. Moving this clause below
+ *     the exec check would silently grant exec that power.
+ *  4. `admin` and `exec` see everything else — shared pages, every personal
  *     dashboard, and `/rob`.
- *  4. `/rob` is exec-only (exec already handled above).
- *  5. `/crystal`, `/monica`, `/bea` are owner-only per-user dashboards.
- *  6. Everything else (shared pages `/`, `/ops`, `/report`, and any other
+ *  5. `/rob` is exec-only (exec and admin already handled above).
+ *  6. `/crystal`, `/monica`, `/bea` are owner-only per-user dashboards.
+ *  7. Everything else (shared pages `/`, `/ops`, `/report`, and any other
  *     gated route) is visible to any authenticated, non-restricted level. */
 export function canAccess(level: Level, pathname: string): boolean {
   const seg = "/" + (pathname.split("/")[1] ?? "");
   if (seg === "/elise") return level === "elise"; // /elise: ONLY the ELISE pin — not even exec
   if (level === "elise") return false; // ELISE pin can reach nothing but /elise
-  if (level === "exec") return true; // CEO: everything else
+  if (seg === "/connectors") return level === "admin"; // not even exec — see above
+  if (level === "exec" || level === "admin") return true; // CEO + admin: everything else
   if (seg === "/rob") return false; // exec-only (exec handled above)
   if (seg === "/crystal" || seg === "/monica" || seg === "/bea") return seg === "/" + level; // owner only
   // shared pages + any other gated route → any authenticated non-restricted level
@@ -86,10 +96,13 @@ const PERSONAL: Record<string, PageLink> = {
 };
 
 const EXEC_PAGE: PageLink = { href: "/rob", label: "Exec (CEO)" };
+const CONNECTORS_PAGE: PageLink = { href: "/connectors", label: "Connectors" };
 
 /** Pages this level may navigate to (for the nav bar). */
 export function accessiblePages(level: Level): PageLink[] {
   if (level === "elise") return [{ href: "/elise", label: "EliseAI Leasing" }];
+  if (level === "admin")
+    return [...SHARED_PAGES, PERSONAL.crystal, PERSONAL.monica, PERSONAL.bea, EXEC_PAGE, CONNECTORS_PAGE];
   if (level === "exec") return [...SHARED_PAGES, PERSONAL.crystal, PERSONAL.monica, PERSONAL.bea, EXEC_PAGE];
   if (level in PERSONAL) return [...SHARED_PAGES, PERSONAL[level]];
   return [...SHARED_PAGES]; // base, ops (viewer)

@@ -19,6 +19,7 @@ import { AUTH_COOKIE, RESTRICTED_LEVELS, accessiblePages, verifyCookie, type Lev
 const ROLE: Record<Level, { name: string; title: string }> = {
   base: { name: "Portfolio", title: "Base access" },
   exec: { name: "Executive", title: "CEO · full access" },
+  admin: { name: "Admin", title: "Connector administration" },
   ops: { name: "Operations", title: "Ops access" },
   crystal: { name: "Crystal", title: "VP Operations" },
   monica: { name: "Monica", title: "Revenue Management" },

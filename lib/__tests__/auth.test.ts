@@ -7,6 +7,7 @@ import {
   signLevel,
   verifyCookie,
   accessiblePages,
+  ALL_LEVELS,
 } from "@/lib/auth";
 
 beforeAll(() => {
@@ -132,5 +133,56 @@ describe("signed cookie (signLevel / verifyCookie)", () => {
     expect(await verifyCookie(undefined)).toBe(null);
     expect(await verifyCookie("garbage")).toBe(null);
     expect(await verifyCookie("nope.deadbeef")).toBe(null);
+  });
+});
+
+describe("the admin level and /connectors", () => {
+  it("lets admin reach /connectors", () => {
+    expect(canAccess("admin", "/connectors")).toBe(true);
+  });
+
+  // THE LOAD-BEARING ONE. The /connectors clause must sit BEFORE the exec
+  // short-circuit in canAccess. If a later edit moves it after, exec silently
+  // gains the ability to mint API credentials and every other test still passes.
+  it("does NOT let exec reach /connectors", () => {
+    expect(canAccess("exec", "/connectors")).toBe(false);
+  });
+
+  it("does not let any other level reach /connectors", () => {
+    for (const level of ["base", "bea", "crystal", "monica", "ops", "elise"] as const) {
+      expect(canAccess(level, "/connectors")).toBe(false);
+    }
+  });
+
+  it("lets admin reach everything exec can", () => {
+    for (const path of ["/", "/ops", "/report", "/kb", "/rob", "/bea", "/crystal", "/monica"]) {
+      expect(canAccess("admin", path)).toBe(true);
+    }
+  });
+
+  // /elise is reserved for the vendor pin and not even exec may enter it; admin
+  // is no exception.
+  it("does not let admin reach /elise", () => {
+    expect(canAccess("admin", "/elise")).toBe(false);
+  });
+
+  it("shows Connectors in admin's nav and nobody else's", () => {
+    const adminHrefs = accessiblePages("admin").map((p) => p.href);
+    expect(adminHrefs).toContain("/connectors");
+    for (const level of ["exec", "base", "bea", "crystal", "monica", "ops", "elise"] as const) {
+      expect(accessiblePages(level).map((p) => p.href)).not.toContain("/connectors");
+    }
+  });
+
+  it("lands admin on /connectors after login", () => {
+    expect(homeForLevel("admin")).toBe("/connectors");
+  });
+
+  it("requires the admin level for /connectors", () => {
+    expect(requiredLevel("/connectors")).toBe("admin");
+  });
+
+  it("includes admin in ALL_LEVELS so its cookie verifies", () => {
+    expect(ALL_LEVELS).toContain("admin");
   });
 });
