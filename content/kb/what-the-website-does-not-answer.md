@@ -40,12 +40,10 @@ This knowledgebase does not invent an answer for any of them.
   is permanently closed (Bea, 08/12/26) — and the site still advertises it. The
   other seven are unconfirmed, and one page being wrong is a reason to doubt the
   set rather than to trust the rest.
-- **Lakeland's AKIA number.** Bea supplied seven of eight on 08/13/26; Lakeland
-  was not among them — see [Property directory](/kb/property-directory).
 - **Which of a property's two email addresses to give a guest.** Narrow question,
-  not a conflict: every property has a published front-desk address *and* an AKIA
-  address that redirects into its internal AKIA channel, and both are live (Kyle,
-  08/13/26). The open part is only which one to hand a guest who asks — see
+  not a conflict: all eight properties have a published front-desk address *and*
+  an AKIA channel address, and both are live (Kyle, 08/13/26). The open part is
+  only which one to hand a guest who asks — see
   [Property directory](/kb/property-directory).
 - **What documentation may be requested for a service animal or an ESA.**
   Referred for legal review 08/13/26, not to the properties — a transient stay
@@ -70,6 +68,11 @@ Recorded here so a reader who remembers these as open can see they are not.
   Autohost and is out of date.
 - **Late checkout** — to 1:00 PM for $25, then a full additional day.
 - **Check-in age** — 21 transient, 18 on a signed lease.
+- **AKIA numbers for all eight properties** — including Lakeland (863-281-6815).
+- **Lakeland's "two front desk addresses"** — never a conflict. `frontdesk@` is
+  the desk and `lakeland@` is its AKIA channel, the same split every property has.
+  The website published one on the contact page and the other on the property
+  page, which is what made it look like a contradiction.
 
 Nothing above is a decision waiting to be typed up. Each is a real question the
 published material cannot settle, and the properties are the ones who know.

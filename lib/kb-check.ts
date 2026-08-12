@@ -54,14 +54,14 @@ export type KbProblem = { slug: string; problem: string };
 // published toll-free line, or a guest's inbox from a property mailbox. Both
 // belong in the corpus: "what is the phone number for Kissimmee West" is a
 // front-desk question the knowledgebase exists to answer, and every value here
-// is already published on rentstayable.com's public contact page.
+// is a company contact point (see the corrected bar below).
 //
 // This is the deliberate widening the module comment asks for — an ALLOWLIST of
-// specific published values plus the two company email domains, each paired
-// with a test, rather than a quiet loosening of the patterns themselves. The
-// rules still fire on anything not on this list, which is where a leaked guest
-// number or a personal gmail address would land. A guest email is never
-// @rentstayable.com; a guest phone is never one of these eight.
+// specific company values plus the two company email domains, each paired with
+// a test, rather than a quiet loosening of the patterns themselves. The rules
+// still fire on anything not on this list, which is where a leaked guest number
+// or a personal gmail address would land. A guest email is never
+// @rentstayable.com; a guest phone is never one of the sixteen listed below.
 //
 // Adding a value here is a content decision, not a formatting fix.
 //
@@ -80,10 +80,10 @@ const COMPANY_EMAIL_DOMAINS = ["rentstayable.com", "rise8companies.com"];
 /** Company property contact numbers, digits only. Two sets, both company-owned:
  *
  *  1. The eight published front-desk numbers from the public contact page.
- *  2. The AKIA per-property lines (Bea, 08/13/26) — the number staff give a
- *     guest who needs assistance. NOT on the public website, which is why the
- *     criterion above had to be restated. **Lakeland (4645) has no AKIA number
- *     yet** — Bea's list covered seven of eight; it is outstanding, not omitted. */
+ *  2. The AKIA per-property lines — the number staff give a guest who needs
+ *     assistance. NOT on the public website, which is why the criterion above
+ *     had to be restated. All eight present: seven from Bea 08/13/26, Lakeland
+ *     from Kyle the same day. */
 const PUBLISHED_PHONE_DIGITS = new Set([
   // Published front-desk lines (toll-free)
   "18446543175", // Jacksonville West (6802)
@@ -102,6 +102,7 @@ const PUBLISHED_PHONE_DIGITS = new Set([
   "16893290520", // Kissimmee West (5399)
   "16893342864", // Orlando OBT (8700)
   "19044671175", // St. Augustine (2535)
+  "18632816815", // Lakeland (4645)
 ]);
 
 function isAllowedContact(match: string): boolean {
