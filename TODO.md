@@ -39,6 +39,15 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > be reviewed, and it is the reference anyone reaches for when rebuilding a page.
 > Either update it or stop treating it as the source of truth for the wordmark.
 >
+> **[SUPERSEDED — see 2026-08-12 mcp-connector-tokens feature, shipped after this
+> session.** The labelled-env-var scheme below (`MCP_SECRETS`) was **not built**.
+> Per-person, revocable connector URLs now live in the Neon `mcp_tokens` table
+> instead, minted and revoked from `/connectors` (behind PIN `ILLUSTRIOUS`, the
+> new `admin` level). Design doc:
+> `docs/superpowers/specs/2026-08-12-mcp-connector-tokens-design.md`. The block
+> below is kept as the historical record of why the env-var approach was
+> rejected — do not act on its recommendation.**
+>
 > **[?] MCP SHARING TO THE CORE TEAM — RECOMMENDED, NOT BUILT, AWAITING THE NAME
 > LIST.** Rob wants the connector URL shared with the core team (Bea, operations;
 > Crystal, VP; plus Rob and Kate who already have it). This is the exact trigger

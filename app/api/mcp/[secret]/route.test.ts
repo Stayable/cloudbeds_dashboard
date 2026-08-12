@@ -98,6 +98,12 @@ describe("POST /api/mcp/[secret]", () => {
     const res = await post(TOKEN);
     expect(res.status).toBe(200);
 
+    // Finding 4: the token in the URL path must actually reach the resolver.
+    // Without this, a bug that dropped or hardcoded the path segment would
+    // pass every other test in this file (resolveMcpToken is mocked to return
+    // a canned value regardless of its argument).
+    expect(resolveMcpToken).toHaveBeenCalledWith(TOKEN);
+
     const contentType = res.headers.get("content-type") ?? "";
     expect(contentType).toMatch(/application\/json|text\/event-stream/);
 
