@@ -8,23 +8,32 @@ import { useRouter } from "next/navigation";
 export default function ConnectorRow({ id, email }: { id: number; email: string | null }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "error" | "timeout">("idle");
 
   async function revoke() {
     setStatus("saving");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const res = await fetch(`/api/connectors/${id}/revoke`, { method: "POST" });
+      const res = await fetch(`/api/connectors/${id}/revoke`, {
+        method: "POST",
+        signal: controller.signal,
+      });
       if (res.ok) {
         router.refresh();
       } else {
         setStatus("error");
       }
-    } catch {
-      setStatus("error");
+    } catch (e) {
+      setStatus(e instanceof Error && e.name === "AbortError" ? "timeout" : "error");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
   if (status === "error") return <span className="text-[12.5px] text-neg">Failed — reload</span>;
+  if (status === "timeout")
+    return <span className="text-[12.5px] text-neg">Timed out — reload and check before retrying</span>;
 
   if (!confirming) {
     return (

@@ -58,8 +58,9 @@ export default async function ConnectorsPage() {
         <h2 className="text-lg font-semibold text-txt">Issued</h2>
         {loadFailed ? (
           <p className="mt-3 text-sm text-neg">
-            Could not load the token list. The connectors themselves are unaffected — this page
-            reads the database, and every MCP request checks it independently.
+            Could not load the token list. If the database is down, live connectors are affected
+            too — they resolve tokens against the same database. If it is only this page,
+            connectors keep working.
           </p>
         ) : tokens.length === 0 ? (
           <p className="mt-3 text-sm text-txt2">No URLs issued yet.</p>
