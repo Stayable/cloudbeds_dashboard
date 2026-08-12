@@ -18,10 +18,12 @@ off this list.
 
 - **Any room rate**, nightly, weekly, or monthly, for any property.
 - **Square footage** of any room or suite type.
-- **The after-hours emergency phone number** — referred to but never given. An
-  emergency call tree exists in Smartsheet (Bea, 08/12/26) but has not been
-  brought in: it carries staff contact details, so it needs a role-based version
-  before it can be published here.
+- **The after-hours emergency phone number.** Referred to on the website but never
+  given, and it is not one number: the escalation lives in the Smartsheet
+  `Emergency Call Tree SOP 2026`. The procedure and the emergency categories ARE
+  now in [Maintenance and emergencies](/kb/maintenance-and-emergencies); the
+  per-person numbers deliberately are not, because a second copy would go stale
+  the first time somebody changed shift.
 - **An explicit cancellation window** for guests. The Terms & Conditions only
   give Stayable a unilateral right to terminate.
 - **A data retention period** in the privacy policy.

@@ -61,7 +61,7 @@ export type KbProblem = { slug: string; problem: string };
 // a test, rather than a quiet loosening of the patterns themselves. The rules
 // still fire on anything not on this list, which is where a leaked guest number
 // or a personal gmail address would land. A guest email is never
-// @rentstayable.com; a guest phone is never one of the sixteen listed below.
+// @rentstayable.com; a guest phone is never one of the seventeen listed below.
 //
 // Adding a value here is a content decision, not a formatting fix.
 //
@@ -77,13 +77,16 @@ export type KbProblem = { slug: string; problem: string };
 /** Email domains that belong to the company, not to a guest. */
 const COMPANY_EMAIL_DOMAINS = ["rentstayable.com", "rise8companies.com"];
 
-/** Company property contact numbers, digits only. Two sets, both company-owned:
+/** Company property contact numbers, digits only. THREE sets, all company-owned
+ *  and none personal:
  *
  *  1. The eight published front-desk numbers from the public contact page.
  *  2. The AKIA per-property lines — the number staff give a guest who needs
  *     assistance. NOT on the public website, which is why the criterion above
  *     had to be restated. All eight present: seven from Bea 08/13/26, Lakeland
- *     from Kyle the same day. */
+ *     from Kyle the same day.
+ *  3. Lakeland's shared after-hours on-call line. The rest of the Emergency Call
+ *     Tree SOP is ~40 individual staff mobiles and NONE of them belong here. */
 const PUBLISHED_PHONE_DIGITS = new Set([
   // Published front-desk lines (toll-free)
   "18446543175", // Jacksonville West (6802)
@@ -103,6 +106,11 @@ const PUBLISHED_PHONE_DIGITS = new Set([
   "16893342864", // Orlando OBT (8700)
   "19044671175", // St. Augustine (2535)
   "18632816815", // Lakeland (4645)
+  // Shared after-hours on-call line, Lakeland (4645). A SHARED company line on a
+  // day-of-week roster — deliberately allowlisted where the ~40 individual staff
+  // mobiles in the same call tree are NOT. It does not change when staff change,
+  // which is exactly why it is safe to publish and they are not.
+  "18632106420",
 ]);
 
 function isAllowedContact(match: string): boolean {

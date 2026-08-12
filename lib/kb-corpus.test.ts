@@ -146,6 +146,27 @@ describe("checkCorpus", () => {
     expect(problems[0].problem).toContain("(407) 555-0142");
   });
 
+  it("allows an AKIA per-property line, which is not on the public website", () => {
+    expect(checkCorpus([bad("Kissimmee East AKIA: 689-308-1519.")])).toEqual([]);
+  });
+
+  it("allows Lakeland's shared after-hours on-call line", () => {
+    expect(checkCorpus([bad("On-call emergency phone: 863-210-6420.")])).toEqual([]);
+  });
+
+  // THE LOAD-BEARING ONE for the Emergency Call Tree SOP (08/13/26). That sheet
+  // pairs ~40 individual staff members with their personal mobiles. The shared
+  // on-call line above is allowlisted; a named person's mobile must NOT be, and
+  // this pins that the widening did not become a hole. If someone later pastes
+  // the call tree into the corpus wholesale, this is what stops the build.
+  it("still fails a staff member's personal mobile beside the shared on-call line", () => {
+    const problems = checkCorpus([
+      bad("On-call 863-210-6420, or reach the manager on (407) 236-6808."),
+    ]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].problem).toContain("(407) 236-6808");
+  });
+
   it("fails a Guest Name column header", () => {
     expect(checkCorpus([bad("| Guest Name | Room |\n| --- | --- |\n| x | 1 |")])[0].problem).toMatch(
       /guest/i,
