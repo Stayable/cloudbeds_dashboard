@@ -10,6 +10,18 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > NOT committed**, so nothing is live: `components/Nav.tsx` and
 > `app/login/page.tsx`. Branch level with origin at **`73dc961`**.
 >
+> **[ ] RETIRE THE LEGACY SHARED MCP URL.** It is now row `legacy shared URL —
+> also used by Kate` in `mcp_tokens`, owned by `rb@rise8companies.com`. While it
+> lives, revocation is still all-or-nothing for whoever holds it, and that URL
+> has already travelled through Teams.
+> 1. Issue a URL for `rb@rise8companies.com` and one for `kate@rentstayable.com`
+>    from `/connectors` (PIN `ILLUSTRIOUS`).
+> 2. Send each of them their own, and tell them to replace the old connector.
+> 3. When `/connectors` shows both new tokens in use **and no legacy use for 7
+>    consecutive days**, click Revoke on the legacy row.
+> **Also: delete `MCP_SECRET` from Vercel** — nothing reads it any more, and
+> leaving it implies it still works.
+>
 > **[x] "stayable" → "Stayable" in the wordmark**, both places it renders, because
 > it is one brand mark and splitting it would look like a bug:
 > - `components/Nav.tsx:41` — the header on every gated page
