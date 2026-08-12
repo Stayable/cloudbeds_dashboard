@@ -29,18 +29,19 @@ a smart TV with streaming.
   daily or weekly cleaning; see [House rules](/kb/house-rules).
 - Pet-friendly at all locations — see [Pet policy](/kb/pet-policy).
 
-## Swimming pool — unverified, do not promise one
+## Swimming pool
 
 The website says a swimming pool is available "at every location," and lists one
 on all eight property pages.
 
-**There is reason to believe at least one of those pages is wrong — Orlando OBT
-(8700) in particular — but it has not been verified.** All eight properties have
-been asked to confirm on the Property Information Request.
+**Orlando OBT (8700): the pool is PERMANENTLY CLOSED.** (Bea, 08/12/26.) The OBT
+property page still advertises it and is wrong. Never promise a pool at OBT — a
+guest who booked it for the pool has already been misled by the website, and
+repeating it at the desk is the part we control.
 
-Until they answer: **do not promise a pool at any property.** Check with the
-property. A guest who was promised a pool that does not exist is a complaint the
-website caused and we repeated.
+**The other seven are still unconfirmed.** One page being wrong is evidence the
+set was not maintained, not evidence the rest are fine, so: **do not promise a
+pool at any property without checking.** The request is still out with all eight.
 
 ## Property-specific differences
 

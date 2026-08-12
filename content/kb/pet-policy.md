@@ -19,12 +19,40 @@ authorised in writing by Stayable.
 
 ## Pet fee
 
-A pet fee applies. **The website never states a dollar amount** — every page
-says "nominal fee," "additional fee," or "subject to additional fees and
-charges" without a number. Confirm the current amount with the property before
-quoting it to a guest.
+Supplied by Bea on 08/12/26. The amount depends on the stay type:
 
-**Service animals are exempt from all additional fees and charges.**
+| Stay type | Pet fee | Pet deposit |
+|---|---|---|
+| Transient | **$15 per day** or **$50 per week** | **None** |
+| Signed lease | **$25 per pet, per month** | **$250 per unit** |
+
+Note the lease fee is **per pet** while the deposit is **per unit** — two pets on
+a lease is $50/month, still against one $250 deposit.
+
+**The website never states any dollar amount** — every page says "nominal fee,"
+"additional fee," or "subject to additional fees and charges." So a guest cannot
+have read these figures anywhere, and will hear them from you first.
+
+## Service animals and emotional support animals
+
+**No pet fee applies to a service animal or an emotional support animal.**
+(Bea, 08/12/26. The website separately states that service animals are exempt
+from all additional fees and charges.)
+
+**What documentation you may ask for is NOT settled here, deliberately.** Bea's
+note says documentation "may be requested when permitted and needed under company
+policy," and that hedge is load-bearing — the two categories are governed
+differently, and Stayable operates both sides of the line:
+
+- a **transient stay** is a public accommodation, where what may be asked about a
+  service animal is tightly limited;
+- a **signed lease** is housing, where a request for reasonable documentation is
+  more often permitted.
+
+One rule covering both is how a GSA ends up demanding paperwork they are not
+entitled to. **This page will not tell you what to ask for.** Route the question
+to management rather than deciding at the desk. Referred for legal review
+08/13/26 — this section stays as-is until that comes back.
 
 ## Rules while on the property
 

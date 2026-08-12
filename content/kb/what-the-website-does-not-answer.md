@@ -18,8 +18,10 @@ off this list.
 
 - **Any room rate**, nightly, weekly, or monthly, for any property.
 - **Square footage** of any room or suite type.
-- **The exact pet fee** — described only as "nominal" or "additional."
-- **The after-hours emergency phone number** — referred to but never given.
+- **The after-hours emergency phone number** — referred to but never given. An
+  emergency call tree exists in Smartsheet (Bea, 08/12/26) but has not been
+  brought in: it carries staff contact details, so it needs a role-based version
+  before it can be published here.
 - **An explicit cancellation window** for guests. The Terms & Conditions only
   give Stayable a unilateral right to terminate.
 - **A data retention period** in the privacy policy.
@@ -32,22 +34,41 @@ off this list.
 ## Out with the properties for verification
 
 These have gone to all eight properties on the **Property Information Request**.
-None of them has an answer yet, and this knowledgebase does not invent one.
+This knowledgebase does not invent an answer for any of them.
 
-- **The security deposit amount.** Deposit Terms says a flat $100; the homepage
-  and FAQ say it varies by location — see
-  [Deposit and damage fee](/kb/deposit-and-damage-fee).
-- **The pet fee amount.** Never stated as a number anywhere.
-- **The after-hours emergency number.** Referred to but never published.
-- **Whether each property actually has a pool.** The site claims one at every
-  location and at least one page is believed wrong.
-- **Standard check-in time.** FAQ says 3:00 PM; the homepage and Rules &
-  Regulations say 4:00 PM.
-- **Lakeland's canonical front desk email.** Two addresses are published.
-- **Whether staff should quote a discount percentage at all.**
+- **Whether each property actually has a pool.** Orlando OBT is now answered — it
+  is permanently closed (Bea, 08/12/26) — and the site still advertises it. The
+  other seven are unconfirmed, and one page being wrong is a reason to doubt the
+  set rather than to trust the rest.
+- **Lakeland's AKIA number.** Bea supplied seven of eight on 08/13/26; Lakeland
+  was not among them — see [Property directory](/kb/property-directory).
+- **Which email address belongs to a property.** The AKIA mailboxes Bea supplied
+  do not match the website's published front-desk addresses at any of the seven
+  properties. Both sets may be live, or one may be stale. This is the same
+  question as Lakeland's two addresses, one scale up.
+- **What documentation may be requested for a service animal or an ESA.**
+  Referred for legal review 08/13/26, not to the properties — a transient stay
+  and a signed lease are governed differently and one desk-level rule cannot
+  cover both. See [Pet policy](/kb/pet-policy).
+- **An explicit cancellation window** for guests.
 - **Whether on-site laundry, the hot tub, and the children's play area** are
   portfolio-wide or specific to Kissimmee West. Only that property's page lists
   the last two, which is weak evidence either way.
+
+### Answered on 08/12-13/26 by Bea, and moved into the documents
+
+Recorded here so a reader who remembers these as open can see they are not.
+
+- **Check-in time** — 4:00 PM. The FAQ's 3:00 PM is wrong and the site needs
+  correcting.
+- **Deposit** — $100 per room transient, $250 per unit on a lease.
+- **Pet fee** — $15/day or $50/week transient; $25/pet/month plus a $250 deposit
+  per unit on a lease.
+- **Discount percentage** — there is none to quote. Rates come from Cloudbeds.
+- **Screening vendor** — AKIA, no longer Autohost. The website still says
+  Autohost and is out of date.
+- **Late checkout** — to 1:00 PM for $25, then a full additional day.
+- **Check-in age** — 21 transient, 18 on a signed lease.
 
 Nothing above is a decision waiting to be typed up. Each is a real question the
 published material cannot settle, and the properties are the ones who know.

@@ -10,22 +10,15 @@ Applies at all eight properties.
 
 ## Check-in time
 
-**Our published sources disagree. This is pending confirmation from the
-properties — this page does not pick a winner.**
+**Check-in begins at 4:00 PM**, available until 2:30 AM. Settled by Bea on
+08/12/26 — the Rules & Regulations (07/22/26) and the homepage were right.
 
-- The **Rules & Regulations** (dated 07/22/26) and the **homepage** both say
-  check-in begins at **4:00 PM**, available until 2:30 AM.
-- The **FAQ** says **3:00 PM**.
+**The website's FAQ still says 3:00 PM and is wrong.** Bea has asked for it to be
+corrected. Until the site is updated, expect a guest who read the FAQ to quote
+3:00 PM in good faith — they are not making it up, and the fee below is the one
+they will be surprised by.
 
-Two of the three say 4:00 PM, and the Rules & Regulations is the most recent and
-most operational of them — but nobody has verified it, so it is recorded as
-unsettled rather than decided. It has gone to the properties on the Property
-Information Request.
-
-Until it comes back: **check with the property before promising a time**, and
-expect a guest who read the FAQ to quote 3:00 PM in good faith.
-
-The fees attached to the published 4:00 PM window:
+The fees attached to the 4:00 PM window:
 
 - Arriving **before 4:00 PM**: a $25 early arrival fee applies.
 - Arriving **after 2:30 AM**: the night is forfeited with no refund.
@@ -43,12 +36,20 @@ Late departure incurs a $25 fee.
 Check-out at 11:00 AM is stated consistently everywhere on the website — there
 is no ambiguity about this one.
 
-## Early check-in and late check-out
+## Late check-out — and the 1:00 PM cliff
 
-Early check-in or late check-out may be available depending on occupancy. The
-guest should call the property ahead of time to ask. Availability is not
-guaranteed, and the $25 early arrival / $25 late departure fees are the
-published charges when it is granted outside the standard window.
+**Late check-out runs to 1:00 PM for a $25 fee. Past 1:00 PM the guest is charged
+for an additional day.** (Bea, 08/12/26.)
+
+That boundary is the part worth knowing before a conversation, not after: at
+12:55 PM the guest owes $25, and at 1:05 PM they owe a night. It is not on the
+website in any form, so a guest cannot have read it, and a GSA who only knows
+"$25 late fee" will quote the wrong number to someone already running late.
+
+Early check-in may also be available depending on occupancy. The guest should
+call the property ahead to ask. Availability is not guaranteed for either, and
+the $25 early arrival / $25 late departure fees are the published charges when it
+is granted outside the standard window.
 
 ## Digital check-in is required before arrival
 

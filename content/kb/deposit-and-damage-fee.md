@@ -8,22 +8,25 @@ counties: [Polk, Osceola, Duval, St. Johns, Orange]
 
 A refundable damage fee (deposit) is required per room, per stay, at move-in.
 
-## Deposit amount — DO NOT QUOTE A FIGURE YET
+## Deposit amount
 
-**The amount is not settled, and this page will not state one.** The website
-contradicts itself and the question is open internally as of 08/12/26:
+Settled by Bea on 08/12/26. It depends on whether the stay is transient or on a
+signed lease, which is why the website's "varies by location" reads as vague — it
+varies by **stay type**, not by property:
 
-- The **Deposit Terms & Conditions** page states a flat **$100.00** deposit per
-  room.
-- The **homepage** says the refundable damage fee "varies depending on the
-  location and length of stay."
-- The **FAQ** says "the amount varies by location, so contact your preferred
-  property for details."
+| Stay type | Amount | Basis |
+|---|---|---|
+| Transient | **$100** | per room, **all properties** |
+| Signed lease | **$250** | per unit |
 
-Until this is confirmed, **direct the guest to the property for the amount**
-rather than quoting either figure. Quoting $100 at a property that charges more
-creates a dispute at check-out; quoting "it varies" where it is flat is merely
-unhelpful. This page will be updated once the answer comes back.
+**The website is wrong twice over.** The homepage says the fee "varies depending
+on the location and length of stay" and the FAQ says "the amount varies by
+location, so contact your preferred property" — both point a guest at the
+property for a figure that is actually uniform. The Deposit Terms & Conditions
+page's flat **$100** was correct for transient stays all along.
+
+You can now quote these directly. Say which one applies: a lease applicant told
+"$100" will dispute the other $150 at signing.
 
 ## What the deposit is for
 

@@ -30,6 +30,55 @@ the same desk — that is exactly what is unknown. Lakeland has been asked to
 confirm on the Property Information Request. Until it comes back, do not give
 either out as *the* address without checking.
 
+## AKIA per-property numbers — the number to give a guest who needs help
+
+Supplied by Bea on 08/13/26. These are **local** lines, separate from the
+toll-free front-desk numbers above, and are what staff should give a guest who
+needs assistance.
+
+| Property | Cloudbeds ID | AKIA number |
+|---|---|---|
+| Davenport | 44199 | 863-282-7724 |
+| Jacksonville North | 812 | 904-872-5592 |
+| Jacksonville West | 6802 | 904-875-7970 |
+| Kissimmee East | 2295 | 689-308-1519 |
+| Kissimmee West | 5399 | 689-329-0520 |
+| Orlando OBT | 8700 | 689-334-2864 |
+| St. Augustine | 2535 | 904-467-1175 |
+| **Lakeland** | **4645** | **NOT SUPPLIED — outstanding** |
+
+**Lakeland has no AKIA number here.** Bea's list covered seven of the eight. That
+is a gap, not a property without a number — for Lakeland, use the toll-free line
+above until it is supplied.
+
+These numbers are **not published on rentstayable.com**, so a guest will not have
+found them. They are company lines, not personal ones.
+
+### The AKIA mailboxes do not match the website's front-desk addresses
+
+Bea's list paired each number with an email, and **not one of the seven matches
+the front-desk address published on the website** and shown in the table above:
+
+| Property | Website front desk | AKIA mailbox |
+|---|---|---|
+| Davenport | `davenport@` | `dpt@` |
+| Jacksonville North | `jax@` | `jacksonvillenorth@` |
+| Jacksonville West | `jaxwest@` | `jacksonvillewest@` |
+| Kissimmee East | `kiss@` | `kissimmeeeast@` |
+| Kissimmee West | `kisswest@` | `kissimmeewest@` |
+| Orlando OBT | `obt@` | `orlando@` |
+| St. Augustine | `staug@` | `staugustine@` |
+
+All are `@rentstayable.com`. **Which one a guest should be given is unknown.**
+Two readings, both plausible: AKIA runs its own mailboxes alongside the published
+front-desk addresses and both are live, or one set is stale. This page does not
+pick — **use the website address for a guest and the AKIA address for AKIA
+traffic, and ask before promising either is "the" address for a property.**
+
+This also reframes the Lakeland question above: a company-wide split between two
+addressing schemes is a more likely explanation than one property having two
+addresses by accident.
+
 ## Company and legal contact
 
 There is no general company phone number or corporate mailing address published

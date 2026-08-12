@@ -18,15 +18,22 @@ my credit," the answer is no.
 
 ## Age requirement
 
-- **21 or older to check in**, with a valid government-issued photo ID.
+The age depends on whether the stay is transient or on a signed lease
+(Bea, 08/12/26):
+
+- **Transient stay: 21 or older to check in**, with a valid government-issued
+  photo ID.
+- **Signed lease: 18 or older.**
 - Guests **18 or older** who are not the person checking in must still register
   with a valid photo ID.
 - The website's Terms & Conditions separately require users to be 18+ to use
   the website or make a reservation. That is a website term, not the check-in
-  age. The check-in age is 21.
+  age.
 
 The 21+ requirement appears only in the Rules & Regulations — it is not on the
-FAQ or homepage, so a guest may arrive not knowing it.
+FAQ or homepage, so a transient guest may arrive not knowing it. **The 18+ lease
+figure is not on the website at all**, so a lease applicant turned away at 18
+would be turned away wrongly.
 
 ## Photo ID
 
@@ -40,11 +47,18 @@ submission, a selfie for identity verification, payment confirmation, and
 acceptance of the house rules. Failure to complete it may cause delayed access
 or denial of check-in.
 
-## Guest screening (Autohost)
+## Guest screening
 
-Identity verification and risk assessment run through a third-party partner,
-**Autohost**. Failing screening may result in cancellation of the reservation
-without a refund.
+Identity verification and risk assessment run through a third-party partner.
+Failing screening may result in cancellation of the reservation without a refund.
+
+**Screening is handled in AKIA. It is no longer Autohost.** (Bea, 08/12/26;
+confirmed by Kyle 08/13/26 that Autohost is no longer in use.)
+
+The website's own Terms & Conditions still name **Autohost** as the screening
+partner. That is now out of date — the website is wrong, not this page. Do not
+quote Autohost to a guest, and if a guest quotes it back from the website, the
+partner has changed.
 
 ## Background check for stays beyond 27 days
 

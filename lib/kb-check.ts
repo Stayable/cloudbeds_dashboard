@@ -63,15 +63,29 @@ export type KbProblem = { slug: string; problem: string };
 // number or a personal gmail address would land. A guest email is never
 // @rentstayable.com; a guest phone is never one of these eight.
 //
-// Adding a value here is a content decision, not a formatting fix: it must be a
-// company contact point that is already public.
+// Adding a value here is a content decision, not a formatting fix.
+//
+// The bar was originally written as "must already be public". Corrected 08/13/26
+// when the AKIA per-property lines were added: those are company numbers handed
+// to guests by staff, but they are not on the public contact page. "Already
+// public" was never what this rule protects — it protects against a GUEST's
+// number or inbox reaching the corpus. The real bar is **company-owned, not
+// personal**, and `/kb` is PIN-gated and staff-only, so an internal company line
+// is in scope. A staff member's personal mobile is NOT, and must never be added
+// here: that is the case the emergency call tree will raise when it arrives.
 
 /** Email domains that belong to the company, not to a guest. */
 const COMPANY_EMAIL_DOMAINS = ["rentstayable.com", "rise8companies.com"];
 
-/** The eight published property front-desk numbers, digits only (contact page),
- *  plus the emergency services number. */
+/** Company property contact numbers, digits only. Two sets, both company-owned:
+ *
+ *  1. The eight published front-desk numbers from the public contact page.
+ *  2. The AKIA per-property lines (Bea, 08/13/26) — the number staff give a
+ *     guest who needs assistance. NOT on the public website, which is why the
+ *     criterion above had to be restated. **Lakeland (4645) has no AKIA number
+ *     yet** — Bea's list covered seven of eight; it is outstanding, not omitted. */
 const PUBLISHED_PHONE_DIGITS = new Set([
+  // Published front-desk lines (toll-free)
   "18446543175", // Jacksonville West (6802)
   "18447552648", // Jacksonville North (812)
   "18777354134", // St. Augustine (2535)
@@ -80,6 +94,14 @@ const PUBLISHED_PHONE_DIGITS = new Set([
   "18665594142", // Orlando OBT (8700)
   "18443876651", // Lakeland (4645)
   "18777590804", // Davenport (44199)
+  // AKIA per-property lines (local numbers)
+  "18632827724", // Davenport (44199)
+  "19048725592", // Jacksonville North (812)
+  "19048757970", // Jacksonville West (6802)
+  "16893081519", // Kissimmee East (2295)
+  "16893290520", // Kissimmee West (5399)
+  "16893342864", // Orlando OBT (8700)
+  "19044671175", // St. Augustine (2535)
 ]);
 
 function isAllowedContact(match: string): boolean {

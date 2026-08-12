@@ -15,12 +15,15 @@ fee in particular has no stated amount anywhere.
 | Fee | Amount | Trigger |
 |---|---|---|
 | Lost key | $2.50 per key | Replacement key |
-| Housekeeping (full clean) | $25 | On request, 24 hours notice |
+| Housekeeping (full clean) | $25 | On request, 24 hours notice. Transient only — not included on a lease |
 | Linen exchange | $10 | Front desk swap |
 | Discarded or damaged linen | $25 | Unrecoverable damage |
 | Early arrival | $25 | Before 4:00 PM |
-| Late departure | $25 | After 11:00 AM |
+| Late departure | $25 | After 11:00 AM, **up to 1:00 PM** |
+| Late departure past 1:00 PM | **a full additional day** | Not $25 — see Check-in and check-out |
 | Late payment | $25 | Missed renewal deadline |
+| Pet fee — transient | $15 per day *or* $50 per week | No pet deposit |
+| Pet fee — signed lease | $25 per pet, per month | Plus a $250 pet deposit per unit |
 | Smoking in a non-smoking room | $250 | Tobacco, vaping, or marijuana |
 | Noise violation | $100 | After an initial warning, quiet hours |
 | Waste nuisance | $100 | Trash or pet waste outside dumpsters |

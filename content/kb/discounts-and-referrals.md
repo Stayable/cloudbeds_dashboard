@@ -6,21 +6,27 @@ snapshotDate: 2026-08-10
 counties: [Polk, Osceola, Duval, St. Johns, Orange]
 ---
 
-## Weekly and monthly discounts — do not quote a percentage
+## Rates and discounts — quote Cloudbeds, never a percentage
 
-Weekly and monthly rates are discounted against the nightly rate, and the
-per-night price falls as the term lengthens: nightly is highest, then weekly,
-then monthly.
+**Quote the current rates shown in Cloudbeds.** Nightly and weekly rates come
+from Cloudbeds and nowhere else. (Bea, 08/12/26.)
 
-**Do not quote a discount percentage.** The discount is
-**property- and season-dependent**, and the published figures do not agree with
-each other (the offers page says weekly saves "up to 25%" and monthly "up to
-35%"; a blog article says the typical range is 20–35%). None of these is a
-commitment, and which — if either — staff should quote is pending an answer on
-the Property Information Request. Until then, **check the current rate sheet for
-the property**.
+**There is no discount percentage to quote — that was the answer, not a gap.**
+The published figures never agreed anyway (the offers page says weekly saves "up
+to 25%" and monthly "up to 35%"; a blog article says 20–35% is typical). None of
+them is a commitment and none should be repeated to a guest. The live rate is the
+answer.
 
-Advance payment is what unlocks the weekly and monthly rate.
+Two rules that are easy to get wrong (Bea, 08/12/26):
+
+- **Monthly discounts are not available for transient stays.** A monthly rate
+  requires a **signed lease**. A transient guest asking for a monthly rate is
+  asking to become a lease resident, which is a different conversation.
+- **The LTG rate is not a general discount.** Use it *only* for a reservation
+  flagged with **"LTG rate"** — either in the name on the booking or as a
+  reservation tag. If it is not flagged, it is not an LTG booking.
+
+Advance payment is what unlocks the weekly rate.
 
 ## Military and first responder discount
 
