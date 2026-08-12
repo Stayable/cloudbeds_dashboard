@@ -46,8 +46,8 @@ because the reasons still apply if this is revisited.
 | Self-serve minting per user, authorised by PIN **level** | **rejected** | Forced a `kate` level into existence and still attributed tokens to a role, not a person. |
 | Dashboard **user accounts** (email + scrypt password), self-serve minting | **rejected** | ~2 hrs of bespoke auth, eight password hashes to hold, a forced-change flow, and a manual reset burden on Kyle forever. |
 | Replacing all PINs with per-person PINs, `MAIN` → `STYBL` | **rejected** | An auth-system replacement with a lockout risk, to serve a feature that needed one page. Also required hashing PINs and rate-limiting `/api/auth` to be safe. |
-| **Bearer token in an `Authorization` header** instead of the path | **deferred, unverified** | Strictly better hygiene, and `mcp-handler` 2.1.0 already exports `withMcpAuth(handler, verifyToken)` for it. Blocked on an unverified fact: whether Claude Desktop's custom-connector dialog can set an arbitrary header. **Worth five minutes to check before building** — if it can, use a header and the URL stops being a secret at no extra cost. |
-| **Microsoft Entra ID OAuth** for MCP (and possibly the dashboard) | **deferred** | The correct end state — real identity, and offboarding in M365 kills access automatically. `mcp-handler` exports `protectedResourceHandler` / `generateProtectedResourceMetadata` (RFC 9728) for exactly this. Costs 1–2 days plus tenant-admin coordination, and Entra does not support dynamic client registration, so Claude Desktop would need a pre-registered client id. **Trigger to revisit: the roster passing ~6 people, or anyone outside the core team.** |
+| **Bearer token in an `Authorization` header** instead of the path | **rejected — verified impossible 08/12/26** | Strictly better hygiene, and `mcp-handler` 2.1.0 exports `withMcpAuth(handler, verifyToken)` for it. But the Add-custom-connector dialog offers only **Name**, **Remote MCP server URL**, and — under Advanced settings — **OAuth Client ID** and **OAuth Client Secret**. There is no field for an arbitrary header, so a bearer token is unreachable except *through* OAuth. Confirmed from a screenshot of the live dialog, not from memory. |
+| **Microsoft Entra ID OAuth** for MCP (and possibly the dashboard) | **deferred — but cheaper than first estimated** | The correct end state: real identity, and offboarding in M365 kills access automatically. `mcp-handler` exports `protectedResourceHandler` / `generateProtectedResourceMetadata` (RFC 9728) for exactly this. **Two concerns recorded earlier are now resolved by the same screenshot:** the dialog *does* accept a manually-supplied OAuth Client ID and Secret, so Entra's lack of dynamic client registration is not a blocker; and the dialog offers **"Managed authorization" (Beta) — "Each member is connected through your identity provider"**, which is this option as a supported feature with Anthropic handling client registration. It is gated behind a **Request access** button. **Action taken independently of this build: request that access now**, since the approval timing is not ours to control. Trigger to actually migrate is unchanged — the roster passing ~6 people, or anyone outside the core team. |
 
 **Chosen:** admin-issued, DB-backed secrets in the URL path. It fixes all three
 failures in ~3 hours, and `mcp_tokens` is the table an OAuth migration would
@@ -357,11 +357,19 @@ most likely to be broken by a later edit, so each direction is pinned:
 
 ## 12. Open items
 
-1. **Five-minute check before building:** can Claude Desktop's custom-connector
-   dialog set an `Authorization` header? If yes, prefer a header over the path
-   for the same effort and strictly better hygiene (§3).
-2. **Tell Bea the MCP carries no guest PII** before she connects (§6.2).
-3. **Preview does not isolate the database.** `DATABASE_URL` points at the same
+1. **CLOSED 08/12/26 — the connector dialog cannot set a header.** Verified from
+   a screenshot of the live Add-custom-connector dialog: the only inputs are
+   Name, Remote MCP server URL, and OAuth Client ID / Secret. The secret-in-the-
+   path design in this spec is therefore the design, not a compromise pending a
+   check. See §3 for the two Entra concerns the same screenshot resolved.
+   *Caveat: the dialog observed appears to be the organisation-level one
+   ("members", "your identity provider"); the per-user Claude Desktop dialog Rob
+   used in 9n may differ in detail, though not in the absence of a header field.*
+2. **Request access to "Managed authorization" (Beta)** — zero cost, gated on an
+   approval whose timing is outside our control, and it is what would eventually
+   replace `/connectors` with real M365 identity. Do it now, not at the trigger.
+3. **Tell Bea the MCP carries no guest PII** before she connects (§6.2).
+4. **Preview does not isolate the database.** `DATABASE_URL` points at the same
    Neon instance from local, preview and production (established in 9p). Seeding
    or revoking "in preview" writes to production. Code can be rehearsed in
    preview; data changes cannot. Additionally, MCP cannot be tested end-to-end
