@@ -49,6 +49,23 @@ await sql`
 `;
 console.log("dashboard_pins table ready.");
 
+// mcp_tokens: one row per issued MCP connector URL (spec 2026-08-12).
+// Only the SHA-256 hash is stored — a lost URL is re-minted, never recovered.
+// Revoked rows are KEPT so "who had access in August" stays answerable.
+await sql`
+  create table if not exists mcp_tokens (
+    id            bigserial   primary key,
+    email         text,
+    label         text,
+    token_hash    text        not null unique,
+    created_at    timestamptz not null default now(),
+    last_used_at  timestamptz,
+    revoked_at    timestamptz
+  )
+`;
+await sql`create index if not exists mcp_tokens_hash_idx on mcp_tokens (token_hash)`;
+console.log("mcp_tokens table ready.");
+
 // app_settings: small key/value store (lib/db.ts). Backs the Operations
 // Dashboard's lockable 1-star reviews date window (key 'ops_reviews_window').
 await sql`
