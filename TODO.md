@@ -4,9 +4,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## 08/13/26 (session 9r) — PER-PERSON MCP CONNECTOR TOKENS: BUILT, **NOT PUSHED**
+## 08/13/26 (session 9r) — PER-PERSON MCP CONNECTOR TOKENS: **LIVE AND WORKING**
 
-> **Pickup — 08/13/26. ALL CODE COMPLETE AND REVIEWED. NOTHING IS DEPLOYED.**
+> **Pickup — 08/13/26. SHIPPED, DEPLOYED AND CONFIRMED WORKING.**
 > Branch `claude/nifty-thompson-ts8zny` is **15 commits ahead of origin**, and
 > pushing this branch auto-deploys Vercel **production**. 661 tests / 67 files,
 > `tsc --noEmit` exit 0, `npm run build` clean. Final whole-branch review verdict:
@@ -48,9 +48,52 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > `lib/pins.test.ts` now derives its cases from `ALL_LEVELS`** so the next added
 > level cannot repeat it silently.
 >
+> **[x] DEPLOYED AND WORKING (08/13/26).** Production `dpl_3JAoLMSwrxpx9Gdmn59ni6zTrW7L`
+> then two follow-ups. Live-verified: `/connectors` 307s unauthenticated, a bogus
+> token 404s, and the legacy URL completes a real MCP handshake — so Rob's and
+> Kate's connectors survived the cutover untouched. 674 tests.
+>
+> **[x] `70a9bc4` — table refresh + URL preview column.** `router.refresh()` on
+> issue success *and* on "Issue another". New URL column showing the token's first
+> and last 6 hex chars. **This narrowed a guarantee:** `mcp_tokens` used to hold
+> only a hash and now holds 12 of 64 hex characters in plaintext — 48 bits
+> disclosed, ~208 unknown, so unusable for reconstruction, but it is a fragment of
+> the credential where none was before. A route test pins that it stays a fragment.
+> **Rows 2-7 show "—" forever** — minted before the column existed and the tokens
+> were never stored. `scripts/backfill-token-previews.mjs` takes the original URLs
+> from a gitignored file if you still have them in your DMs.
+>
+> **[!] `01364a0` — THE BUG WORTH REMEMBERING FROM THIS SESSION.** Adding a
+> connector failed with *"Couldn't register with <server>'s sign-in service… or
+> add an OAuth Client ID."* It presented as **"some users can't add a custom
+> connector"** — i.e. it looked like a per-account permissions limit, and a
+> workaround (everyone shares Rob's URL) was nearly adopted on that basis. It was
+> neither. Claude probes `/.well-known/oauth-protected-resource` to discover an
+> authorization server; that path was not excluded from the PIN matcher, so it
+> 307'd to `/login`, which serves **200 HTML**. The client read a 200 at a
+> discovery endpoint as proof a sign-in service existed, attempted OAuth Dynamic
+> Client Registration against a login page, and failed. **Origin-wide — it broke
+> every connector URL equally, which is what the "Rob's fails the same way" clue
+> was telling us.** Middleware now 404s `/.well-known/oauth*` before the gate.
+> First middleware test in the repo, 8 cases, pinning both directions.
+> **General rule: any gated route that shadows a well-known discovery path breaks
+> clients silently.**
+>
+> **Token rows as of 08/13:** id 1 legacy (Rob + Kate, retire it), ids 2-7 the
+> per-person URLs, id 8 `bke@` labelled "General Use Shared" for anyone who
+> genuinely cannot add their own.
+>
 > **▶ NEXT SESSION — START HERE:**
-> 1. **[ ] Decide whether to push.** It auto-deploys production. Nothing is live
->    until you do, including the `/connectors` page.
+> 1. **[ ] RETRY THE "CAN'T ADD A CUSTOM CONNECTOR" USERS.** That was probably the
+>    OAuth-discovery bug, now fixed. If they can each add their own, **drop the
+>    shared row 8 plan entirely** and everyone keeps individual revocability.
+>    Row 8 is unused so far, so nothing is lost by retiring it.
+> 2. **[ ] Mint Rob his own URL** — he is still the only person on the legacy row,
+>    which is why row 1 cannot be retired yet.
+> 3. **[ ] Then retire row 1**, but only after Rob confirms his own works —
+>    revoking it kills Rob and Kate simultaneously.
+> 4. **[ ] Monica's token (id 5) has never been used.** Everyone else's shows
+>    activity. Either she has not set it up or it failed for her.
 > 2. **[ ] AFTER deploying, run these in order — they cannot be proven locally:**
 >    unauthenticated `/connectors` → **307** to `/login` (if it 200s, stop);
 >    log in with the exec PIN and confirm `/connectors` is **refused**; log in with
