@@ -559,7 +559,8 @@ export async function resolveMcpToken(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/mcp/auth.test.ts`
-Expected: PASS, 12 tests.
+Expected: PASS, 10 tests — the ten `it` blocks in Step 1. Do not add tests to
+reach a different number; if the count disagrees, count the blocks above.
 
 Do **not** commit yet — `tsc` fails at this point, because the route still
 imports the now-deleted `mcpSecretOk`. Steps 5-8 fix that, and the commit at
