@@ -1,59 +1,108 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { mcpSecretOk } from "./auth";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const REAL = "a".repeat(64);
-const original = process.env.MCP_SECRET;
-afterEach(() => {
-  if (original === undefined) delete process.env.MCP_SECRET;
-  else process.env.MCP_SECRET = original;
+const findLiveTokenByHash = vi.fn();
+const touchToken = vi.fn();
+
+// Mock only the DB functions; keep hashToken/shouldTouch real so the test
+// exercises the actual hashing and throttle decision.
+vi.mock("./tokens", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./tokens")>();
+  return {
+    ...actual,
+    findLiveTokenByHash: (...a: unknown[]) => findLiveTokenByHash(...a),
+    touchToken: (...a: unknown[]) => touchToken(...a),
+  };
 });
 
-describe("mcpSecretOk", () => {
-  it("accepts the configured secret", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk(REAL)).toBe(true);
+import { resolveMcpToken, MIN_TOKEN_LENGTH } from "./auth";
+import { hashToken, TOUCH_WINDOW_MS } from "./tokens";
+
+const TOKEN = "a".repeat(64);
+
+function row(over: Partial<{ lastUsedAt: string | null }> = {}) {
+  return {
+    id: 7,
+    email: "rb@rise8companies.com",
+    label: "Claude Desktop",
+    createdAt: "2026-08-12T00:00:00.000Z",
+    lastUsedAt: null,
+    revokedAt: null,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  findLiveTokenByHash.mockReset();
+  touchToken.mockReset();
+});
+
+describe("resolveMcpToken", () => {
+  it("returns the caller for a live token", async () => {
+    findLiveTokenByHash.mockResolvedValue(row());
+    await expect(resolveMcpToken(TOKEN)).resolves.toEqual({
+      id: 7,
+      email: "rb@rise8companies.com",
+      label: "Claude Desktop",
+    });
   });
 
-  it("rejects a wrong secret of the same length", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk("b".repeat(64))).toBe(false);
+  it("looks the token up by its hash, never by the token itself", async () => {
+    findLiveTokenByHash.mockResolvedValue(row());
+    await resolveMcpToken(TOKEN);
+    expect(findLiveTokenByHash).toHaveBeenCalledWith(hashToken(TOKEN));
+    expect(findLiveTokenByHash).not.toHaveBeenCalledWith(TOKEN);
   });
 
-  it("rejects a prefix of the real secret", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk("a".repeat(63))).toBe(false);
+  // findLiveTokenByHash excludes revoked rows in SQL, so "revoked" and
+  // "unknown" both arrive here as null. This pins the caller-visible result.
+  it("returns null when the token is unknown or revoked", async () => {
+    findLiveTokenByHash.mockResolvedValue(null);
+    await expect(resolveMcpToken(TOKEN)).resolves.toBeNull();
   });
 
-  it("rejects a candidate longer than the real secret", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk("a".repeat(65))).toBe(false);
+  it("returns null for undefined", async () => {
+    await expect(resolveMcpToken(undefined)).resolves.toBeNull();
+    expect(findLiveTokenByHash).not.toHaveBeenCalled();
   });
 
-  it("rejects a candidate differing only in case", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk("A".repeat(64))).toBe(false);
+  it("rejects a too-short candidate without querying the database", async () => {
+    await expect(resolveMcpToken("x".repeat(MIN_TOKEN_LENGTH - 1))).resolves.toBeNull();
+    expect(findLiveTokenByHash).not.toHaveBeenCalled();
   });
 
-  it("rejects undefined and empty", () => {
-    process.env.MCP_SECRET = REAL;
-    expect(mcpSecretOk(undefined)).toBe(false);
-    expect(mcpSecretOk("")).toBe(false);
+  // Fail closed: a dead database must make every request dead, never every
+  // request valid. Same rule lib/pins.ts documents for login.
+  it("returns null when the database throws", async () => {
+    findLiveTokenByHash.mockRejectedValue(new Error("DATABASE_URL is not set"));
+    await expect(resolveMcpToken(TOKEN)).resolves.toBeNull();
   });
 
-  // Fails CLOSED: an unset env var must not make every request valid, and it
-  // must not make an empty path segment valid either.
-  it("rejects everything when MCP_SECRET is unset", () => {
-    delete process.env.MCP_SECRET;
-    expect(mcpSecretOk(REAL)).toBe(false);
-    expect(mcpSecretOk("")).toBe(false);
-    expect(mcpSecretOk(undefined)).toBe(false);
+  it("records last_used_at on a token that has never been used", async () => {
+    findLiveTokenByHash.mockResolvedValue(row({ lastUsedAt: null }));
+    await resolveMcpToken(TOKEN);
+    expect(touchToken).toHaveBeenCalledWith(7);
   });
 
-  // A short secret is a typo or a placeholder, not a credential. Refusing it
-  // turns "someone pasted 'changeme'" into a dead endpoint rather than a
-  // guessable one.
-  it("refuses to operate on a secret shorter than 32 characters", () => {
-    process.env.MCP_SECRET = "short";
-    expect(mcpSecretOk("short")).toBe(false);
+  it("does not write last_used_at again inside the throttle window", async () => {
+    findLiveTokenByHash.mockResolvedValue(
+      row({ lastUsedAt: new Date(Date.now() - 1_000).toISOString() }),
+    );
+    await resolveMcpToken(TOKEN);
+    expect(touchToken).not.toHaveBeenCalled();
+  });
+
+  it("writes last_used_at once the window has passed", async () => {
+    findLiveTokenByHash.mockResolvedValue(
+      row({ lastUsedAt: new Date(Date.now() - TOUCH_WINDOW_MS - 1_000).toISOString() }),
+    );
+    await resolveMcpToken(TOKEN);
+    expect(touchToken).toHaveBeenCalledWith(7);
+  });
+
+  // Bookkeeping must never break a legitimate call.
+  it("still resolves when recording last_used_at fails", async () => {
+    findLiveTokenByHash.mockResolvedValue(row());
+    touchToken.mockRejectedValue(new Error("write failed"));
+    await expect(resolveMcpToken(TOKEN)).resolves.toMatchObject({ id: 7 });
   });
 });
