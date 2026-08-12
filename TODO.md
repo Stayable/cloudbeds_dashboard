@@ -145,31 +145,63 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > - Registered in the 9n output-PII sweep, so it is now called end to end and its
 >   response scanned on every run.
 >
+> **[x] VERIFIED LIVE, END TO END (08/13/26).** `get_ooo_rooms` is in the
+> production manifest (**11 tools** now) and a real call for Davenport returned
+> **8 out-of-order rooms with reasons and end dates**, matching a direct Cloudbeds
+> read. Room **238 is a roof leak held to 08/21** and **202 runs to 08/31** —
+> between them ~60% of Davenport's out-of-order nights this month.
+>
+> **[!] A NEW TOOL NEEDS NO NEW URL, AND THIS IS WORTH REMEMBERING.** The tool
+> list is served by the server, so every existing connector gained `get_ooo_rooms`
+> the moment the deploy landed. Proven rather than assumed: the successful call
+> above used the **legacy connector URL minted in session 9n**, days before the
+> tool existed. Mint a new URL for a new person or a rotation — **never** for a new
+> tool.
+> - **Clients cache the manifest.** If a new tool does not appear, toggle the
+>   connector off and on (or restart) so it re-fetches. That is a client refresh,
+>   not a credential change.
+> - **Connectors are enabled PER CONVERSATION.** A session reporting "the
+>   connectors aren't loaded in this session" had simply not switched it on for
+>   that chat — not a defect, and not about the token.
+>
+> **[x] ALL EIGHT TOKENS HAVE NOW RESOLVED**, so every person's connector works,
+> including Jefferson's and Monica's (hers read `never used` an hour earlier). The
+> "some users cannot add a custom connector" problem is fully closed — it was the
+> OAuth-discovery bug, and nobody is blocked now.
+>
+> **[?] DAVENPORT IS MISSING FROM THE SMARTSHEET "OOO TRACKER" PROPERTY PICKLIST.**
+> Found while chasing the above. The active tracker
+> (`7118369073352580`) lists Lakeland, Jax N, Kiss E, Orlando, Gainesville, Jax W,
+> Kiss W and St. Augustine — no Davenport, so anyone working out-of-order from that
+> sheet cannot see it. **Deliberately NOT written to** — it is an operational sheet
+> this repo does not own and the scope may be intentional. Cloudbeds is the source
+> of truth for room status and has all eight, so the MCP answer is unaffected.
+> Worth asking whoever maintains it whether Davenport was missed after the takeover.
+>
 > **▶ NEXT SESSION — START HERE:**
-> 1. **[ ] RETRY THE "CAN'T ADD A CUSTOM CONNECTOR" USERS.** That presented as a
->    per-account permissions limit and was actually the OAuth-discovery bug, now
->    fixed. If each can add their own, **drop the shared row 8 entirely** — it is
->    still unused, so nothing is lost, and everyone keeps individual revocability.
-> 2. **[ ] Mint Rob his own URL.** He is the only person still on the legacy row,
+> 1. **[ ] Mint Rob his own URL.** He is the only person still on the legacy row,
 >    which is the sole reason row 1 cannot be retired.
-> 3. **[ ] Then retire row 1** — but only after Rob confirms his own works.
+> 2. **[ ] Then retire row 1** — but only after Rob confirms his own works.
 >    Revoking it kills Rob and Kate simultaneously.
-> 4. **[ ] Prove revoke actually kills a connector.** Mint one, connect it, revoke
->    it, confirm it dies. Mint and connect are both proven now; the revoke half is
->    the only untested link between the hash lookup and the `revoked_at` filter.
-> 5. **[ ] Confirm `exec` is refused at `/connectors`** in a browser. The test
->    pins it and `admin` login is proven, but the live exec case is unverified.
+> 3. **[ ] Prove revoke actually kills a connector.** Mint one, connect it, revoke
+>    it, confirm it dies. Mint and connect are both proven; the revoke half is the
+>    only untested link between the hash lookup and the `revoked_at` filter.
+> 4. **[?] Retire row 8 ("General Use Shared")?** It existed for people who could
+>    not add their own connector. All eight can now, so its reason for existing is
+>    gone — and while it lives, anyone on it is unattributable.
+> 5. **[ ] Confirm `exec` is refused at `/connectors`** in a browser. The test pins
+>    it and `admin` login is proven, but the live exec case is unverified.
 > 6. **[ ] Delete `MCP_SECRET` from Vercel.** Provably dead — the table is serving
 >    real traffic. Leaving it implies it still works.
-> 7. **[ ] Monica's token (id 5) has never been used** while everyone else's shows
->    activity. Either she has not set it up or it failed for her.
-> 8. **[ ] Ask Bea to export the call tree** to the same SharePoint folder
+> 7. **[ ] Ask Bea to export the call tree** to the same SharePoint folder
 >    (File → Export). The `.url` she uploaded is a share link and unreadable. No
 >    decoder is involved — that was the wrong diagnosis.
-> 9. **[?] Which of a property's two emails to give a guest** — one line from
->    Kyle. Both are live; the AKIA channel is where the conversation gets worked.
-> 10. **[ ] Two stale website pages**, both now contradicted by the KB: the FAQ
->    says 3:00 PM check-in, and the Terms name Autohost as the screening partner.
+> 8. **[!] Jacksonville North's first after-hours contact is a 9-DIGIT number** and
+>    cannot dial. Fix at source in the Smartsheet.
+> 9. **[?] Which of a property's two emails to give a guest** — one line from Kyle.
+>    Both are live; the AKIA channel is where the conversation gets worked.
+> 10. **[ ] Two stale website pages**, both now contradicted by the KB: the FAQ says
+>    3:00 PM check-in, and the Terms name Autohost as the screening partner.
 >    Whoever owns rentstayable.com. Until fixed, guests will quote them at staff.
 > 11. **[ ] Request access to "Managed authorization" (Beta)** in the Add-connector
 >    dialog — free, gated on an approval whose timing is not ours, and it is what
