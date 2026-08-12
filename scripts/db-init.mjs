@@ -64,6 +64,13 @@ await sql`
   )
 `;
 await sql`create index if not exists mcp_tokens_hash_idx on mcp_tokens (token_hash)`;
+// token_preview: first and last few characters of the token, so a URL someone is
+// holding can be matched to a row on /connectors by eye. Added after the table
+// shipped, hence ADD COLUMN rather than a column in the CREATE above. Nullable —
+// rows minted before this existed have no preview and never will, because the
+// token itself was never stored. See tokenPreview() in lib/mcp/tokens.ts for why
+// storing a 12-character fragment of a 256-bit token is safe.
+await sql`alter table mcp_tokens add column if not exists token_preview text`;
 console.log("mcp_tokens table ready.");
 
 // app_settings: small key/value store (lib/db.ts). Backs the Operations

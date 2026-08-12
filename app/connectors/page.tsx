@@ -69,7 +69,7 @@ export default async function ConnectorsPage() {
             <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
               <thead>
                 <tr className="border-b border-lineStrong">
-                  {["Tied to", "Label", "Created", "Last used", ""].map((h) => (
+                  {["Tied to", "URL", "Label", "Created", "Last used", ""].map((h) => (
                     <th
                       key={h}
                       className="pb-2 pr-3 text-[10.5px] font-semibold uppercase tracking-[.08em] text-txt3"
@@ -86,6 +86,13 @@ export default async function ConnectorsPage() {
                     <tr key={t.id} className="border-b border-line align-top">
                       <td className={"py-3 pr-3 " + (dead ? "text-txt3 line-through" : "text-txt")}>
                         {t.email ?? "—"}
+                      </td>
+                      {/* Enough of the token to match a URL someone is holding,
+                          and far too little to reconstruct one — 12 of 64 hex
+                          characters. Rows minted before previews existed show a
+                          dash and always will: the token was never stored. */}
+                      <td className="py-3 pr-3 font-mono text-[12px] text-txt2">
+                        {t.preview ? `/api/mcp/${t.preview}` : "—"}
                       </td>
                       <td className="py-3 pr-3 text-txt2">{t.label ?? "—"}</td>
                       <td className="py-3 pr-3 text-txt2">{fmtDate(t.createdAt)}</td>

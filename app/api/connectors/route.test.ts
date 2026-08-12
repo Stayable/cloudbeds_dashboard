@@ -22,7 +22,7 @@ vi.mock("@/lib/mcp/tokens", async (importOriginal) => {
 });
 
 import { POST } from "./route";
-import { hashToken, MAX_LIVE_TOKENS } from "@/lib/mcp/tokens";
+import { hashToken, tokenPreview, MAX_LIVE_TOKENS, PREVIEW_EDGE } from "@/lib/mcp/tokens";
 
 function post(body: unknown, host = "localhost") {
   return POST(
@@ -76,9 +76,28 @@ describe("POST /api/connectors", () => {
       email: "kate@rentstayable.com",
       label: "Desktop",
       tokenHash: hashToken(token),
+      tokenPreview: tokenPreview(token),
     });
     const stored = insertToken.mock.calls[0][0] as { tokenHash: string };
     expect(stored.tokenHash).not.toBe(token);
+  });
+
+  // The preview exists so a URL someone is holding can be matched to a row by
+  // eye. It must stay a fragment: this is the assertion that fails if anyone
+  // ever widens it far enough to make the stored value usable.
+  it("stores only a short fragment as the preview, never the whole token", async () => {
+    const res = await post({ email: "kate@rentstayable.com", label: null });
+    const { url } = await res.json();
+    const token = url.split("/").pop() as string;
+    const stored = insertToken.mock.calls[0][0] as { tokenPreview: string };
+
+    expect(stored.tokenPreview).not.toBe(token);
+    expect(token).not.toContain(stored.tokenPreview); // the ellipsis breaks it
+    const revealed = stored.tokenPreview.replace("…", "");
+    expect(revealed.length).toBeLessThan(token.length / 4);
+    // Whatever is revealed really is the token's two ends, not something else.
+    expect(token.startsWith(revealed.slice(0, PREVIEW_EDGE))).toBe(true);
+    expect(token.endsWith(revealed.slice(-PREVIEW_EDGE))).toBe(true);
   });
 
   it("rejects a non-admin session and writes nothing", async () => {

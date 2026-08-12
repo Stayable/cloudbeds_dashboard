@@ -5,6 +5,7 @@ import {
   generateToken,
   hashToken,
   connectorUrl,
+  tokenPreview,
   insertToken,
   countLiveTokens,
   MAX_LIVE_TOKENS,
@@ -51,7 +52,12 @@ export async function POST(req: Request) {
       );
     }
     const token = generateToken();
-    await insertToken({ email, label, tokenHash: hashToken(token) });
+    await insertToken({
+      email,
+      label,
+      tokenHash: hashToken(token),
+      tokenPreview: tokenPreview(token),
+    });
     // The ONLY time this value exists outside the caller's browser. Never
     // logged: the catch below returns a fixed string for that reason.
     return NextResponse.json({ ok: true, url: connectorUrl(token) });

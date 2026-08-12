@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MCP_USERS } from "@/config/mcp-users";
 
 const INPUT =
@@ -9,6 +10,7 @@ const INPUT =
 /** Issue a connector URL. The returned URL is shown ONCE — only its hash is
  *  stored, so it cannot be retrieved again. */
 export default function IssueConnector() {
+  const router = useRouter();
   const [choice, setChoice] = useState("");
   const [otherEmail, setOtherEmail] = useState("");
   const [label, setLabel] = useState("");
@@ -37,6 +39,10 @@ export default function IssueConnector() {
       if (res.ok && b?.url) {
         setUrl(b.url);
         setStatus("done");
+        // Pull the new row into the table below straight away. refresh()
+        // re-fetches the server component but preserves client state, so the
+        // one-time URL in this panel is not lost.
+        router.refresh();
       } else {
         setErrorMsg(b?.error || "Could not issue a URL.");
         setStatus("error");
@@ -84,6 +90,9 @@ export default function IssueConnector() {
               setChoice("");
               setOtherEmail("");
               setLabel("");
+              // Refresh again on the way out: the row was added on success, but
+              // this also picks up anything that changed while the panel was open.
+              router.refresh();
             }}
             className="text-sm font-medium text-txt2 hover:text-txt"
           >

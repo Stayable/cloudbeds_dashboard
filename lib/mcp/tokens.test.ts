@@ -4,8 +4,10 @@ import {
   hashToken,
   connectorUrl,
   shouldTouch,
+  tokenPreview,
   CONNECTOR_BASE_URL,
   TOUCH_WINDOW_MS,
+  PREVIEW_EDGE,
 } from "./tokens";
 
 describe("generateToken", () => {
@@ -55,6 +57,36 @@ describe("connectorUrl", () => {
     expect(connectorUrl("evil.vercel.app/x")).toBe(
       "https://dashboard.rentstayable.com/api/mcp/evil.vercel.app/x",
     );
+  });
+});
+
+describe("tokenPreview", () => {
+  it("shows the first and last PREVIEW_EDGE characters of a real token", () => {
+    const token = generateToken();
+    const preview = tokenPreview(token);
+    expect(preview).toBe(`${token.slice(0, 6)}…${token.slice(-6)}`);
+    expect(preview).toHaveLength(PREVIEW_EDGE * 2 + 1);
+  });
+
+  it("reveals only a fraction of the token", () => {
+    const token = generateToken();
+    const revealed = tokenPreview(token).replace("…", "");
+    expect(revealed).toHaveLength(PREVIEW_EDGE * 2);
+    // 12 of 64 hex chars — the other 52 (~208 bits) stay unknown.
+    expect(revealed.length).toBeLessThan(token.length / 4);
+    expect(tokenPreview(token)).not.toBe(token);
+  });
+
+  it("distinguishes two tokens", () => {
+    expect(tokenPreview(generateToken())).not.toBe(tokenPreview(generateToken()));
+  });
+
+  // Guards the failure mode where masking a short value reveals nearly all of
+  // it: at or below 2*PREVIEW_EDGE we emit nothing but the ellipsis.
+  it("masks a short token entirely rather than mostly revealing it", () => {
+    expect(tokenPreview("a".repeat(PREVIEW_EDGE * 2))).toBe("…");
+    expect(tokenPreview("abc")).toBe("…");
+    expect(tokenPreview("")).toBe("…");
   });
 });
 

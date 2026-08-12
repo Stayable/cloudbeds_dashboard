@@ -28,10 +28,17 @@ export const TOUCH_WINDOW_MS = 5 * 60_000;
 /** Not a security control — a guard against the page filling with dead rows. */
 export const MAX_LIVE_TOKENS = 20;
 
+/** How many hex characters of the token show at each end in the /connectors
+ *  table. See tokenPreview for why storing this is safe. */
+export const PREVIEW_EDGE = 6;
+
 export type McpTokenRow = {
   id: number;
   email: string | null;
   label: string | null;
+  /** First and last few characters of the token, e.g. "a1b2c3…7eb0dc". Null for
+   *  rows minted before previews existed. NOT a credential — see tokenPreview. */
+  preview: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -52,6 +59,27 @@ export function hashToken(token: string): string {
  *  deliberately no host parameter for a caller to get wrong. */
 export function connectorUrl(token: string): string {
   return `${CONNECTOR_BASE_URL}/api/mcp/${token}`;
+}
+
+/** An identifying fragment of the token — first and last PREVIEW_EDGE hex
+ *  characters — so a URL someone is holding can be matched to a row on
+ *  /connectors by eye.
+ *
+ *  WHY STORING THIS IS SAFE, and why it is nonetheless a deliberate narrowing
+ *  of "only the hash is stored":
+ *  A token is 32 random bytes = 256 bits. Revealing 12 of its 64 hex characters
+ *  discloses 48 bits and leaves ~208 unknown, which is not brute-forceable by
+ *  any margin that matters. So the preview cannot be used to reconstruct a
+ *  working URL. But it IS a piece of the credential sitting in the database in
+ *  plaintext, where previously nothing was — recorded here rather than left for
+ *  someone to discover.
+ *
+ *  A short token is masked entirely rather than mostly revealed: anything at or
+ *  below 2*PREVIEW_EDGE characters returns only the ellipsis, so a
+ *  hypothetical short token cannot be leaked whole by this function. */
+export function tokenPreview(token: string): string {
+  if (token.length <= PREVIEW_EDGE * 2) return "…";
+  return `${token.slice(0, PREVIEW_EDGE)}…${token.slice(-PREVIEW_EDGE)}`;
 }
 
 /** Should we write last_used_at? True when never used, when the stored value
@@ -85,6 +113,7 @@ function mapRow(r: Record<string, unknown>): McpTokenRow {
     id: Number(r.id),
     email: r.email == null ? null : String(r.email),
     label: r.label == null ? null : String(r.label),
+    preview: r.token_preview == null ? null : String(r.token_preview),
     createdAt: iso(r.created_at) ?? new Date(0).toISOString(),
     lastUsedAt: iso(r.last_used_at),
     revokedAt: iso(r.revoked_at),
@@ -95,7 +124,7 @@ function mapRow(r: Record<string, unknown>): McpTokenRow {
  *  in SQL — that is the mechanism by which a revoked URL stops working. */
 export async function findLiveTokenByHash(hash: string): Promise<McpTokenRow | null> {
   const rows = (await db()`
-    select id, email, label, created_at, last_used_at, revoked_at
+    select id, email, label, token_preview, created_at, last_used_at, revoked_at
     from mcp_tokens
     where token_hash = ${hash} and revoked_at is null
     limit 1
@@ -107,10 +136,11 @@ export async function insertToken(input: {
   email: string;
   label: string | null;
   tokenHash: string;
+  tokenPreview: string;
 }): Promise<void> {
   await db()`
-    insert into mcp_tokens (email, label, token_hash)
-    values (${input.email}, ${input.label}, ${input.tokenHash})
+    insert into mcp_tokens (email, label, token_hash, token_preview)
+    values (${input.email}, ${input.label}, ${input.tokenHash}, ${input.tokenPreview})
   `;
 }
 
@@ -118,7 +148,7 @@ export async function insertToken(input: {
  *  struck through so history stays visible. */
 export async function listTokens(): Promise<McpTokenRow[]> {
   const rows = (await db()`
-    select id, email, label, created_at, last_used_at, revoked_at
+    select id, email, label, token_preview, created_at, last_used_at, revoked_at
     from mcp_tokens
     order by created_at desc, id desc
   `) as Record<string, unknown>[];
