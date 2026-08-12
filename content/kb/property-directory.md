@@ -54,12 +54,13 @@ above until it is supplied.
 These numbers are **not published on rentstayable.com**, so a guest will not have
 found them. They are company lines, not personal ones.
 
-### The AKIA mailboxes do not match the website's front-desk addresses
+### There are TWO email addresses per property, and both are correct
 
-Bea's list paired each number with an email, and **not one of the seven matches
-the front-desk address published on the website** and shown in the table above:
+Each property has a published front-desk address *and* an AKIA address, and they
+are different at all seven. **This is not a contradiction — they route to
+different places** (Kyle, 08/13/26):
 
-| Property | Website front desk | AKIA mailbox |
+| Property | Published front desk | AKIA channel |
 |---|---|---|
 | Davenport | `davenport@` | `dpt@` |
 | Jacksonville North | `jax@` | `jacksonvillenorth@` |
@@ -69,15 +70,22 @@ the front-desk address published on the website** and shown in the table above:
 | Orlando OBT | `obt@` | `orlando@` |
 | St. Augustine | `staug@` | `staugustine@` |
 
-All are `@rentstayable.com`. **Which one a guest should be given is unknown.**
-Two readings, both plausible: AKIA runs its own mailboxes alongside the published
-front-desk addresses and both are live, or one set is stale. This page does not
-pick — **use the website address for a guest and the AKIA address for AKIA
-traffic, and ask before promising either is "the" address for a property.**
+All are `@rentstayable.com`.
 
-This also reframes the Lakeland question above: a company-wide split between two
-addressing schemes is a more likely explanation than one property having two
-addresses by accident.
+- The **published front-desk address** is the one on rentstayable.com's contact
+  page, so it is the one a guest will find and use unprompted.
+- The **AKIA address redirects into the property's internal AKIA channel**, where
+  guest communication is handled. Mail sent there lands in the system staff
+  actually work in, rather than in a mailbox someone has to remember to open.
+
+Neither is stale and neither is wrong. **What is still unsettled is only which
+one to hand a guest who asks for an email address** — the AKIA channel is where
+the conversation would be worked, but the website publishes the other one. Ask
+before telling a guest that one of them is "the" address for a property.
+
+The Lakeland entry above is a separate question: it has two *published*
+front-desk addresses, which is one channel with two spellings, not this
+two-channel split.
 
 ## Company and legal contact
 

@@ -42,10 +42,11 @@ This knowledgebase does not invent an answer for any of them.
   set rather than to trust the rest.
 - **Lakeland's AKIA number.** Bea supplied seven of eight on 08/13/26; Lakeland
   was not among them — see [Property directory](/kb/property-directory).
-- **Which email address belongs to a property.** The AKIA mailboxes Bea supplied
-  do not match the website's published front-desk addresses at any of the seven
-  properties. Both sets may be live, or one may be stale. This is the same
-  question as Lakeland's two addresses, one scale up.
+- **Which of a property's two email addresses to give a guest.** Narrow question,
+  not a conflict: every property has a published front-desk address *and* an AKIA
+  address that redirects into its internal AKIA channel, and both are live (Kyle,
+  08/13/26). The open part is only which one to hand a guest who asks — see
+  [Property directory](/kb/property-directory).
 - **What documentation may be requested for a service animal or an ESA.**
   Referred for legal review 08/13/26, not to the properties — a transient stay
   and a signed lease are governed differently and one desk-level rule cannot
