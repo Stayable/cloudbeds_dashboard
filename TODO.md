@@ -4,6 +4,115 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/13/26 (session 9r) — PER-PERSON MCP CONNECTOR TOKENS: BUILT, **NOT PUSHED**
+
+> **Pickup — 08/13/26. ALL CODE COMPLETE AND REVIEWED. NOTHING IS DEPLOYED.**
+> Branch `claude/nifty-thompson-ts8zny` is **15 commits ahead of origin**, and
+> pushing this branch auto-deploys Vercel **production**. 661 tests / 67 files,
+> `tsc --noEmit` exit 0, `npm run build` clean. Final whole-branch review verdict:
+> **safe to push.**
+>
+> **[x] WHAT SHIPPED — the single shared `MCP_SECRET` is replaced.** Spec
+> `docs/superpowers/specs/2026-08-12-mcp-connector-tokens-design.md`, plan
+> `docs/superpowers/plans/2026-08-12-mcp-connector-tokens.md` (6 tasks, TDD).
+> - `mcp_tokens` Neon table — one SHA-256 hash per issued URL, plus the email it
+>   was issued to, `last_used_at`, and `revoked_at`. **The token itself is never
+>   stored**; a lost URL is re-minted, never recovered.
+> - `resolveMcpToken` replaces `mcpSecretOk`. **No code reads `MCP_SECRET` any
+>   more.** Fails closed on a dead database.
+> - Rate limiter keyed per token (`mcp:<id>`) — fixes the single global bucket
+>   from 9q where four users throttled each other.
+> - New `admin` level, PIN **`ILLUSTRIOUS`**, gating **`/connectors`** — issue a
+>   URL against an email, see each token's last-used, revoke in two clicks. **Rob
+>   cannot see this page**: the `canAccess` clause sits before the `exec`
+>   short-circuit, and a test pins `canAccess("exec","/connectors") === false`.
+> - `/api/auth` is now rate-limited (10/min per IP). It never was before.
+>
+> **[x] PRODUCTION DATABASE ALREADY WRITTEN (additive, verified).** Local, preview
+> and production share one `DATABASE_URL` — there is no sandbox.
+> - `dashboard_pins`: new row `admin`. All 7 pre-existing levels untouched,
+>   including `elise` — the vendor keeps access; nothing was revoked.
+> - `mcp_tokens`: row **id 1** = the existing shared secret's hash, owned by
+>   `rb@rise8companies.com`, labelled `legacy shared URL — also used by Kate`.
+>   **Rob's and Kate's connectors keep working through the cutover** — verified by
+>   re-hashing `.secrets/mcp-secret.txt` against the live row.
+>
+> **[!] THE BUG WORTH REMEMBERING — six passing task reviews could not see it.**
+> `lib/pins.ts:36` held a *second*, hardcoded list of levels that never gained
+> `"admin"`, so `ILLUSTRIOUS` returned 401 and `/connectors` was unreachable by
+> anyone. Three things hid it: the annotation is `Level[]` and a **subset array is
+> type-valid**, so `tsc` cannot catch a missing member; no test covered
+> `findLevelByPin`; and `lib/pins.ts` was touched by no task, so it appeared in no
+> task diff. Only the whole-branch review found it. This is exactly the
+> one-meaning-two-definitions pattern already recorded in this repo. **Fixed, and
+> `lib/pins.test.ts` now derives its cases from `ALL_LEVELS`** so the next added
+> level cannot repeat it silently.
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[ ] Decide whether to push.** It auto-deploys production. Nothing is live
+>    until you do, including the `/connectors` page.
+> 2. **[ ] AFTER deploying, run these in order — they cannot be proven locally:**
+>    unauthenticated `/connectors` → **307** to `/login` (if it 200s, stop);
+>    log in with the exec PIN and confirm `/connectors` is **refused**; log in with
+>    `ILLUSTRIOUS` and confirm it lands there; confirm the legacy row is listed
+>    owned by Rob; **confirm Rob's existing connector still works** (its
+>    `Last used` stops saying `never`); issue a URL to yourself, connect it from
+>    Claude Desktop using **`dashboard.rentstayable.com`** (a `*.vercel.app` URL
+>    returns Vercel's SSO page and looks exactly like a broken connector), then
+>    **revoke it and confirm the connector dies.** That last step is the only
+>    end-to-end proof the hash lookup and the `revoked_at` filter work together.
+> 3. **[ ] Only then delete `MCP_SECRET` from Vercel.** Nothing reads it, but
+>    leaving it implies it still works.
+> 4. **[ ] RETIRE THE LEGACY SHARED ROW.** Issue a URL each to
+>    `rb@rise8companies.com` and `kate@rentstayable.com`, send them, and when
+>    `/connectors` shows both in use **and no legacy use for 7 consecutive days**,
+>    revoke row id 1. Until then revocation is still all-or-nothing for whoever
+>    holds that URL — and it has already travelled through Teams.
+> 5. **[!] TELL BEA BEFORE SHE CONNECTS: the MCP carries no guest data,
+>    deliberately.** The `/bea` §3 balance-due exception does not extend to MCP —
+>    a URL in a settings pane is a weaker gate than the PIN, so it carries the
+>    less sensitive data. Ask the connector who owes rent and it returns nothing.
+>    Unexplained, that reads as broken; she must use `/bea` for balances.
+> 6. **[ ] Request access to "Managed authorization" (Beta)** in the Add-connector
+>    dialog — free, gated on an approval whose timing is not ours, and it is what
+>    would eventually replace `/connectors` with real M365 identity and automatic
+>    offboarding. Verified from the live dialog on 08/12: the OAuth Client ID and
+>    Secret fields **do** exist, so Entra's lack of dynamic client registration is
+>    not the blocker I previously thought. **There is no field for a custom header**
+>    — which is why the secret stays in the URL path.
+>
+> **[?] FIVE GAPS THE FINAL REVIEW CALLED LOAD-BEARING, none built — your calls:**
+> - **No way to revoke the admin *session*,** only tokens. Killing a live `admin`
+>   cookie still means rotating `AUTH_SECRET`, which logs out everyone.
+> - **`dashboard_pins` stores PINs in PLAINTEXT** in the same database as the
+>   token hashes. A read compromise hands over `ILLUSTRIOUS` in cleartext, so the
+>   "never recoverable" discipline stops at the table boundary. Pre-existing, but
+>   no longer neutral now that a PIN mints API credentials.
+> - **Attribution is half-built and the spec reads as if it is finished.** We
+>   record who a URL was *issued* to plus a 5-minute-granular `last_used_at`.
+>   There is **no per-request access log**, so a wrongly-quoted number still
+>   cannot be traced back to a caller or a question — which was stated as one of
+>   the three problems this feature solved. Worth correcting in the spec.
+> - **Tokens never expire** — absent from both the schema and the spec's
+>   exclusions. Valid forever until someone clicks Revoke. That was the deliberate
+>   08/12 choice (auto-expiry reads as a broken connector), just never written down.
+> - **Secret-in-path means the credential lands in Vercel's request logs** by
+>   design. Unchanged from the old shared secret, but never recorded anywhere.
+>
+> **[ ] Ten deferred minors** were all triaged "safe to defer" by the final
+> review, none mis-triaged. The two most interesting: a duplicate index on
+> `mcp_tokens.token_hash` (the `unique` constraint already creates one), and
+> `ConnectorRow.tsx:28` detecting aborts with `instanceof Error` where the repo's
+> settled idiom is `instanceof DOMException`.
+>
+> **Still open from 9q, untouched by this session:** the `/kb` 15-document check
+> with the MAIN pin (blocks the core-group announcement), verifying the 6am
+> capture cron banked stay date 08-11 at `10:00 UTC`, the SharePoint folder path
+> in `TheDrive`, the `kb_queries` privacy decision, and the two `outputs/`
+> deliverables that were never visually rendered.
+
+---
+
 ## 08/12/26 (session 9q) — WORDMARK CAPITALISED (UNCOMMITTED) · MCP SHARING PLAN
 
 > **Pickup — 08/12/26. NOTHING SHIPPED THIS SESSION. Two files are modified and
