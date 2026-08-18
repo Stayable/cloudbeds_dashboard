@@ -23,7 +23,9 @@ off this list.
   `Emergency Call Tree SOP 2026`. The procedure and the emergency categories ARE
   now in [Maintenance and emergencies](/kb/maintenance-and-emergencies); the
   per-person numbers deliberately are not, because a second copy would go stale
-  the first time somebody changed shift.
+  the first time somebody changed shift. **Partly answered 08/18/26:** the Rules
+  say the number is **posted on the lobby door** and that after-hours begins at
+  **11:00 PM ET**. Where to find it is now known; the digits still are not online.
 - **An explicit cancellation window** for guests. The Terms & Conditions only
   give Stayable a unilateral right to terminate.
 - **A data retention period** in the privacy policy.
@@ -60,8 +62,8 @@ This knowledgebase does not invent an answer for any of them.
 
 Recorded here so a reader who remembers these as open can see they are not.
 
-- **Check-in time** — 4:00 PM. The FAQ's 3:00 PM is wrong and the site needs
-  correcting.
+- **Check-in time** — 4:00 PM. **The FAQ has since been corrected to 4:00 PM**
+  (read live 08/18/26), so the site no longer contradicts this page.
 - **Deposit** — $100 per room transient, $250 per unit on a lease.
 - **Pet fee** — $15/day or $50/week transient; $25/pet/month plus a $250 deposit
   per unit on a lease.
@@ -78,3 +80,25 @@ Recorded here so a reader who remembers these as open can see they are not.
 
 Nothing above is a decision waiting to be typed up. Each is a real question the
 published material cannot settle, and the properties are the ones who know.
+
+## Where the website still contradicts this knowledgebase
+
+Checked live 08/18/26. These are website errors, not gaps — a guest can read each
+one and quote it at staff, so know which way the correction runs before the
+conversation starts.
+
+| The website says | The truth | Where |
+|---|---|---|
+| Autohost is the screening partner | Screening is in **AKIA** | Terms & Conditions, and the privacy policy's data-sharing list |
+| Every location has a swimming pool | **Orlando OBT's pool is permanently closed**, and the other seven are unconfirmed | Every property page, plus the FAQ amenities answer |
+| The deposit "varies by location" | It varies by **stay type** — $100/room transient, $250/unit on a lease — and is uniform across properties | FAQ, homepage |
+| ~~"Stayable has 7 locations across Florida"~~ | **Not an error — answered 08/19/26.** Jacksonville North (812) is transitioning to Everybody's Home; the FAQ is ahead of the other systems, not wrong | FAQ locations answer — see [Property directory](/kb/property-directory) |
+
+**Fixed since the 08/10/26 crawl:** the FAQ's 3:00 PM check-in, now 4:00 PM.
+
+**Resolved 08/19/26 — the FAQ dropping Jacksonville North was intentional.**
+812 is transitioning to **Everybody's Home** (Kyle, 08/19/26). It was flagged
+here for a day as a possible bad edit; it was not one. The property still
+operates during the transition and every internal system still carries it, so
+keep answering JN questions from [Property directory](/kb/property-directory).
+The correction ran the other way this time: the site was ahead of us.

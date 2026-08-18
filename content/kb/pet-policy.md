@@ -12,7 +12,13 @@ authorised in writing by Stayable.
 ## What pets are allowed
 
 - **Dogs under 35 pounds.** No aggressive breeds. Some breed restrictions apply.
-- **Cats.**
+- **Cats** — but the two source documents do not say this the same way. The FAQ
+  and the offers page both welcome cats explicitly; the **Rules & Regulations
+  say "only dogs under 35 pounds are allowed"** and never mention cats. Read
+  charitably that is a size limit on dogs rather than a ban on every other
+  species, and the FAQ is the more recent and more specific statement — but a
+  GSA reading only the Rules could refuse a cat that marketing already promised.
+  **Follow the FAQ and allow cats.** Flagged for the Rules to be reworded.
 - **Other pets** such as birds must be kept caged and are subject to management
   approval.
 - **No more than two pets per unit.**

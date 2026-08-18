@@ -17,7 +17,17 @@ varies by **stay type**, not by property:
 | Stay type | Amount | Basis |
 |---|---|---|
 | Transient | **$100** | per room, **all properties** |
-| Signed lease | **$250** | per unit |
+| Signed lease | **starts at $250** | per unit — may be set higher |
+
+**The lease figure is a floor, not a flat rate.** Bea gave $250; the Leasing Fee
+Schedule (effective 08/07/26) words it as "starts at $250 … may be set higher
+based on tenant screening or unit." Say "starts at $250" to a lease applicant and
+confirm the real number with the property — see
+[Lease residents](/kb/lease-residents).
+
+**This is not the damage fee.** A separate, much larger per-property charge is
+assessed for actual room damage — $700 to $1,000 depending on the property, and
+unrecorded for three of them. See [Fee schedule](/kb/fee-schedule).
 
 **The website is wrong twice over.** The homepage says the fee "varies depending
 on the location and length of stay" and the FAQ says "the amount varies by
@@ -37,7 +47,8 @@ regulations. It is **forfeited in full** if the guest:
 - damages the property
 - fails to vacate by 11:00 AM
 - carries an unpaid balance
-- leaves trash or pet waste
+- leaves trash or pet waste on the property grounds
+- **is removed by police, for any reason**
 - violates other house rules
 
 Stained linens, pets in a non-pet room, room damage, and illegal activity found

@@ -30,6 +30,36 @@ split every other property has. The website simply happened to publish one on th
 contact page and the other on the property page, which read as a contradiction
 and was not one.
 
+## Jacksonville North (812) is transitioning to Everybody's Home
+
+**The FAQ dropping to seven locations is deliberate and correct.** Confirmed by
+Kyle on 08/19/26: **Jacksonville North is transitioning to Everybody's Home.**
+The FAQ's answer to "Where are Stayable locations in Florida?" now reads
+"Stayable has 7 locations across Florida" and does not name it. On 08/10/26 the
+same answer said 8 and did name it.
+
+That was flagged here on 08/18/26 as a possible bad edit, and it was not one. The
+marketing site is **ahead** of the other systems, not wrong.
+
+**Jacksonville North still operates while the transition runs**, which is why it
+is still in the table above and why every internal surface still carries it:
+
+- the public contact page still lists its address, phone, and email
+- 812 is still active in Cloudbeds and still in the daily reporting
+- the network monitoring SOP dated 08/11/26 still lists it in scope with its own
+  Teams channel
+
+None of those is an error. A transitioning property is still a property with
+guests in it, and staff still need its details.
+
+**What this page will not do is guess the sequencing.** When the contact page,
+Cloudbeds reporting, and the property page each follow the FAQ is an operational
+decision, not something inferable from the outside. Until told otherwise, answer
+Jacksonville North questions from the table above.
+
+**A guest who says "you only have seven locations" is reading our current FAQ and
+is right about the direction of travel.** Do not correct them to eight.
+
 ## AKIA per-property numbers — the number to give a guest who needs help
 
 Supplied by Bea on 08/13/26. These are **local** lines, separate from the
@@ -74,7 +104,11 @@ different places** (Kyle, 08/13/26):
 All are `@rentstayable.com`.
 
 - The **published front-desk address** is the one on rentstayable.com's contact
-  page, so it is the one a guest will find and use unprompted.
+  page, so it is the one a guest will find and use unprompted. **Lakeland is the
+  single exception**, and it is worth holding in mind: its contact-page listing is
+  `lakeland@`, which is the AKIA channel, while `frontdesk@` appears only on the
+  property page. At Lakeland the address a guest finds first is the channel, not
+  the desk — the reverse of the other seven.
 - The **AKIA address redirects into the property's internal AKIA channel**, where
   guest communication is handled. Mail sent there lands in the system staff
   actually work in, rather than in a mailbox someone has to remember to open.

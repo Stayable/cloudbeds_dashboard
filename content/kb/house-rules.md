@@ -9,6 +9,18 @@ counties: [Polk, Osceola, Duval, St. Johns, Orange]
 The operational house rules. Fee amounts are cross-listed in
 [Fee schedule](/kb/fee-schedule).
 
+## Limited services — say this before a guest discovers it
+
+The Rules open by stating that **Stayable offers limited services in exchange for
+lower prices**: there may be **no in-room phone, no security, and no overnight
+personnel**. Guests accept that risk and release Stayable from liability for the
+absence of those services.
+
+This is a real expectation-setting line, not boilerplate. A guest who assumes a
+staffed front desk at 2:00 AM has assumed something the Rules explicitly do not
+promise. Front office hours are 4:00 PM to 6:00 PM and by appointment — see
+[Check-in and check-out](/kb/check-in-and-check-out).
+
 ## Occupancy limits
 
 - **Two beds:** maximum four guests per unit.
@@ -56,12 +68,19 @@ cans, not left outside the room. **$100 fine.**
 
 - Pool hours are **10:00 AM to 7:00 PM**, weather permitting.
 - **Only registered guests are allowed in the pool area.**
+- **A child must be supervised by a parent who is physically in the pool area.**
+  Watching from a balcony or from outside the fence does not count — the Rules
+  say so explicitly, which means it is a rule someone has had to enforce.
 - Violating a posted pool rule: **$50 per occurrence**.
 
-Note: the website lists a swimming pool on every property page, and at least one
-of those is believed wrong — **Orlando OBT (8700) in particular, though this is
-unverified.** All eight properties have been asked to confirm. Until they
-answer, do not promise a pool at any property.
+Note: the website lists a swimming pool on every property page, and the FAQ tells
+every guest "you also get access to a swimming pool."
+
+**Orlando OBT (8700)'s pool is permanently closed** — confirmed by Bea on
+08/12/26, and the OBT page still advertises it. The other seven are unconfirmed
+and have been asked; one page being wrong is a reason to doubt the set rather
+than to trust the rest. Until they answer, do not promise a pool at any property.
+See [Rooms and amenities](/kb/rooms-and-amenities).
 
 ## Parking and vehicles
 

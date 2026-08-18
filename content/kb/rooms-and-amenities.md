@@ -14,7 +14,9 @@ Apartment-style hotel suites with kitchenettes and living areas.
 - Kitchenette with **refrigerator and microwave**
 - Living area with TV and seating
 - Table and chairs (many suites)
-- Complimentary high-speed WiFi — see [Guest WiFi](/kb/guest-wifi)
+- Complimentary WiFi — free for **up to 3 devices**, above which it is charged.
+  Do not promise "high-speed": the free tier is 5 Mbps down. See
+  [Guest WiFi](/kb/guest-wifi)
 - **All utilities included in the rate**
 
 Bed configurations are king or double. Most property pages describe a **King
@@ -31,8 +33,9 @@ a smart TV with streaming.
 
 ## Swimming pool
 
-The website says a swimming pool is available "at every location," and lists one
-on all eight property pages.
+The website says a swimming pool is available "at every location," lists one on
+all eight property pages, and the FAQ tells every guest "you also get access to
+a swimming pool" — all three still live on 08/18/26.
 
 **Orlando OBT (8700): the pool is PERMANENTLY CLOSED.** (Bea, 08/12/26.) The OBT
 property page still advertises it and is wrong. Never promise a pool at OBT — a

@@ -103,9 +103,18 @@ The above is staff escalation. A guest reporting an after-hours problem should b
 given the property's **AKIA number** — see
 [Property directory](/kb/property-directory).
 
-**The after-hours number is not published on the website.** The Rules &
-Regulations page refers to "the after-hours emergency phone number" without
-giving the digits, so a guest cannot look it up. Give it to them directly.
+**The after-hours number is not published on the website — it is posted on the
+lobby door.** The Rules & Regulations refer to "the after-hours number posted on
+the lobby door" and call it **the only approved after-hours contact method**. So
+the digits are not online and a guest cannot look them up remotely, but they are
+physically on site. Give them the AKIA number directly rather than sending
+somebody to read a door at midnight.
+
+**After-hours starts at 11:00 PM ET** in the Rules, and the conditions they name
+for using it are: a major water leak, loss of heat or AC, an electrical hazard, a
+non-functioning lock, or any immediate risk to safety or property. That list is
+narrower than the staff call-tree categories below, which is the point — it is
+what a *guest* is told qualifies.
 
 ## Routine maintenance
 

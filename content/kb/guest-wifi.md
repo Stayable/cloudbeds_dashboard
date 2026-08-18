@@ -8,6 +8,11 @@ counties: [Polk, Osceola, Duval, St. Johns, Orange]
 
 Every stay includes free WiFi. Devices are tracked by MAC address.
 
+The policy covers **everyone on the property, not just overnight guests** —
+day-use guests, tenants and lease residents, other occupants, and invitees such
+as visitors, family, and contractors. Connecting to the network is itself
+agreement to it.
+
 ## Free tier
 
 - **Up to 3 devices per unit**, for the entire length of stay.
@@ -19,6 +24,14 @@ Every stay includes free WiFi. Devices are tracked by MAC address.
 
 - **$5 per day** or **$50 per 30 days**, per additional device.
 - Speeds up to **25 Mbps download / 10 Mbps upload**.
+- **Valid only at the property where it was purchased.** It does not travel with
+  a guest who moves between Stayable properties.
+- Monthly access runs on a **rolling 30-day period**, not a calendar month.
+- **Non-refundable once activated.**
+
+A device beyond the free limit is not simply cut off — it is blocked and
+redirected to an upgrade page, so a guest may tell you "the WiFi is broken" when
+what they have hit is the fourth-device limit.
 
 ## Personal network equipment is prohibited
 

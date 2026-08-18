@@ -14,16 +14,24 @@ is a summary of published terms, not legal advice — route anything contested t
 
 - Name, postal address, email, phone, and credit card information.
 - IP address, browser and OS, and usage patterns via cookies and web beacons.
-- Guest screening data through Autohost: government ID, selfie / biometric
-  data, and background checks.
+- Screening data — government ID, selfie / biometric data, and background
+  checks. The policy attributes this to **Autohost**, which is out of date; see
+  the note below.
 
 ## Who it is shared with
 
 - Service providers and contractors
-- Autohost (screening)
+- Autohost (screening) — **as written in the published policy; see below**
 - A buyer or successor in a merger, divestiture, or restructuring
 - Law enforcement or government on legal request
 - Fraud and credit-risk partners
+
+**The published policy still names Autohost, and screening moved to AKIA**
+(Bea, 08/12/26; confirmed by Kyle 08/13/26). Both mentions above are recorded as
+the website words them, because that is what a guest will quote back — but do not
+tell a guest that Autohost handles their data today. The Terms & Conditions carry
+the same stale name, still live on 08/18/26. See
+[ID, age, and background checks](/kb/id-age-and-background-checks).
 
 **Retention period is not published.** The privacy policy says only that
 information is used for communication related to the guest's lease application

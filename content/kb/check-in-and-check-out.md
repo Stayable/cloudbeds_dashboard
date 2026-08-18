@@ -13,10 +13,12 @@ Applies at all eight properties.
 **Check-in begins at 4:00 PM**, available until 2:30 AM. Settled by Bea on
 08/12/26 — the Rules & Regulations (07/22/26) and the homepage were right.
 
-**The website's FAQ still says 3:00 PM and is wrong.** Bea has asked for it to be
-corrected. Until the site is updated, expect a guest who read the FAQ to quote
-3:00 PM in good faith — they are not making it up, and the fee below is the one
-they will be surprised by.
+**The FAQ has been corrected and now says 4:00 PM** — re-read live on 08/18/26.
+The website and this page finally agree, and 3:00 PM appears nowhere on the site.
+
+It was still there on 08/10/26, so a guest who read the FAQ before mid-August may
+quote 3:00 PM in good faith. They are not making it up, and the early arrival fee
+below is the one they will be surprised by.
 
 The fees attached to the 4:00 PM window:
 
