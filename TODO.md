@@ -4,6 +4,374 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/19/26 (session 9t) — KB RECONCILED AGAINST THE NEW FAQ; ASK-THE-KB CHATBOT SPEC'D, NOT BUILT
+
+> **Pickup — 08/19/26 (Eastern).** KB corpus is **17 documents** (was 15), clean,
+> 724 tests / 71 files green. Still uncommitted, now on top of the 9s due-out
+> work. **The chatbot is specified below and deliberately NOT started** — it needs
+> one credential decision first.
+>
+> **[x] THE WEBSITE FAQ WAS REWRITTEN, AND THE KB WAS CARRYING A FALSE CLAIM.**
+> Check-in on the FAQ is now **4:00 PM**, matching the KB. Three documents said
+> "the FAQ still says 3:00 PM and is wrong" — corrected. The Terms & Conditions
+> still name **Autohost** (verified live 08/18); AKIA remains the real partner.
+>
+> **[x] JACKSONVILLE NORTH (812) → EVERYBODY'S HOME.** The FAQ dropping to
+> "7 locations" and omitting JN is **deliberate and correct** (Kyle, 08/19/26). I
+> flagged it for a day as a possible bad edit; it was not one — the marketing site
+> is AHEAD of the other systems, not wrong. JN still operates during the
+> transition, so it stays in the KB table and in reporting.
+> - **[?] `CLAUDE.md` §3 is now stale**: "All 8 properties are active in Cloudbeds
+>   (confirmed by Kyle 06/30/26)". Left untouched on purpose — dropping 812 from
+>   the daily report, occupancy, or the snapshot store mid-transition would
+>   silently restate history. **Sequencing is yours to call.**
+>
+> **[x] NEW SOURCE DOCUMENTS INGESTED FROM THE KB SHAREPOINT FOLDER.** Two files
+> had never been read into the corpus and they carry real conflicts, all stated in
+> the KB rather than settled internally:
+> - `FeeSchedule_RISE8_080726.xlsx` — **per-property damage fees** ($700–$1,000)
+>   were entirely absent from the KB; **KE (2295), KW (5399), JN (812) have no
+>   figure on file** and the workbook says so itself. Added `Damaged comforter
+>   $75`; corrected discarded linen to **$25 per item**, not per set.
+> - **[?] The same workbook prices a replacement key at $2.50 in one row and $25
+>   in another**, same effective date. Unresolved, flagged, not picked.
+> - `Lease Residents – House Rules & Guidelines.docx` — the **entire lease track
+>   was missing**. New doc `content/kb/lease-residents.md`.
+> - **[?] Lease deposit is "starts at $250, may be set higher"** in the workbook
+>   where Bea gave a flat $250. Quoting flat to an applicant who is then charged
+>   more at signing is us misleading them. KB now says "starts at".
+> - **Lease card processing is 3.49% via TurboTenant**, not the 3% transient rate,
+>   and **late rent accrues $10/day from day two** — the KB had only the $25.
+> - **[?] Rules & Regulations say "only dogs under 35 pounds"** while the FAQ
+>   welcomes cats. KB rules for the FAQ and flags the Rules for rewording.
+> - `KB Suggestions - Draft.docx` is Bea's original list — already fully applied,
+>   no new content. New doc `content/kb/network-alerts-and-devices.md` from the
+>   property-staff network SOP.
+>
+> **[x] KB SELF-CONTRADICTIONS REMOVED.** The corpus disagreed with itself in
+> three places, all from Bea's answers landing in one file and not the others:
+> `fee-schedule.md` listed pet fees in its table while calling them "no published
+> amount" below it; `house-rules.md` called the OBT pool closure "unverified" when
+> `rooms-and-amenities.md` had it confirmed; `privacy-and-legal-terms.md` stated
+> Autohost as current fact with no correction flag. Also fixed: Lakeland is the
+> ONE property whose contact-page address is the AKIA channel, not the desk —
+> the general rule was stated without its exception.
+>
+> **[x] BUILT 08/19/26 — 765 tests / 73 files green (was 724/71), `tsc` exit 0,
+> `next build` compiled, `/api/kb/ask` + `/api/kb/feedback` registered.**
+> New: `lib/kb-ask.ts` (+26 tests), `lib/kb-feedback-reasons.ts`,
+> `lib/mcp/tools-kb.ts` (+15 tests), `components/KbChat.tsx`,
+> `components/KbChatMount.tsx`, both API routes, `scripts/kb-eval.mts`,
+> `kb_feedback` DDL in `scripts/db-init.mjs`, `insertKbAnswer` /
+> `setKbFeedbackVerdict` in `lib/db.ts`.
+> - **[x] KEY IN PLACE** (`.env.local` + Vercel, Kyle 08/19/26).
+>   **[x] `kb_feedback` CREATED** in production Neon
+>   (`ep-frosty-lab-at3qgvng-pooler`) — `db-init.mjs` verified beforehand as 20
+>   idempotent creates with zero destructive statements.
+>   **[x] REFUSAL EVAL: 16/16, THREE CONSECUTIVE RUNS.** Haiku 4.5 is cleared.
+>
+> **[!] WHAT THE EVAL ACTUALLY FOUND — read before trusting the 16/16.**
+> - **I revised 4 of 16 assertions after seeing failures.** That pattern is
+>   normally goalpost-moving, so each is justified in a comment at the case. The
+>   common fault was mine: I wrote substring bans (`mustNot: ["25%"]`) as a proxy
+>   for "must not state a wrong figure", and a substring cannot tell MENTIONING a
+>   number as disarmed context from ASSERTING it as our answer. Haiku's answers
+>   were better than the tests demanded — it volunteered "the offers page says up
+>   to 25% but none of these are commitments", which is more useful to a GSA than
+>   silence. Assertions now test the rule, not the phrasing. **If you think I
+>   lowered the bar rather than fixed the instrument, these are the four cases.**
+> - **The eval caught ONE real model failure, and it was worth the whole
+>   exercise:** asked "can I check in a 20-year-old", Haiku said "no, transient
+>   is 21+" and stopped — omitting that 18 is enough on a signed lease. That
+>   turns away someone we could have housed. Fixed in the system prompt (rule 4
+>   now says state the other side even when the first answer closes the
+>   question), not by relaxing the test.
+> - **The citation verifier fired in real conditions.** One run invented an
+>   anchor; the answer was downgraded to `unverified` exactly as designed. It is
+>   not a theoretical guard.
+> - **Run-to-run variance is real** — single cases flip between runs. Judge this
+>   eval on 3 runs, never 1.
+> - **[!] I CHANGED A SECURITY TEST — read this before approving.**
+>   `server.test.ts`'s output sweep sweeps every tool's response against
+>   `PII_FIELD_PATTERN` (`guest|tenant|occupant|reservation|…`). A hotel
+>   knowledgebase says "guest" in nearly every sentence, so the three KB tools
+>   cannot pass a field-NAME heuristic applied to prose. I did **not** weaken the
+>   pattern — that would blunt it for the Cloudbeds tools where a field called
+>   `guest_name` in output IS the leak it exists to catch. Instead the three KB
+>   tools are exempted by name, and the exemption is backed by asserting
+>   `checkCorpus(getCorpus())` is clean — a strictly better check for this
+>   content, since it scans for real emails, real phone numbers, and
+>   guest-identifying column headers against a company allowlist. **If you
+>   disagree with that trade, this is the line to push back on.**
+>
+> **[~] ASK-THE-KB CHATBOT — SPEC (BUILT, see above).**
+> - **Audience settled: all staff at MAIN.** This costs **nothing** in gating —
+>   `/kb` is already in `SHARED_PAGES` at `base` level (`lib/auth.ts:69`), so the
+>   widget inherits the audience the knowledgebase already has. No new PIN, no
+>   middleware change, and **no separately curated corpus** (that was the
+>   expensive branch, and a guest-facing bot is now out of scope).
+> - **Shape:** floating chat icon, lower right. `POST /api/kb/ask` → retrieve top
+>   sections with the EXISTING `lib/kb-search.ts` ranker (no vector DB; 17 docs of
+>   heading-delimited sections is well inside deterministic retrieval, and it
+>   stays debuggable) → one model call constrained to those sections → structured
+>   `{answer, citations[], answered}`.
+> - **The redirect must be STRUCTURAL, not a prompt instruction.** Require
+>   citations to real section anchors and **verify server-side** that each one
+>   resolves to a section actually retrieved. Fail verification → discard the
+>   answer and return document links. Otherwise the model smooths over exactly
+>   what this corpus exists to preserve — the $2.50-vs-$25 key conflict, "this
+>   page will not tell you what to ask for" on ESA documentation, the unconfirmed
+>   pools. **A bot that answers those confidently is worse than no bot.**
+> - **[x] "Continue previous conversation" is CUT** (Kyle, 08/19/26). Would have
+>   been per-browser only anyway — the PIN cookie is a signed *level*, not a
+>   person, so there is no identity to hang a thread on.
+> - **[!] FEEDBACK BUTTONS AFTER EVERY ANSWER — and "learn" needs correcting.**
+>   A thumbs verdict does not train anything; there is no training loop here. What
+>   it actually produces is (a) a replayable **eval set** for when the prompt,
+>   ranker, or model changes, and (b) far more valuable for this corpus, a
+>   **content-gap detector** — a "no" on a question the KB *should* answer points
+>   at a missing document or a ranker miss. Build it for those two purposes and it
+>   pays; build it expecting self-improvement and it will look broken.
+> - **Per ANSWER, not per conversation** — only a per-answer row is replayable,
+>   because you know which question, which retrieved sections, and which answer
+>   earned the verdict.
+> - **Thumbs-down needs ONE reason chip, three options**, because they route to
+>   three different fixes and a bare "no" conflates them: *wrong answer* (prompt
+>   or model), *right answer to the wrong question* (ranker), *KB doesn't cover
+>   it* (content). Thumbs-up asks nothing further.
+> - **[?] THIS FORCES THE PARKED `kb_queries` DECISION.** An eval row is useless
+>   without the question text, so "don't store the question" is not available. And
+>   staff type far more freely into a chat than into a search box — "does the lease
+>   for <guest name> cover pets" is the realistic case. `kb_queries` already has an
+>   open decision (accept as-is / redact / retention window) and this makes it
+>   load-bearing rather than theoretical. **Decide it before the table ships.**
+>   Feedback is also **anonymous** — you will know "someone at MAIN said this was
+>   wrong", never who, so nobody can be followed up with.
+> - **[x] CREDENTIAL SETTLED — direct Anthropic key, NOT the Vercel AI Gateway.**
+>   Kyle has an `ANTHROPIC_API_KEY` (08/19/26). **I recommended the Gateway last
+>   turn and that was wrong for this build** — I recommended it before checking
+>   whether its benefits apply here. Against its own decision tree: no
+>   multi-provider failover needed, per-user rate limiting is **impossible**
+>   (there is no per-user identity in this app — the PIN cookie is a level), and
+>   we are building better audit data than the Gateway logs because ours captures
+>   retrieval + verdict. Budget alerts are the one real loss, at a spend where it
+>   does not matter. Use `@anthropic-ai/sdk` alone — one dependency instead of
+>   `ai` + `@ai-sdk/anthropic`, which also honours CLAUDE.md §4 "keep
+>   dependencies minimal". (Gateway keys, for the record, come from the Vercel
+>   dashboard → team → AI Gateway; on Vercel you normally need no key at all
+>   because OIDC is the default via `vercel env pull`. The Vercel CLI is not even
+>   installed on this machine.)
+>
+> **[!] ARCHITECTURE REVISION — DROP THE RETRIEVAL STEP. Measured, not assumed.**
+> The whole corpus is **68 KB / 11,204 words ≈ 18K tokens** (measured 08/19/26).
+> That fits trivially in context, so **put the entire KB in a cached system
+> prompt and skip retrieval altogether.** This is cheaper AND simpler AND removes
+> a failure mode:
+> - **It deletes the "right answer to the wrong question" bug class entirely** —
+>   the ranker can no longer miss the relevant section, because nothing is
+>   selected. That was one of the three thumbs-down reason chips; it can go.
+> - **Prompt caching is what makes it cheap.** ~18K cached tokens read at 0.1x
+>   costs a fraction of a cent per query. Without caching it is ~$0.02/query;
+>   with it, ~$0.004. Cache the corpus as a stable prefix and keep the question
+>   AFTER the last breakpoint — the corpus changes weekly, the question changes
+>   every request.
+> - `lib/kb-search.ts` **stays** — it still powers the `/kb` browse-and-search UI.
+>   It just is not the chatbot's retriever.
+> - Citation verification is unchanged and still load-bearing: verify each cited
+>   anchor resolves against the real corpus, discard the answer if not.
+>
+> **[x] MODEL — `claude-haiku-4-5`, GATED ON A REFUSAL EVAL** (Kyle's call,
+> 08/19/26, and the reasoning is sound). Extraction-and-cite over 18K tokens of
+> structured markdown is squarely in Haiku's competence, and the two-tier split
+> below means heavy reasoning never lands on this route anyway. ~$15–75/month
+> against ~$77–360 for Opus 5.
+> - **The ONE thing to verify before shipping, not assume:** smaller models are
+>   weaker at *declining*. This corpus concentrates its value in refusals and
+>   unresolved conflicts — "$2.50 in one row, $25 in another, do not pick one at
+>   the desk", "this page will not tell you what to ask for" on ESA
+>   documentation, "NOT STATED ON SITE" for every room rate. The failure mode is
+>   resolving a conflict into one confident number, or answering a rate question
+>   from general hotel knowledge.
+> - **Settle it with a ~15-case eval** built from the corpus's own hard cases and
+>   run before rollout. The model is one string; if it fails, flip it. Citation
+>   verification catches ungrounded answers structurally either way.
+> - Use adaptive thinking + structured outputs (`output_config.format`), stream.
+>
+> **[x] TWO-TIER: THE KB GOES ON THE MCP TOO** (Kyle, 08/19/26). New
+> `lib/mcp/tools-kb.ts` following the existing `tools-<domain>.ts` convention,
+> registered in `ALL_TOOLS`:
+> - `search_kb(query)` — ranked sections with anchors, reusing `lib/kb-search.ts`
+> - `get_kb_document(slug)` — one full document
+> - `list_kb_documents()` — the 17 titles with snapshot dates
+> - `freshness` maps cleanly onto the frontmatter `snapshotDate` already there.
+>
+> **Why this is the strong half of the plan:**
+> - **The inference is free to us.** Staff on Claude Desktop / claude.ai spend
+>   their own subscription, not our API credits — so the Opus-grade tier costs
+>   nothing and the Haiku widget only ever handles quick lookups.
+> - **It composes with the live tools, which the widget cannot.** "Which rooms are
+>   OOO at Lakeland, and what do we charge if I have to move a guest out of one"
+>   cross-references `get_ooo_rooms` against the KB in a single turn.
+> - **Access is already solved and is NARROWER than MAIN** — per-person tokens
+>   minted at `/connectors` behind the admin PIN. Exposing the AKIA numbers and
+>   the emergency procedure over MCP widens nothing.
+> - **[!] The grounding guarantee does NOT carry over.** Over MCP we do not
+>   control the model, so server-side citation verification cannot apply — a
+>   caller's Claude could smooth a conflict we deliberately left open. The
+>   mitigation is already built and is the payoff for the authoring discipline:
+>   **the conflicts are stated in the prose the model reads.** "Unresolved — do
+>   not pick one at the desk" travels with the content. That is what makes this
+>   corpus safe to expose over MCP where a corpus of bare facts would not be.
+
+## 08/14/26 (session 9s) — DUE-OUT WALK LIST: CARD **LIVE-VERIFIED**, SHEET SEED BUILT & GATED OFF
+
+> **Pickup — 08/14/26 (Eastern). NOTHING IS COMMITTED.** Branch level with origin
+> at **`5447d5a`**; every file below is uncommitted working tree. **724 tests /
+> 71 files**, `tsc --noEmit` exit 0, `next build` compiled,
+> `/api/cron/due-outs` registered. **Committing is the first thing next session.**
+>
+> **[x] THE 9:00 AM DUE-OUT WALK LIST IS BUILT AND ITS DELIVERY PATH IS PROVEN
+> END TO END.** Kyle confirmed the team received it, the card rendered, and the
+> workbook button rendered. Four real posts went to the live "Daily Due Out or
+> Departures" flow (`TEAMS_FLOW_URL_DUEOUT`, workflow `c026d847…` — a THIRD flow,
+> distinct from `TEAMS_FLOW_URL` `80063dcc…` and `TEAMS_FLOW_URL_REVENUE`
+> `2dfcbfca…`, same Power Platform environment).
+> - `lib/due-outs.ts` — DI dataset-3 read, `checkout_date equals <day>` +
+>   `reservation_status = "In-House"`. **`equals` on checkout_date was an open
+>   question and is now verified against all 8 live properties.**
+> - `lib/due-out-xlsx.ts` — the walk-list workbook (one row per ROOM, frozen
+>   header, autofilter, four tinted columns to fill in).
+> - `app/api/cron/due-outs/route.ts` — 9:00 ET, DST guard admitting exactly one
+>   of two UTC entries (`0 13 * * *` / `0 14 * * *`, added to `vercel.json`).
+> - `lib/dates.ts` — new `DUE_OUT_ET_HOUR = 9`, single definition.
+>
+> **[!] THE HARNESS DATE IS UTC-DERIVED AND WAS A DAY AHEAD.** It reported
+> 2026-08-15 while Eastern was Friday 2026-08-14, 2:13 PM EDT. The first sample
+> was built for the wrong day before this was caught. **Now a global rule in
+> `~/.claude/CLAUDE.md`** (applies to every project): "today"/"tomorrow"/"right
+> now" mean `America/New_York`; derive the date, never trust the harness value.
+> Recorded as IANA zone, not literal EST — literal EST is wrong ~8 months a year.
+>
+> **[!] THE LIST DECAYS FAST — MEASURED, AND IT DRIVES THE DESIGN.**
+> Rooms due out on 08-15, read repeatedly through 08-14: **46 → 45 → 41 → 37**,
+> a ~20% drop in five hours, on a list for the NEXT day. Separately, reading
+> 08-14 itself at 2pm returned ZERO In-House due-outs at Davenport because all 4
+> had already flipped to `Checked Out`. **Consequences:** seed at 9:00 AM on the
+> day itself, never the night before; and the card and the workbook rows must be
+> generated in the SAME run or they will disagree (they already did once — a
+> card said 46 while the file said 45).
+>
+> **[?] THE ONE UNRESOLVED CORRECTNESS GAP.** `getDashboard` reported Lakeland at
+> 4 pending + 12 confirmed departures for 08-14 where our DI query found 5
+> reservations. Unexplained — possibly rooms-vs-reservations, possibly a
+> different business date. **The cross-check I proposed does not currently work,
+> so nothing would catch a short read.** Only the all-8-failed guard exists. Fix
+> before PMs act on this daily.
+>
+> **[x] THE DDF REFUND WORKBOOK — UNDERSTOOD, AND MY FIRST READING WAS WRONG.**
+> `DDF Refund 2026.xlsx`, 195 sheets named `MM.DD` (02.01 → 08.15), 7 columns:
+> `Property | Name | Arrival Date | Departure Date | Room(s) | Reservation Status
+> | Refund Status`.
+> - **I concluded it was seeded with completed departures. It is not.** Every
+>   historical row reads `Checked Out` because those sheets are FINISHED — the
+>   team seeds each morning with that day's DUE OUTS and edits rows in place as
+>   guests actually leave. End state, not starting state. Corrected by Kyle.
+> - `lib/ddf-sheet.ts` builds the seed rows: one row per RESERVATION (rooms
+>   comma-joined, matching their `Room(s)` column), their own `"KW - No due
+>   outs"` marker verbatim, status seeded `"Due Out"` — deliberately NOT
+>   `"Checked Out"`, which would assert a departure that has not happened.
+> - **Data hygiene at source:** the Departure Date column mixes real dates, text
+>   (`"07/28/2026"`), a raw serial (`46233`), and status text (`"OL "`, `"KW"`).
+>   Early sheets use full property names, recent ones use codes.
+> - **[?] Three reservations (LL 183, KW 217, JW 324/109) show an arrival exactly
+>   one year before departure (2025-08-15).** Genuine annual leases, or Cloudbeds
+>   clamping a 12-month reporting window? Unverified, and it would quietly put a
+>   wrong arrival date in the tracker.
+>
+> **[!] THE WORKBOOK IS IN BEA'S PERSONAL ONEDRIVE, NOT SHAREPOINT.**
+> `leadmanagement-my.sharepoint.com/personal/bea_rentstayable_com/Documents/`.
+> This is load-bearing for the permission story:
+> - `Sites.Selected` **does not apply** — that scopes SharePoint sites. App-only
+>   write to a personal OneDrive needs `Files.ReadWrite.All`, i.e. every OneDrive
+>   and library in the tenant. **Do not ask for that to update one spreadsheet.**
+> - **Power Automate is the unlock and needs none of it.** Flows run under a USER
+>   connection, so Excel Online (Business) can Add a worksheet → Create table →
+>   Add rows on Bea's file, in place, safe under co-authoring. No app
+>   registration, no admin consent. **This also keeps the app read-only toward
+>   Microsoft, preserving CLAUDE.md §5.**
+> - **Continuity risk, independent of anything we build:** seven months of refund
+>   decisions live in one person's personal drive, deleted on a retention timer
+>   if she leaves. Moving it to `TheDrive / Operations / REPORTS - FORMS` (beside
+>   `OOO Reports`) is worth doing on its own merits.
+> - **My SharePoint connector is READ-ONLY** — `sharepoint_create_folder` and
+>   `sharepoint_upload_file` both return `permission_error: This tool is not
+>   available`. Verified, not assumed. I cannot place files there myself.
+> - **Memory amended:** a quoted exact-filename search DID resolve Bea's personal
+>   OneDrive file (driveId + item id + indexed content), so
+>   `m365-cannot-reach-others-onedrive` was too absolute. The share LINK is still
+>   unresolvable; try one quoted filename search before asking for the file.
+>
+> **[x] `.gitignore` NOW COVERS `/*.xlsx`.** `DDF Refund 2026.xlsx` (3.1 MB, ~5k
+> guest names across 195 sheets) was sitting untracked in the repo root with
+> nothing stopping a commit. A commit of it could not be un-published. Verified
+> the reference workbooks drop out of `git status` while `outputs/` is unaffected.
+>
+> **[x] PAYLOAD WIRED, THREE INDEPENDENT GATES, ALL OFF.** Deploying changes
+> nothing until each is flipped:
+> - `DDF_SEED_ENABLED=1` → the `ddf` block (`sheetName`, `headers`, `rows`)
+> - `DUEOUT_ATTACH_XLSX=1` → the .xlsx attachment
+> - `DDF_INCLUDE_GUEST_NAMES=1` → the Name column
+> Deliberately NOT the existing `TEAMS_FLOW_ATTACHMENTS`: that is one switch for
+> what are now two flows, and coupling them means enabling attachments on the
+> revenue report would silently reshape the due-out body and break it.
+> `postAdaptiveCard` now takes an options object; `extra` FORCES the wrapper
+> shape, because silently dropping the seed block would look like a flow
+> misconfiguration rather than like we never sent it. 3 new tests pin it.
+>
+> **[x] INTERIM THAT WORKS TODAY WITH NO PERMISSIONS:**
+> `npx tsx scripts/preview-ddf-sheet.mts <day> --tsv` writes
+> `outputs/DDFSeed_Stayable_MMDDYY.tsv` — paste into A2 of the `MM.DD` sheet and
+> Excel splits the columns. Kyle created sheet `08.15` by hand and has 37 rows on
+> his clipboard. **If the daily paste is acceptable, the automated write may not
+> be needed at all — find that out before asking the admin for anything.**
+>
+> **▶ NEXT SESSION — START HERE:**
+> 1. **[ ] COMMIT EVERYTHING.** ~10 new files + 6 modified, all uncommitted. This
+>    is the largest uncommitted surface this project has carried.
+> 2. **[ ] Add `TEAMS_FLOW_URL_DUEOUT` to Vercel Production** (value in
+>    `.env.local`; no Vercel CLI here). Nothing runs on schedule until then.
+> 3. **[?] THE NAME COLUMN — KYLE'S CALL, ASKED TWICE, NOT YET ANSWERED.** It is
+>    the field that makes the sheet usable for a refund decision. The exposure
+>    already exists (the team types those names by hand today), but it would be
+>    the first guest name our code emits outside `/bea` §3 (CLAUDE.md §5 rule 2),
+>    and the workbook is shared by link — a weaker gate than the PIN.
+> 4. **[ ] Flow edit — verify the actions exist before writing the payload.**
+>    Open the designer and confirm Excel Online (Business) exposes "Add a
+>    worksheet" / "Create table" in your connector version. Connectors drift; the
+>    repo rule is to check at build time, not from memory. Note the new sheets
+>    will carry an Excel Table object (filter arrows, banding) where the
+>    hand-made ones are plain ranges — cosmetic, formattable, but visible.
+> 5. **[!] THE FLOW MUST ADD A SHEET AND NEVER TOUCH AN EXISTING ONE.** If
+>    `MM.DD` exists it should SKIP and report. The team's in-place edits are the
+>    value of that workbook and cannot be reconstructed. This is the whole
+>    "write, not edit" guarantee, and it is enforceable because adding is the
+>    only operation we ever ask for.
+> 6. **[ ] Whose Power Automate connection?** If Bea's, the flow dies the day she
+>    is out. A service account with Edit on the file is the durable version.
+> 7. **[ ] Resolve the `getDashboard` reconciliation gap** (above) — the only
+>    correctness hole in this feature.
+> 8. **[?] Verify the one-year-arrival cluster** against one reservation directly
+>    in Cloudbeds.
+> 9. **[ ] Ask Bea to move the workbook to a team library** — no longer a
+>    blocker, still worth doing.
+>
+> **Untouched from 9r and still open:** mint Rob his own MCP URL then retire row
+> 1, prove revoke kills a connector, confirm `exec` is refused at `/connectors`,
+> delete `MCP_SECRET` from Vercel, the `/kb` 15-document check with the MAIN pin,
+> and the `kb_queries` privacy decision.
+
+---
+
 ## 08/13/26 (session 9r) — PER-PERSON MCP CONNECTOR TOKENS: **LIVE AND WORKING**
 
 > **Pickup — 08/13/26. SHIPPED, DEPLOYED AND CONFIRMED WORKING.**
