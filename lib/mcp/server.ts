@@ -10,6 +10,7 @@ import { OCCUPANCY_TOOLS } from "./tools-occupancy";
 import { REPORT_TOOLS } from "./tools-report";
 import { LIVE_TOOLS } from "./tools-live";
 import { OPS_TOOLS } from "./tools-ops";
+import { KB_TOOLS } from "./tools-kb";
 import { McpArgError, type McpToolDef } from "./types";
 
 /** Every tool the server exposes. Four modules, built concurrently by four
@@ -20,6 +21,7 @@ export const ALL_TOOLS: McpToolDef[] = [
   ...REPORT_TOOLS,
   ...LIVE_TOOLS,
   ...OPS_TOOLS,
+  ...KB_TOOLS,
 ];
 
 export function buildMcpServer(server: McpServer): void {

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { ALL_TOOLS, buildMcpServer } from "./server";
 import type { McpToolDef } from "./types";
+import { checkCorpus } from "../kb-check";
+import { getCorpus } from "../kb-corpus";
 
 const EXPECTED = [
   "list_properties",
@@ -17,6 +19,14 @@ const EXPECTED = [
   "get_contractor_schedule",
   "get_reviews",
   "get_leasing_funnel",
+  // Added 08/19/26: the staff knowledgebase. These are the second tier of the
+  // KB assistant — the dashboard widget runs Haiku on our own API credits for
+  // quick lookups, while these hand the corpus to whatever model the caller is
+  // already paying for, and compose with the live tools above in a way the
+  // widget cannot.
+  "list_kb_documents",
+  "search_kb",
+  "get_kb_document",
 ];
 
 // Words that show up in a field name or a field's .describe() text when a
@@ -201,7 +211,40 @@ describe("the tool manifest's OUTPUT (Important 4)", () => {
     get_contractor_schedule: {},
     get_reviews: {},
     get_leasing_funnel: {},
+    list_kb_documents: {},
+    search_kb: { query: "pet fee" },
+    get_kb_document: { slug: "fee-schedule" },
   };
+
+  /**
+   * The knowledgebase tools are exempt from the OUTPUT sweep below, and the
+   * exemption is backed by a STRONGER check rather than being a hole.
+   *
+   * Why they cannot pass it: PII_FIELD_PATTERN is a field-NAME heuristic, and
+   * these three tools return prose from a hotel knowledgebase. "guest",
+   * "tenant" and "occupant" appear in almost every document by necessity —
+   * "a guest who read the FAQ will quote 3:00 PM", "only registered occupants
+   * may reside in the unit". Those are policy sentences, not leaked records.
+   *
+   * Why not just widen the pattern: it would stop discriminating for the
+   * Cloudbeds tools, where a field called `guest_name` or `reservation_id`
+   * appearing in output IS the leak this sweep exists to catch. Weakening a
+   * check portfolio-wide to accommodate one module is how a guard quietly
+   * stops guarding.
+   *
+   * What covers them instead: lib/kb-check.ts `checkCorpus`, asserted below and
+   * gated in lib/kb-corpus.test.ts. It is strictly better suited — it scans for
+   * actual email addresses, actual phone numbers (including bare NANP-shaped
+   * digit runs), and guest-identifying column headers, with an allowlist of the
+   * company's own published contact points. These tools serve that corpus and
+   * nothing else, so if the corpus is clean their output is clean.
+   */
+  const KB_TOOL_NAMES = new Set(["list_kb_documents", "search_kb", "get_kb_document"]);
+
+  it("the knowledgebase corpus behind the exempt tools is PII-clean", () => {
+    // The exemption above is only honest while this passes.
+    expect(checkCorpus(getCorpus())).toEqual([]);
+  });
 
   it("has an argument set for every tool currently in the manifest", () => {
     // A tool added later with no entry above would otherwise be silently
@@ -222,6 +265,9 @@ describe("the tool manifest's OUTPUT (Important 4)", () => {
       const res = await registered[tool.name](MINIMAL_ARGS[tool.name]);
       const text = res.content?.[0]?.text as string;
       expect(text, `${tool.name} returned no text content`).toBeTruthy();
+      // Exempt: see KB_TOOL_NAMES above. Still swept for producing OUTPUT at
+      // all, so a broken KB tool cannot hide behind the exemption.
+      if (KB_TOOL_NAMES.has(tool.name)) continue;
       expect(text, `${tool.name} output`).not.toMatch(PII_FIELD_PATTERN);
     }
   });
