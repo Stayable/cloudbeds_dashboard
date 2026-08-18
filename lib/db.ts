@@ -1094,3 +1094,45 @@ export async function insertKbQuery(query: string, resultCount: number): Promise
     values (${query}, ${resultCount})
   `;
 }
+
+// --- Knowledgebase chatbot feedback -----------------------------------------
+// One row per ANSWER (see scripts/db-init.mjs for why per-answer, not per
+// conversation). Written twice: once when the answer is produced, then updated
+// in place if the reader leaves a verdict. Anonymous by construction — there is
+// no per-person identity in the browser app to attach.
+
+export type KbFeedbackInput = {
+  question: string;
+  answer: string;
+  answered: boolean;
+  unverified: boolean;
+  /** "slug#anchor" pairs, comma-joined. Flat text on purpose: this column is
+   *  read by a human writing SQL to find gaps, not joined against anything. */
+  citations: string;
+};
+
+/** Record an answer and return its id, so a later verdict can find it. */
+export async function insertKbAnswer(input: KbFeedbackInput): Promise<number> {
+  const sql = db();
+  const rows = await sql`
+    insert into kb_feedback (question, answer, answered, unverified, citations)
+    values (${input.question}, ${input.answer}, ${input.answered}, ${input.unverified}, ${input.citations})
+    returning id
+  `;
+  return Number((rows as { id: number }[])[0].id);
+}
+
+/** Attach a verdict to an answer already recorded. `reason` is only meaningful
+ *  when helpful is false. */
+export async function setKbFeedbackVerdict(
+  id: number,
+  helpful: boolean,
+  reason: string | null,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    update kb_feedback
+       set helpful = ${helpful}, reason = ${reason}
+     where id = ${id}
+  `;
+}

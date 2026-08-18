@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import Nav from "@/components/Nav";
+import KbChatMount from "@/components/KbChatMount";
 import "./globals.css";
 
 // IBM Plex Sans — the design system's typeface. Self-hosted, and now served
@@ -54,6 +55,9 @@ export default function RootLayout({
       <body className="min-h-screen font-sans">
         <Nav />
         {children}
+        {/* Floating "Ask the knowledgebase" widget. Self-hides without a valid
+            session, exactly like Nav — so it never appears on /login or /test. */}
+        <KbChatMount />
       </body>
     </html>
   );

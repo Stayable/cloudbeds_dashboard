@@ -278,3 +278,43 @@ await sql`
     on kb_queries (created_at desc) where result_count = 0
 `;
 console.log("kb_queries table ready.");
+
+// kb_feedback: one row per ANSWER the chatbot gave, plus the verdict a staff
+// member left on it. Per answer, never per conversation — only a per-answer row
+// is replayable, because you know which question, which answer, and which
+// sections earned the verdict.
+//
+// This is NOT a training loop and nothing here trains a model. It is two things:
+// a replayable EVAL SET for when the prompt or model changes, and — the more
+// valuable one — a CONTENT-GAP DETECTOR. A "no" on a question the knowledgebase
+// should have answered points straight at a missing document.
+//
+// The question text is stored because an eval row without it is useless, which
+// makes the retention decision on kb_queries load-bearing rather than
+// theoretical: staff type far more freely into a chat than into a search box.
+// No identity is stored — the PIN cookie is a level, not a person — so feedback
+// is anonymous by construction and nobody can be followed up with.
+await sql`
+  create table if not exists kb_feedback (
+    id           bigserial primary key,
+    question     text not null,
+    answer       text not null,
+    answered     boolean not null,
+    unverified   boolean not null default false,
+    citations    text not null default '',
+    helpful      boolean,
+    reason       text,
+    created_at   timestamptz not null default now()
+  )
+`;
+// "What did we get wrong, recently" — the query this table exists to answer.
+await sql`
+  create index if not exists kb_feedback_negative_idx
+    on kb_feedback (created_at desc) where helpful = false
+`;
+// The gap list: answers we could not ground, verdict or no verdict.
+await sql`
+  create index if not exists kb_feedback_unanswered_idx
+    on kb_feedback (created_at desc) where answered = false
+`;
+console.log("kb_feedback table ready.");
