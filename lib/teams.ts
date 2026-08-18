@@ -50,23 +50,56 @@ export type TeamsPostResult = {
  * Never throws — a Teams outage must not fail the cron that also banks
  * snapshots, and the caller decides how loud to be about `reason`.
  */
+export type TeamsPostOptions = {
+  /** Which flow to post to. Defaults to the daily revenue report's flow
+   *  (`TEAMS_FLOW_URL`). Pass another env var NAME — not a URL — to target a
+   *  different flow, e.g. `TEAMS_FLOW_URL_DUEOUT` for the "Daily Due Out or
+   *  Departures" flow. The name rather than the value is passed so the
+   *  `unconfigured` detail can say which variable is missing, which is the
+   *  whole reason that failure mode is distinguishable at all: an unset
+   *  TEAMS_FLOW_URL returned a cheerful 200 and delivered nothing for two
+   *  weeks. */
+  envVar?: string;
+  /** Whether to POST the wrapper object instead of the bare card. Defaults to
+   *  the GLOBAL `TEAMS_FLOW_ATTACHMENTS` gate, which is correct for the revenue
+   *  flow it was written for.
+   *
+   *  Pass it EXPLICITLY when targeting any other flow. The global env var is one
+   *  switch for what are now several independent Power Automate flows, each of
+   *  which is edited on its own schedule — leaving them coupled means turning
+   *  attachments on for the revenue report would silently change the body shape
+   *  the due-out flow receives and break it. One meaning, two flows: the exact
+   *  failure pattern recorded in MEMORY.md. */
+  attach?: boolean;
+  /** Extra top-level keys merged into the wrapper, e.g. the due-out flow's
+   *  `ddf` block (sheet name + headers + rows) that its Excel Online steps
+   *  consume. Supplying this FORCES the wrapper shape — a bare card has nowhere
+   *  to put them, and silently dropping them would look like the flow was
+   *  misconfigured rather than like we never sent the data. */
+  extra?: Record<string, unknown>;
+};
+
 export async function postAdaptiveCard(
   card: object,
-  files: TeamsAttachment[] = []
+  files: TeamsAttachment[] = [],
+  opts: TeamsPostOptions = {}
 ): Promise<TeamsPostResult> {
-  const url = process.env.TEAMS_FLOW_URL;
+  const envVar = opts.envVar ?? "TEAMS_FLOW_URL";
+  const attach = opts.attach ?? attachmentsEnabled();
+  const url = process.env[envVar];
   if (!url) {
     return {
       ok: false,
       status: 0,
       attached: 0,
       reason: "unconfigured",
-      detail: "TEAMS_FLOW_URL is not set in this environment — nothing was sent.",
+      detail: `${envVar} is not set in this environment — nothing was sent.`,
     };
   }
 
-  const attach = attachmentsEnabled() && files.length > 0;
-  const body = attach ? { card, files } : card;
+  const attaching = attach && files.length > 0;
+  const hasExtra = opts.extra !== undefined && Object.keys(opts.extra).length > 0;
+  const body = attaching || hasExtra ? { card, ...(attaching ? { files } : {}), ...opts.extra } : card;
 
   let res: Response;
   try {
@@ -84,7 +117,7 @@ export async function postAdaptiveCard(
   return {
     ok,
     status: res.status,
-    attached: attach ? files.length : 0,
+    attached: attaching ? files.length : 0,
     ...(ok ? {} : { reason: "http" as const, detail: `flow returned HTTP ${res.status}` }),
   };
 }

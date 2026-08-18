@@ -25,6 +25,11 @@ next-env.d.ts
 # Local input artifacts / stray screenshots (not versioned)
 /*.pdf
 /*.png
+# Operations' own workbooks, cloned locally as reference only. These CONTAIN
+# GUEST NAMES (the DDF tracker's Name column is one per refund decision), and a
+# commit of one is permanent — git history cannot be un-published. Reference
+# copies stay local; only derived, PII-free output goes in outputs/.
+/*.xlsx
 outputs/EliseDataAccess_Email_070226.md
 
 # Monica's raw daily occupancy workbooks — 869 files / ~2.0 GB of source .xlsx

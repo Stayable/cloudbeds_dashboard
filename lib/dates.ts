@@ -13,6 +13,18 @@ export type Preset = "today" | "yesterday" | "last7" | "last30" | "month" | "cus
  *  definitions that quietly drift apart (see MEMORY.md). */
 export const DAILY_CAPTURE_ET_HOUR = 6;
 
+/** THE SINGLE DEFINITION of "when the due-out room walk list is delivered," in
+ *  Eastern wall-clock hours (Kyle, 08/14/26). Read by the due-out cron's DST
+ *  window guard (`app/api/cron/due-outs/route.ts`) and by the card's own
+ *  wording, so the hour a reader is told cannot drift from the hour that runs.
+ *
+ *  This hour is not cosmetic. The list is defined as reservations Cloudbeds
+ *  still reports `In-House` — as guests depart, they leave the list. Probed
+ *  08/14/26: Davenport's 4 due-outs that day all read `Checked Out` by 2pm ET,
+ *  so the list was empty. Moving this later does not report a quiet morning, it
+ *  reports nothing. */
+export const DUE_OUT_ET_HOUR = 9;
+
 /** Whether a string is a real YYYY-MM-DD calendar date.
  *
  *  Shape-only regex is not enough: `Date.parse("2026-02-30T00:00:00Z")` does

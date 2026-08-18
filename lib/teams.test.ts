@@ -67,6 +67,35 @@ describe("postAdaptiveCard", () => {
     expect(r.reason).toBeUndefined();
   });
 
+  it("forces the wrapper shape when `extra` is supplied, even with attachments off", async () => {
+    // The due-out flow's `ddf` seed block travels this way. A bare card has
+    // nowhere to put it, so dropping it silently would look to the flow author
+    // like a misconfigured flow rather than like we never sent the data.
+    process.env.TEAMS_FLOW_URL = "https://flow.example/x";
+    const f = mockFetch();
+    const ddf = { sheetName: "08.15", headers: ["Property"], rows: [["DP"]] };
+    await postAdaptiveCard(CARD, [], { extra: { ddf } });
+    const body = JSON.parse((f.mock.calls[0][1] as any).body);
+    expect(body.card).toEqual(CARD);
+    expect(body.ddf).toEqual(ddf);
+    expect(body.files).toBeUndefined(); // attachments still off
+  });
+
+  it("ignores an empty `extra` and stays a bare card", async () => {
+    process.env.TEAMS_FLOW_URL = "https://flow.example/x";
+    const f = mockFetch();
+    await postAdaptiveCard(CARD, [], { extra: {} });
+    expect(JSON.parse((f.mock.calls[0][1] as any).body)).toEqual(CARD);
+  });
+
+  it("names the missing variable when targeting a different flow", async () => {
+    delete process.env.TEAMS_FLOW_URL_DUEOUT;
+    const r = await postAdaptiveCard(CARD, [], { envVar: "TEAMS_FLOW_URL_DUEOUT" });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("unconfigured");
+    expect(r.detail).toMatch(/TEAMS_FLOW_URL_DUEOUT/);
+  });
+
   it("keeps the bare-card shape when attachments are off, even with files supplied", async () => {
     process.env.TEAMS_FLOW_URL = "https://flow.example/x";
     const f = mockFetch();
