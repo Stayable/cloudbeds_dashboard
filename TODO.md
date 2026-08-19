@@ -4,12 +4,48 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## 08/19/26 (session 9t) — KB RECONCILED AGAINST THE NEW FAQ; ASK-THE-KB CHATBOT SPEC'D, NOT BUILT
+## 08/19/26 (session 9t) — KB RECONCILED; CHATBOT + MCP TOOLS BUILT, SHIPPED, AND HELD BEHIND A SWITCH
 
-> **Pickup — 08/19/26 (Eastern).** KB corpus is **17 documents** (was 15), clean,
-> 724 tests / 71 files green. Still uncommitted, now on top of the 9s due-out
-> work. **The chatbot is specified below and deliberately NOT started** — it needs
-> one credential decision first.
+> **Pickup — 08/19/26 (Eastern). EVERYTHING IS COMMITTED AND PUSHED.** Branch
+> level with origin at **`f0b09c8`**; six commits, `5447d5a..f0b09c8`, including
+> the whole 9s due-out backlog that had been sitting uncommitted. **775 tests /
+> 73 files** green, `tsc` exit 0, `next build` compiled.
+>
+> **▶ THE ONE THING TO DO NEXT: NOTHING, UNTIL KYLE LAUNCHES.** The chatbot is
+> built, deployed, verified working in production, and then deliberately
+> **HIDDEN** — Kyle 08/19/26, "hide the widget now, I will launch it later."
+> **To launch: set `KB_CHAT_ENABLED=1` in Vercel and redeploy. No code change.**
+> The key, the `kb_feedback` table, and the passing eval are all already in place.
+>
+> **[x] SHIPPED THIS SESSION:** KB corpus 15 → **17 documents** (clean); the
+> ask-the-KB widget with server-side citation verification; three MCP
+> knowledgebase tools; the `KB_CHAT_ENABLED` launch switch (default OFF, gating
+> BOTH the widget and `/api/kb/ask`, because hiding the button while the endpoint
+> answers is invisible-but-live, not off).
+>
+> **[x] COST MODEL VALIDATED AGAINST REAL SPEND, and the answer is counter-
+> intuitive.** Measured, not estimated: corpus is **21,472 tokens**; a warm query
+> costs **$0.0032**, a cold one **$0.044** because it pays the 1-hour cache write.
+> Kyle's two test queries cost $0.05 — one cold, one warm — which looked alarming
+> and is simply the worst case. **Cache writes are capped at one per hour (~220 a
+> month, ~$9.50) REGARDLESS of volume**, so light use is proportionally expensive
+> and heavy use is cheap: ~$13/mo at 50 queries a day, ~$45/mo at 500. Do not
+> ration it. If cost ever matters the lever is **corpus size, not model** — the
+> cached read is 5x input and output combined.
+>
+> **[ ] OFFERED, NOT BUILT — both waiting on a yes:**
+> 1. **Usage logging.** Four columns on `kb_feedback` (input / output /
+>    cache-write / cache-read tokens) so cost is a SQL query rather than my
+>    estimate, and so the real cache hit rate is visible once staff are on it.
+>    That number decides whether the 1h TTL is right. **This gap is why I could
+>    not answer "what did those two queries cost" exactly.**
+> 2. **A global daily cap.** Per-USER limits are NOT possible — there is no
+>    per-user identity in the browser app; the PIN cookie is a signed level, not
+>    a person. A portfolio-wide cap is the honest substitute and real runaway
+>    protection. Real per-user waits on the Managed Authorization (M365) beta,
+>    item #11 below, which would also make the feedback rows attributable.
+> 3. **Kyle's own action, no code:** an Anthropic Console spend limit
+>    (Settings → Limits). Worth doing before staff arrive rather than after.
 >
 > **[x] THE WEBSITE FAQ WAS REWRITTEN, AND THE KB WAS CARRYING A FALSE CLAIM.**
 > Check-in on the FAQ is now **4:00 PM**, matching the KB. Three documents said
@@ -64,6 +100,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 > `components/KbChatMount.tsx`, both API routes, `scripts/kb-eval.mts`,
 > `kb_feedback` DDL in `scripts/db-init.mjs`, `insertKbAnswer` /
 > `setKbFeedbackVerdict` in `lib/db.ts`.
+> - **[!] TWO UNTRACKED THINGS LEFT DELIBERATELY UNCOMMITTED, both Kyle's call:**
+>   `Property management dashboard system/` (a `.dc.html` + `support.js` from
+>   07/28 whose provenance nobody has stated — not committing something I cannot
+>   describe), and everything in `outputs/`. **The two due-out artifacts were
+>   CHECKED for guest PII and are clean** — the TSV's name column is empty
+>   (`DDF_INCLUDE_GUEST_NAMES` was off) and the workbook is Property / ID / Room
+>   plus four blank columns. Safe to track if wanted; left out because they are
+>   dated one-offs plus 3.7 MB of PDFs.
 > - **[x] KEY IN PLACE** (`.env.local` + Vercel, Kyle 08/19/26).
 >   **[x] `kb_feedback` CREATED** in production Neon
 >   (`ep-frosty-lab-at3qgvng-pooler`) — `db-init.mjs` verified beforehand as 20
