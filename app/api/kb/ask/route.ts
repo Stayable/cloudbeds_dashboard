@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE, verifyCookie } from "@/lib/auth";
-import { askKb, kbAskConfigured, normaliseQuestion } from "@/lib/kb-ask";
+import { askKb, kbAskConfigured, kbChatEnabled, normaliseQuestion } from "@/lib/kb-ask";
 import { insertKbAnswer } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,13 @@ export async function POST(req: Request) {
   const level = await verifyCookie((await cookies()).get(AUTH_COOKIE)?.value);
   if (!level) {
     return NextResponse.json({ ok: false, error: "sign in required" }, { status: 401 });
+  }
+
+  // Not launched yet. Checked here as well as in the mount: hiding the button
+  // while leaving this endpoint answering would still call the model and still
+  // bill for anyone who knew the path — that is not "off".
+  if (!kbChatEnabled()) {
+    return NextResponse.json({ ok: false, error: "not enabled" }, { status: 404 });
   }
 
   if (!kbAskConfigured()) {

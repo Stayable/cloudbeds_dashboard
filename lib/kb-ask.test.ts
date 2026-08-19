@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { getCorpus } from "./kb-corpus";
 import {
   KB_ANSWER_TOOL,
   KB_QUESTION_MAX,
   extractAnswer,
   groundAnswer,
+  kbChatEnabled,
   normaliseQuestion,
   renderCorpus,
   validAnchors,
@@ -257,4 +258,34 @@ describe("KB_ANSWER_TOOL", () => {
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toEqual(["answered", "answer", "citations"]);
   });
+});
+
+describe("kbChatEnabled — the launch switch", () => {
+  const original = process.env.KB_CHAT_ENABLED;
+  afterEach(() => {
+    if (original === undefined) delete process.env.KB_CHAT_ENABLED;
+    else process.env.KB_CHAT_ENABLED = original;
+  });
+
+  // The default is the one that matters: shipping this file without touching
+  // any environment must leave the widget hidden.
+  it("is OFF when the variable is absent", () => {
+    delete process.env.KB_CHAT_ENABLED;
+    expect(kbChatEnabled()).toBe(false);
+  });
+
+  it("is ON only for exactly \"1\"", () => {
+    process.env.KB_CHAT_ENABLED = "1";
+    expect(kbChatEnabled()).toBe(true);
+  });
+
+  // Fails CLOSED. A fat-fingered value must not launch a feature to 40 staff,
+  // which is why this is an equality check and not a truthiness check.
+  it.each(["0", "true", "yes", "on", "", " 1", "1 ", "TRUE"])(
+    "stays off for %o",
+    (v) => {
+      process.env.KB_CHAT_ENABLED = v;
+      expect(kbChatEnabled()).toBe(false);
+    },
+  );
 });

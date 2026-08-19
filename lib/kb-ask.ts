@@ -242,6 +242,26 @@ export function kbAskConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+/** The launch switch, DEFAULT OFF (Kyle, 08/19/26 — "hide the widget now, I will
+ *  launch it later").
+ *
+ *  Same shape as the DDF seed gates: an explicit "1" turns it on and anything
+ *  else leaves it off, so a missing or fat-fingered value fails CLOSED rather
+ *  than quietly launching a feature to forty staff.
+ *
+ *  ONE definition, read by BOTH the mount and the /api/kb/ask route. Hiding the
+ *  button while leaving the endpoint live would not be "off" — the route would
+ *  still answer, still call the model, and still bill, to anyone who knew the
+ *  path. The UI and the endpoint go dark together or the switch is a lie.
+ *
+ *  Deliberately NOT gated: the MCP knowledgebase tools. They cost us nothing
+ *  (the caller's own model does the work), they sit behind per-person tokens
+ *  rather than the shared MAIN pin, and they are not the thing being launched.
+ *  Say so if you want those dark too — it is a one-line change. */
+export function kbChatEnabled(): boolean {
+  return process.env.KB_CHAT_ENABLED === "1";
+}
+
 /** Ask the knowledgebase. Throws only on transport failure; a model that cannot
  *  answer returns answered=false, which is a normal outcome. */
 export async function askKb(question: string): Promise<KbAnswer> {
