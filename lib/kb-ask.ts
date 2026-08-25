@@ -19,6 +19,7 @@
 // whose citations do not resolve is DISCARDED and replaced with document links.
 // A model cannot talk its way past that, which is the point.
 
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { getCorpus } from "./kb-corpus";
 import type { KbDocument } from "./kb-parse";
@@ -262,6 +263,29 @@ export function kbChatEnabled(): boolean {
   return process.env.KB_CHAT_ENABLED === "1";
 }
 
+/** The exact system text `askKb` sends: instructions plus the rendered corpus.
+ *
+ *  Extracted so it has ONE definition. `corpusFingerprint` hashes this string to
+ *  decide whether a cached answer is still valid, and a second copy of the same
+ *  concatenation would let the prompt drift away from the hash that is supposed
+ *  to describe it — green tests, stale answers served in production. */
+export function buildSystemPrompt(docs: KbDocument[]): string {
+  return `${KB_SYSTEM_INSTRUCTIONS}\n\n<knowledgebase>\n${renderCorpus(docs)}\n</knowledgebase>`;
+}
+
+/** Short content hash. 64 bits is ample — this distinguishes a handful of corpus
+ *  revisions, it is not a security boundary. */
+export function hashPrompt(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 16);
+}
+
+/** Identifies everything the model was shown. Any edit to a document OR to the
+ *  instructions changes it, which retires every cached answer written under the
+ *  old version. See lib/kb-cache.ts for why that matters. */
+export function corpusFingerprint(docs: KbDocument[]): string {
+  return hashPrompt(buildSystemPrompt(docs));
+}
+
 /** Ask the knowledgebase. Throws only on transport failure; a model that cannot
  *  answer returns answered=false, which is a normal outcome. */
 export async function askKb(question: string): Promise<KbAnswer> {
@@ -272,7 +296,7 @@ export async function askKb(question: string): Promise<KbAnswer> {
     system: [
       {
         type: "text",
-        text: `${KB_SYSTEM_INSTRUCTIONS}\n\n<knowledgebase>\n${renderCorpus(docs)}\n</knowledgebase>`,
+        text: buildSystemPrompt(docs),
         // 1-HOUR TTL, NOT THE 5-MINUTE DEFAULT, and this is a cost decision
         // rather than a tuning knob. Staff use is bursty — a question at 09:10
         // and the next at 09:40. On the default TTL almost every query would

@@ -3,6 +3,7 @@
 // component. One table `submissions` (see scripts/db-init.mjs).
 import { neon } from "@neondatabase/serverless";
 import { shiftYmd } from "./dates";
+import type { CachedKbRow } from "./kb-cache";
 import type { RowInputs } from "./revenue-report";
 
 function db() {
@@ -1109,17 +1110,91 @@ export type KbFeedbackInput = {
   /** "slug#anchor" pairs, comma-joined. Flat text on purpose: this column is
    *  read by a human writing SQL to find gaps, not joined against anything. */
   citations: string;
+  /** Lookup key for the answer cache (lib/kb-cache.ts questionCacheKey). */
+  cacheKey: string | null;
+  /** Fingerprint of the prompt that produced this answer, so it can be retired
+   *  when the corpus changes. */
+  corpusFingerprint: string;
 };
 
 /** Record an answer and return its id, so a later verdict can find it. */
 export async function insertKbAnswer(input: KbFeedbackInput): Promise<number> {
   const sql = db();
   const rows = await sql`
-    insert into kb_feedback (question, answer, answered, unverified, citations)
-    values (${input.question}, ${input.answer}, ${input.answered}, ${input.unverified}, ${input.citations})
+    insert into kb_feedback
+      (question, answer, answered, unverified, citations, cache_key, corpus_fingerprint)
+    values
+      (${input.question}, ${input.answer}, ${input.answered}, ${input.unverified},
+       ${input.citations}, ${input.cacheKey}, ${input.corpusFingerprint})
     returning id
   `;
   return Number((rows as { id: number }[])[0].id);
+}
+
+/** The newest servable answer for this question against this corpus, or null.
+ *
+ *  The disqualifying conditions live in `canServeCached` (lib/kb-cache.ts) and
+ *  are applied there, not here — this returns the candidate row and lets the
+ *  tested pure function make the decision. `limit 1` on id desc: if the same
+ *  question was answered twice, the later answer is the one to keep serving. */
+export async function findCachedKbAnswer(
+  cacheKey: string,
+  corpusFingerprint: string,
+): Promise<CachedKbRow | null> {
+  const sql = db();
+  const rows = (await sql`
+    select id, answer, answered, unverified, citations, corpus_fingerprint, helpful
+      from kb_feedback
+     where cache_key = ${cacheKey}
+       and corpus_fingerprint = ${corpusFingerprint}
+     order by id desc
+     limit 1
+  `) as {
+    id: number;
+    answer: string;
+    answered: boolean;
+    unverified: boolean;
+    citations: string;
+    corpus_fingerprint: string;
+    helpful: boolean | null;
+  }[];
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: Number(r.id),
+    answer: r.answer,
+    answered: r.answered,
+    unverified: r.unverified,
+    citations: r.citations,
+    corpusFingerprint: r.corpus_fingerprint,
+    helpful: r.helpful,
+  };
+}
+
+/** Count a cache serve against the row that was served. This is the cache-hit
+ *  rate Kyle asked for, recorded where it can be read with one SQL query rather
+ *  than estimated. */
+export async function bumpKbCacheHit(id: number): Promise<void> {
+  const sql = db();
+  await sql`update kb_feedback set cache_hits = cache_hits + 1 where id = ${id}`;
+}
+
+/** Model calls so far today, Eastern. Cache serves write no row, so this counts
+ *  exactly the answers we PAID for — which is what a cost cap should limit.
+ *
+ *  The day boundary is computed in Postgres against the tz database rather than
+ *  passed in from JS, so it is DST-correct: a UTC boundary would roll the cap
+ *  over at 8pm Eastern in summer and 7pm in winter. */
+export async function countKbAnswersToday(): Promise<number> {
+  const sql = db();
+  const rows = (await sql`
+    select count(*)::int as n
+      from kb_feedback
+     where created_at >= (
+       date_trunc('day', now() at time zone 'America/New_York') at time zone 'America/New_York'
+     )
+  `) as { n: number }[];
+  return Number(rows[0]?.n ?? 0);
 }
 
 /** Attach a verdict to an answer already recorded. `reason` is only meaningful

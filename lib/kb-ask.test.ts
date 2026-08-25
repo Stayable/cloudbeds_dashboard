@@ -3,6 +3,10 @@ import { getCorpus } from "./kb-corpus";
 import {
   KB_ANSWER_TOOL,
   KB_QUESTION_MAX,
+  KB_SYSTEM_INSTRUCTIONS,
+  buildSystemPrompt,
+  corpusFingerprint,
+  hashPrompt,
   extractAnswer,
   groundAnswer,
   kbChatEnabled,
@@ -288,4 +292,38 @@ describe("kbChatEnabled — the launch switch", () => {
       expect(kbChatEnabled()).toBe(false);
     },
   );
+});
+
+describe("buildSystemPrompt", () => {
+  it("carries the instructions and the rendered corpus", () => {
+    const prompt = buildSystemPrompt(docs);
+    expect(prompt).toContain(KB_SYSTEM_INSTRUCTIONS);
+    expect(prompt).toContain(renderCorpus(docs));
+  });
+});
+
+// The fingerprint is what lets a cached answer be trusted, so it has to change
+// whenever ANYTHING the model was shown changes — corpus or instructions.
+describe("corpusFingerprint", () => {
+  it("is stable for the same input", () => {
+    expect(corpusFingerprint(docs)).toBe(corpusFingerprint(docs));
+  });
+
+  it("changes when a section body changes", () => {
+    const edited = structuredClone(docs);
+    edited[0].sections[1].body = "$20 per day.";
+    expect(corpusFingerprint(edited)).not.toBe(corpusFingerprint(docs));
+  });
+
+  it("changes when a document is added", () => {
+    expect(corpusFingerprint(docs.slice(0, 1))).not.toBe(corpusFingerprint(docs));
+  });
+
+  // Guards the anti-duplication decision: the fingerprint hashes the SAME
+  // string askKb sends, so tightening the refusal rules invalidates the cache
+  // instead of leaving answers written under the old rules in circulation.
+  it("covers the instructions, not just the corpus", () => {
+    expect(corpusFingerprint(docs)).toBe(hashPrompt(buildSystemPrompt(docs)));
+    expect(corpusFingerprint(docs)).not.toBe(hashPrompt(renderCorpus(docs)));
+  });
 });

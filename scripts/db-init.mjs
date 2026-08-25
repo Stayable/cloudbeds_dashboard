@@ -317,4 +317,23 @@ await sql`
   create index if not exists kb_feedback_unanswered_idx
     on kb_feedback (created_at desc) where answered = false
 `;
+// The answer cache (lib/kb-cache.ts). Added to this table rather than a new one
+// because a cached answer and a recorded answer are the same row: serving from
+// cache returns the ORIGINAL row's id, so a verdict left on a cache hit attaches
+// to the one canonical answer instead of fragmenting across duplicates.
+//
+// add column if not exists — this table already exists in production with rows
+// in it, so the columns are nullable and carry no backfill. Rows written before
+// this migration simply have no cache_key and are never served from cache, which
+// is the correct outcome: we cannot know which corpus they were written against.
+await sql`alter table kb_feedback add column if not exists cache_key text`;
+await sql`alter table kb_feedback add column if not exists corpus_fingerprint text`;
+await sql`alter table kb_feedback add column if not exists cache_hits integer not null default 0`;
+// The lookup. Partial, because only rows with a key participate — and DESC on id
+// so the newest answer for a key wins without an extra sort.
+await sql`
+  create index if not exists kb_feedback_cache_idx
+    on kb_feedback (cache_key, corpus_fingerprint, id desc)
+    where cache_key is not null
+`;
 console.log("kb_feedback table ready.");
