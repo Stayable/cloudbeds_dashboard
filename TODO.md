@@ -4,12 +4,151 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 08/25/26 (session 9u) — **THE CHATBOT IS LAUNCHED.** ANSWER CACHE + DAILY CAP SHIPPED WITH IT
+
+> **Pickup — 08/25/26 (Eastern). LAUNCHED AND DEPLOYED.** Branch level with
+> origin at **`e916dcf`**. 795 tests / 74 files green (was 775/73), `tsc` exit 0,
+> `next build` compiled. Production deploy `dpl_5uj5Mv95v8cDQrXMx7hbcqzaYqFf`,
+> READY, aliased to **dashboard.rentstayable.com**.
+>
+> **▶ THE ONE THING TO DO NEXT: CONFIRM THE WIDGET RENDERS ON `/kb`.** This is
+> the single link in the chain that could not be closed from here, and it is
+> genuinely unverified rather than merely unchecked. `POST /api/kb/ask` from
+> outside returns **307** (middleware bouncing to `/login`) — and it returns 307
+> whether the switch is on or off, because the auth check runs BEFORE the
+> `kbChatEnabled()` check. `/kb` is PIN-gated too, so the rendered HTML is not
+> readable either. If the button is missing, the env var did not bind to this
+> deployment and one more `npx vercel --prod --yes` fixes it.
+>
+> **[x] `KB_CHAT_ENABLED=1` IS SET** in Vercel Production (Encrypted/Sensitive,
+> set 08/25/26). **Kyle said "turn on the widget"** — the launch decision from 9t
+> is made and spent; do not treat the chatbot as held back any more.
+>
+> **[x] THE LAUNCH SHIPPED THE COST CONTROLS WITH IT, NOT AFTER IT.** Deploys
+> here are **CLI-triggered, not git-triggered** (five prior production deploys,
+> all `vercel --prod`, none from a push) — so pushing does nothing on its own,
+> and the 7-day-old live deployment predated all of this. **The trap avoided:
+> "Redeploy" in the Vercel dashboard would have rebuilt the OLD commit and picked
+> up `KB_CHAT_ENABLED=1`, launching the widget to staff with no cache and no cap.**
+> A launch must come from a fresh `vercel --prod` in this repo. Write that down.
+>
+> **[x] ANSWER CACHE — the thing everyone assumes the prompt cache already is.**
+> Kyle asked "cache hit means the same query was asked before, so it gets cheaper
+> over time?" **It did not, and the confusion is the reason this exists.** The
+> Anthropic cache is a **PREFIX** cache: it stores the corpus, never the question
+> or the answer, so a hit only means *somebody asked anything in the last hour*.
+> `ttl: "1h"`, `ephemeral` — it expires, does not accumulate, and never gets
+> cheaper. Day 400 costs exactly what day 1 costs.
+> - `lib/kb-cache.ts` (new, +15 tests): `questionCacheKey` (lowercase, delete
+>   apostrophes, strip punctuation, **keep word order**), `canServeCached`,
+>   `kbDailyCap`.
+> - **Word order is load-bearing.** Sorting or stopword-stripping would collide
+>   "can a guest bring a dog" with "can a dog bring a guest". A cache that
+>   answers the wrong question is worse than no cache — there is a test for it.
+> - **TDD caught a real bug**: spacing an apostrophe yields `what s`, so
+>   "what's the pet fee" and "whats the pet fee" would have been separate keys
+>   and the cache would have quietly under-performed. Apostrophes are now
+>   DELETED, everything else becomes a separator. Curly quote included (phones).
+>
+> **[x] CORPUS FINGERPRINT — why a cached answer can be trusted.** A stored
+> answer is only true of the corpus it was written against. `buildSystemPrompt`
+> was **extracted so the prompt has ONE definition**, and `corpusFingerprint`
+> hashes that same string — per `duplicated-definitions-fail-silently`, two
+> copies would let the prompt drift from the hash meant to describe it: green
+> tests, stale answers in production. Covers the **instructions too**, so
+> tightening the refusal rules retires old answers rather than leaving them in
+> circulation. Any KB edit retires every cached answer at once — coarse, and
+> correct, since serving a stale damage fee after we corrected it is strictly
+> worse than paying $0.05.
+>
+> **[x] GLOBAL DAILY CAP — 150/day, `KB_DAILY_CAP` to override.**
+> - **Portfolio-wide, because per-person is IMPOSSIBLE**: the PIN cookie is a
+>   signed *level*, not a person. Real per-user waits on Managed Authorization
+>   (M365). Per-PC/per-device is also not possible — a browser gives the server
+>   no device identity; cookie = per browser profile, IP = per NAT (which would
+>   throttle a whole front desk as one bucket).
+> - **Sits AFTER the cache**: a cached answer costs $0, so rationing it would be
+>   friction that buys nothing.
+> - **Day boundary computed in Postgres against the tz database**, and this was
+>   *measured, not asserted*: Eastern midnight = `04:00Z`, UTC midnight =
+>   `00:00Z`. A UTC boundary would roll the cap over at 8pm Eastern in summer.
+> - **FAILS OPEN on a database error** — deliberate. The cap is cost protection;
+>   a Neon blip must not take the assistant down. **This is exactly why the
+>   Anthropic Console spend limit still matters: it is the only backstop that
+>   does not depend on our own infrastructure.**
+> - `lib/ratelimit.ts` was NOT used — it is an in-memory Map per serverless
+>   instance, fine for a 60s window and useless for a 24h one.
+>
+> **[x] A CACHE SERVE RETURNS THE ORIGINAL ROW'S ID** and writes no new row, so
+> a verdict left on a cache hit attaches to the one canonical answer instead of
+> fragmenting across duplicates. `cache_hits` makes the real hit rate a SQL
+> query — **this closes the "what did those two queries cost" gap from 9t.**
+>
+> **[x] PROD MIGRATION RUN AND VERIFIED** (`node scripts/db-init.mjs`, 08/25/26).
+> Three columns added to `kb_feedback` (`cache_key`, `corpus_fingerprint`,
+> `cache_hits`) plus `kb_feedback_cache_idx`. Audited first: **zero destructive
+> statements** in the whole file (12 create-table, 9 create-index, 7 add-column,
+> all `if not exists`). The 2 pre-existing rows survived with null `cache_key`,
+> so they are never served from cache — correct, since we cannot know which
+> corpus they were written against.
+> - **The migration was load-bearing, not cosmetic.** Without the columns
+>   `insertKbAnswer` throws → caught → no rows written → `countKbAnswersToday`
+>   returns 0 forever → **the cap would have been silently inert.**
+> - **All three new SQL queries were executed against production Neon before
+>   deploying**, because they had only ever been tested as pure logic and every
+>   one of them fails *open*: a syntax error would have left the widget working
+>   with the cache and cap silently dead.
+>
+> **[x] COST TABLE, FROM LIVE PRICING** (fetched from `platform.claude.com`,
+> not recalled): Haiku 4.5 input $1/MTok, output $5, **1h cache write $2 (2x)**,
+> **cache read $0.10 (0.1x)**. Prefix ~22,500 tok; `KB_ASK_MAX_TOKENS` 1024.
+> Cold query **$0.0502**, warm **$0.0074**.
+> - **At 20 chats/day the absolute ceiling is $1.00/day → $31/month**, and that
+>   requires all 20 to land in separate hours AND every answer to max out.
+>   Realistic (bursty, ~7 cache windows) is **~$14/month**.
+> - **Cost is SUB-LINEAR** — writes are capped at ~24/day regardless of volume.
+>   20→50 chats/day adds ~$13/mo, not another $31. Do not ration it.
+> - **The cache does NOT lower the ceiling** (worst case is every question being
+>   novel, exactly when it misses). It lowers the *expected* bill toward single
+>   digits once staff settle into the same ~30 questions.
+>
+> **[!] THE TRADEOFF THE CACHE INTRODUCES, stated plainly:** a mediocre-but-
+> verified answer now sticks until the corpus changes or someone thumbs-downs it.
+> Before, every call was a fresh roll. `helpful = false` retires it — but only
+> after a human flags it. Watch the first weeks of `kb_feedback`.
+>
+> **[ ] KYLE'S OWN ACTION, NO CODE — still not done:** an Anthropic Console
+> spend limit (Settings → Limits). More important now that staff are on it, and
+> more important *because* the cap fails open.
+>
+> **[?] 1.9 GB UPLOADED PER DEPLOY.** The source tree is ~4 MB (`outputs/` 3.6,
+> everything else under 1). `node_modules/` and `.next/` ARE gitignored, so
+> something large is going up anyway and the cause is **undiagnosed**. Not a
+> correctness problem — build was 37s — but every deploy pays it. **Deliberately
+> not fixed mid-launch:** there is no `.vercelignore`, and a wrong ignore rule
+> could break the `/report` and `/ops` file routes. Separate pass, with the file
+> routes exercised afterwards.
+>
+> **[ ] STILL UNCOMMITTED, unchanged from 9t and still Kyle's call:**
+> `Property management dashboard system/` (provenance nobody has stated) and 8
+> files in `outputs/`. The two due-out artifacts were checked and are PII-clean.
+>
+> **[x] OFFERED IN 9t, NOW DELIVERED:** usage logging (as `cache_hits`) and the
+> global daily cap. Both were waiting on a yes; both are live.
+
+---
+
 ## 08/19/26 (session 9t) — KB RECONCILED; CHATBOT + MCP TOOLS BUILT, SHIPPED, AND HELD BEHIND A SWITCH
 
 > **Pickup — 08/19/26 (Eastern). EVERYTHING IS COMMITTED AND PUSHED.** Branch
 > level with origin at **`f0b09c8`**; six commits, `5447d5a..f0b09c8`, including
 > the whole 9s due-out backlog that had been sitting uncommitted. **775 tests /
 > 73 files** green, `tsc` exit 0, `next build` compiled.
+>
+> **[SUPERSEDED 08/25/26 — KYLE LAUNCHED. See session 9u above.** The "do
+> nothing until Kyle launches" instruction below is spent, and the cost figures
+> here were later corrected against live pricing. Everything else in this section
+> stands as the record of how the chatbot was built.]**
 >
 > **▶ THE ONE THING TO DO NEXT: NOTHING, UNTIL KYLE LAUNCHES.** The chatbot is
 > built, deployed, verified working in production, and then deliberately
