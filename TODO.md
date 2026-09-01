@@ -4,6 +4,120 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 09/01/26 (session 9v) — **HOME §5 ARRIVALS & DEPARTURES SHIPPED + DEPLOYED.** GUEST PII WIDENED TO STAFF LEVELS
+
+> **Pickup — 09/01/26 (Eastern). SHIPPED AND DEPLOYED.** Branch level with origin
+> at **`ce9714e`**. 858 tests / 76 files green (was 795/74), `tsc` exit 0,
+> `next build` compiled. Production deploy `dpl_358bGMLpWyvm3GkcbdzDQaAyrh7M`,
+> READY, aliased to **dashboard.rentstayable.com** (verified: `/` 307s to
+> `/login?next=%2F`, gate intact).
+>
+> **NOTE THE DATE.** The harness reported **2026-09-02**; Eastern was
+> **Tuesday 09/01/26, 12:48 PM**. The documented UTC drift, caught by deriving
+> rather than trusting. Everything in this section is stamped 09/01/26.
+>
+> **▶ THE ONE THING TO DO NEXT: CONFIRM §5 RENDERS ON `/`.** Same shape of gap as
+> the `/kb` widget in 9u, and genuinely unverified rather than merely unchecked.
+> `/` is PIN-gated, so the HTML is not readable from here. Everything UPSTREAM of
+> the render is verified against live Cloudbeds — three DI queries, all 8
+> properties answering, the join, and the PII strip. Only React rendering is open.
+> - Open `dashboard.rentstayable.com`, MAIN pin, look for **5 · Arrivals &
+>   departures** in the left rail.
+> - Expect **~15 arrivals / 22 departures** portfolio-wide for 09/01.
+> - **Best single check:** Jacksonville North (812) should show **Nichole Scott**
+>   with a red **Active Eviction · LTG RATE** chip, room 246, state `due-out`.
+>   That one row exercises the name parse, the note extraction and the state
+>   derivation at once.
+> - If the section is missing entirely it is a stale build, not a code fault —
+>   another `npx vercel --prod --yes` fixes it.
+>
+> **[x] GUEST PII WIDENED — `/bea` §3 IS NO LONGER THE ONLY NAMED SURFACE.**
+> Kyle chose **"staff levels only"** from four options after I flagged that
+> "all dashboards" had landmines. Permitted: `base`, `exec`, `admin`, `crystal`,
+> `monica`, `bea`, `ops`. **`lib/guest-pii.ts` is the ONE definition** —
+> `canViewGuestPii`, an allowlist, so it **fails closed**: a level added to
+> `ALL_LEVELS` is denied until someone decides deliberately, and a test iterates
+> `ALL_LEVELS` to force that decision.
+>
+> **[x] THE THREE EXCLUSIONS, EACH FOR ITS OWN REASON — do not collapse them.**
+> - **`/elise`** is an EXTERNAL VENDOR level (EliseAI support) in
+>   `RESTRICTED_LEVELS`. "All dashboards" never meant this one.
+> - **`/report` + its file tokens** are **unauthenticated by design** —
+>   `signFileToken` mints PIN-less 30-day links so the daily Teams card works
+>   without giving the Revenue chat the MAIN pin. Guest data there would
+>   retroactively turn every already-posted card into a PII link.
+> - **MCP tools** keep `assertNoGuestPii`; **Teams** keeps `due-outs.ts` PII-free.
+>   A channel is a weaker gate than a PIN and is not a "level" at all.
+>
+> **[x] STRIPPING IS SERVER-SIDE, AND THAT IS NOT COSMETIC.** Props handed to a
+> client component are serialized into the **RSC payload and readable in the
+> browser**, so hiding a column is not withholding data. `includeGuests:false`
+> **skips the name query entirely**. Verified against live data: 0 names returned
+> with the flag off, rooms intact on all 67 rows. The query grouping is
+> deliberate — `room_numbers` sits with `reservation_status`, NOT with the name,
+> so dropping the PII query still leaves a usable room-level list.
+>
+> **[x] NO `reservation_status` FILTER HERE — the opposite of `due-outs.ts`, on
+> purpose.** That file filters `In-House` because it is a walk list, and the
+> 08/14/26 measurement showed a late run reports ZERO rather than a quiet day. A
+> *report* must not behave that way. This filters on date only and carries status
+> as a column, so the list is stable 00:00–23:59. Both file headers now say so.
+> Do not "harmonise" them.
+>
+> **[x] MEASURED, NOT ASSUMED: `greater_than_or_equal` WORKS on dataset 3.** It
+> was unverified before this session (only `equals` and `less_than_or_equal`
+> were). Probed against Davenport (318197): a two-day RANGE query costs **48 DI
+> reads instead of 96** for per-day `equals`. Cached 600s.
+>
+> **[x] FOUND: STAFF TYPE OPERATIONAL DATA INTO `primary_guest_full_name`.**
+> Measured across **945 live names, all 8 properties**: 688 end in `*ML`/`*WL`/
+> `*D`, 36 carry `[LTG RATE]`/`[EMPLOYEE]`, 5 a parenthetical tag, and **9
+> mention an EVICTION — of which only 3 use the `*` form**. Six are inline with
+> no asterisk, so a marker-only parse would have missed two thirds of them, and a
+> blind strip of everything after `*` would have **deleted a live eviction flag**.
+> `parseGuestName` splits name / marker / note; the eviction leads the note and
+> renders as a red chip. 22 tests.
+> - **`marker` is DISPLAY-ONLY and drives NO logic.** ML/WL/D line up with the
+>   rate classes, but that reading is an **inference, unverified** — Monica no
+>   longer produces the reports that were the external check. `lib/lease.ts`
+>   `classifyRatePlan` stays the sole authority on lease-vs-transient.
+> - The 9 eviction names are an independent cross-check against the **evictions
+>   Smartsheet**. Worth reconciling if the counts ever disagree.
+>
+> **[ ] OPEN — `/bea` §3 RENDERS `Fafa Prestil*ML` VERBATIM.** Pre-existing, found
+> not introduced. Nothing in the app stripped these markers before today. The fix
+> is reusing `parseGuestName` in `lib/balance-due.ts` / `BeaBalanceExplorer.tsx` —
+> small, but it edits a working collections surface, so it was deliberately left
+> out rather than widening a Home feature into Bea's money screen. **Reported to
+> Kyle, not yet done.**
+>
+> **[ ] DEFERRED — extract a shared `lib/di-reservations.ts` primitive.** Three
+> files now hand-roll the same dataset-3 query builder (`balance-due.ts`,
+> `due-outs.ts`, `guest-movements.ts`). Correct to fix; wrong to fix while also
+> shipping a feature through `balance-due.ts`, which carries two documented
+> production defect fixes and runs Bea's collections daily. Its own session.
+>
+> **[ ] DEFERRED — mount §5 on `/ops`, `/crystal`, `/monica`, `/rob`.** The
+> component was written to be mountable there and the PII *policy* already
+> permits those levels; only `/` renders it today. Kyle decided the policy, not
+> the rollout.
+>
+> **[ ] CARRIED FORWARD FROM 9u, STILL OPEN — confirm the KB chat widget renders
+> on `/kb`.** Not touched this session. It is the same one-line check as §5 above
+> and can be done in the same sitting: both pages are behind the MAIN pin, so one
+> login answers both. 9u's section below has the detail.
+>
+> **Files:** new `lib/guest-pii.ts` (+7 tests), `lib/guest-movements.ts`
+> (+49 tests), `components/GuestMovements.tsx`. Changed `app/page.tsx` (nav item
+> 5, section, and the footer line that used to claim "no guest PII" — now
+> conditional). **`CLAUDE.md` §5 rule 2 and §6 REWRITTEN**, because the old text
+> said the `/bea` exception "does not generalise" and had to be replaced rather
+> than quietly contradicted; the history is kept, marked superseded. Stale
+> exclusivity comments corrected in `balance-due.ts` and `due-outs.ts`.
+> Spec: `docs/superpowers/specs/2026-09-01-guest-movements-design.md`.
+
+---
+
 ## 08/25/26 (session 9u) — **THE CHATBOT IS LAUNCHED.** ANSWER CACHE + DAILY CAP SHIPPED WITH IT
 
 > **Pickup — 08/25/26 (Eastern). LAUNCHED AND DEPLOYED.** Branch level with
