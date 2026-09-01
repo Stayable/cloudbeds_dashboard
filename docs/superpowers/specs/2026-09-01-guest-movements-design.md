@@ -109,6 +109,46 @@ count: 48 reads for both days instead of 96.
 Arrivals filter on `checkin_date`; departures on `checkout_date`. The two directions stay
 separate queries — a guest arriving today and departing tomorrow must appear on both lists.
 
+### 4.2a The guest-name field is not just a name (discovered during implementation)
+
+Not in the original design — found by probing live data, and it changed the build.
+
+`primary_guest_full_name` carries staff-entered operational data. Measured across **945 live
+names on all 8 properties, 2026-09-01**:
+
+| Convention | Count | Example |
+|---|---|---|
+| trailing `*ML` / `*WL` / `*D` | 688 | `Fafa Prestil*ML` |
+| bracketed tag | 36 | `Jesse Lane [LTG RATE]`, `[EMPLOYEE]` |
+| **mentions an eviction** | **9** | `Evon Pulley Active Eviction` |
+| parenthetical tag | 5 | `Jose Paredes (Employee)`, `(SNOWBIRD)` |
+| digits in a name | 0 | — |
+
+Two findings that mattered:
+
+1. **Only 3 of the 9 eviction flags use the `*` form.** Six are written inline with no
+   asterisk. A parse that only handled the marker form would have missed two thirds of them.
+2. **A blind strip of everything after `*` would delete "Active Eviction"** — a real
+   operational flag on live reservations.
+
+So `parseGuestName` splits the field into `{ name, marker, note }`: the rate marker off the
+tail, then the inline eviction phrase (normalised to `Active Eviction` / `Eviction`), then
+bracketed and parenthetical tags. Notes join with ` · ` and the eviction leads, because it is
+the urgent part. A field that is entirely a flag falls back to showing the raw text rather than
+rendering a blank name. 22 tests cover it.
+
+**`marker` is display-only and drives no logic.** ML/WL/D line up suspiciously well with the
+rate classes in `lib/lease.ts`, but that reading is an *inference from correspondence* and is
+**unverified** — Monica, who would have known, no longer produces the reports that were the
+external check. `classifyRatePlan` remains the sole authority on lease-vs-transient.
+Classifying from this marker would create a second definition of one meaning, which is exactly
+the `duplicated-definitions-fail-silently` failure: green tests, wrong production.
+
+**Pre-existing defect found, deliberately not fixed:** nothing in the app strips these markers,
+so `/bea` §3 Balance due renders `Fafa Prestil*ML` verbatim today. Reusing `parseGuestName`
+there is a small change, but it edits a working collections surface to ship a Home feature, so
+it was left out and reported instead.
+
 ### 4.3 The status filter is deliberately absent
 
 `lib/due-outs.ts` filters `reservation_status = In-House` and its header records why that makes

@@ -1,10 +1,14 @@
 // The Daily Due-Out Room Walk List — which ROOMS are scheduled to check out on
 // a given stay date, so PMs/PAs can schedule inspections.
 //
-// PII-FREE BY CONSTRUCTION. `primary_guest_full_name` is never requested. The
-// /bea §3 guest-name exception is scoped to that one PIN-gated table and does
-// NOT reach here (CLAUDE.md §5 rule 2) — this list travels to a Teams channel,
-// which is a weaker gate than the PIN, so it carries the less sensitive data.
+// PII-FREE BY CONSTRUCTION. `primary_guest_full_name` is never requested.
+//
+// This survived the 09/01/26 widening of CLAUDE.md §5 rule 2 UNCHANGED and must
+// keep surviving it. Guest names are now permitted on internal staff dashboards
+// (lib/guest-pii.ts), but this list travels to a TEAMS CHANNEL, which is a
+// weaker gate than the PIN and is not a "level" at all — no allowlist protects
+// it. So the rule here is stricter than the app-wide one, on purpose. If you are
+// tempted to add names for symmetry with Home §5: the audience is different.
 //
 // BALANCES ARE DELIBERATELY NOT ON THIS LIST. The same dataset-3 query returns
 // `reservation_balance_due_amount`, and on 08/15/26 a Kissimmee East room due

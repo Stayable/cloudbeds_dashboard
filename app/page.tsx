@@ -1,21 +1,27 @@
+import { cookies } from "next/headers";
 import OccupancyView from "@/components/OccupancyView";
 import PeriodControls from "@/components/PeriodControls";
 import ZonesSection, { type ZoneProperty } from "@/components/ZonesSection";
 import ControlBar, { ControlLabel } from "@/components/ControlBar";
 import SectionNav, { type NavItem } from "@/components/SectionNav";
-import { Bar, Label, MiniStat } from "@/components/ui";
-import { dayCount, easternMinutesNow, easternToday, resolveRange } from "@/lib/dates";
+import GuestMovements, { type MovementProperty } from "@/components/GuestMovements";
+import { Bar, Label, MiniStat, SectionTitle } from "@/components/ui";
+import { dayCount, easternMinutesNow, easternToday, resolveRange, shiftYmd } from "@/lib/dates";
 import { getOccupancyRollup } from "@/lib/db";
 import { getPortfolio, getPortfolioRooms } from "@/lib/cloudbeds";
 import { buildOccProperties, pendingCaptureNote } from "@/lib/occupancy";
 import { buildZoneGroups } from "@/lib/zones";
 import { ZONE_CONFIG } from "@/config/zones";
+import { AUTH_COOKIE, verifyCookie } from "@/lib/auth";
+import { canViewGuestPii } from "@/lib/guest-pii";
+import { getPortfolioMovements } from "@/lib/guest-movements";
 
 const NAV: NavItem[] = [
   { id: "portfolio", label: "Portfolio", n: 1 },
   { id: "by-property", label: "By property", n: 2 },
   { id: "detail", label: "Detail", n: 3 },
   { id: "zones", label: "Zones", n: 4 },
+  { id: "movements", label: "Arrivals & departures", n: 5 },
 ];
 
 // Render per-request so runtime env vars (CLOUDBEDS_API_KEY_*) are always read
@@ -30,11 +36,35 @@ export default async function DashboardPage({
   const sp = await searchParams;
   const { preset, start, end } = resolveRange(sp.preset, sp.start, sp.end);
 
-  const [portfolio, rollup, rooms] = await Promise.all([
+  // §5 arrivals & departures is ALWAYS today + tomorrow in Eastern, independent
+  // of the selected occupancy range — it answers "who is moving now", which the
+  // range control has nothing to do with. Eastern, never the server clock.
+  const movementDays = [easternToday(), shiftYmd(easternToday(), 1)];
+
+  // Who is asking decides whether guest names are FETCHED. One definition, in
+  // lib/guest-pii.ts — do not inline this judgement. When false the name query
+  // is never issued, so names cannot reach the RSC payload (see
+  // lib/guest-movements.ts, "WHY STRIPPING MUST BE SERVER-SIDE").
+  const level = await verifyCookie((await cookies()).get(AUTH_COOKIE)?.value);
+  const showGuests = canViewGuestPii(level);
+
+  const [portfolio, rollup, rooms, movements] = await Promise.all([
     getPortfolio(),
     getOccupancyRollup(start, end),
     getPortfolioRooms(end),
+    getPortfolioMovements(movementDays, { includeGuests: showGuests }),
   ]);
+
+  const movementProperties: MovementProperty[] = movements.map((m) => ({
+    id: m.property.id,
+    code: m.property.code,
+    name: m.property.name,
+    county: m.property.county,
+    configured: m.configured,
+    arrivals: m.arrivals,
+    departures: m.departures,
+    error: m.error ?? null,
+  }));
 
   const properties = buildOccProperties(portfolio, rollup);
 
@@ -223,12 +253,32 @@ export default async function DashboardPage({
           <div className="min-w-0 flex-1 space-y-6">
             <OccupancyView properties={properties} exportDate={end} pendingNote={pendingNote} />
             <ZonesSection properties={zoneProperties} exportDate={end} />
+
+            <section id="movements" className="mb-10 scroll-mt-32 lg:scroll-mt-28">
+              <SectionTitle
+                title="5 · Arrivals & departures"
+                sub={`Live · today and tomorrow (Eastern) · all properties${
+                  showGuests ? " · names shown" : " · rooms only"
+                }`}
+              />
+              <GuestMovements
+                properties={movementProperties}
+                days={movementDays}
+                dayLabels={["Today", "Tomorrow"]}
+                showGuests={showGuests}
+              />
+            </section>
           </div>
         </div>
 
         <p className="mt-6 text-[11.5px] leading-relaxed text-txt3">
-          Occupancy is the daily average over the selected range (Cloudbeds Data Insights).
-          Aggregated metrics only · no guest PII · read-only · cached up to 10 min.
+          Occupancy is the daily average over the selected range (Cloudbeds Data Insights) ·
+          read-only · cached up to 10 min.{" "}
+          {showGuests
+            ? // The old blanket "no guest PII" claim became false on 09/01/26 when
+              // §5 shipped. It now states the actual posture instead.
+              "Section 5 names guests for internal staff — do not share this screen outside Stayable. Every other metric is aggregate-only."
+            : "Aggregated metrics only · no guest PII."}
         </p>
       </main>
     </>

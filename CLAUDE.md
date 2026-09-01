@@ -82,24 +82,45 @@ Cloudbeds API
 1. **Credentials never reach the browser.** Cloudbeds API key / OAuth tokens
    live in Vercel environment variables and are used only in server code. No
    `NEXT_PUBLIC_` prefix on any secret.
-2. **No guest PII on any ungated page — ever.** Expose aggregated metrics only
-   (occupancy %, room counts, ADR/RevPAR, arrivals/departures *counts*). No
-   guest names, no reservation-level detail.
-   - **SCOPED EXCEPTION — `/bea` §3 "Balance due" (authorised by Kyle 08/04/26).**
-     That one table shows **guest name + room + outstanding balance** for
-     in-house reservations, because chasing rent arrears is not possible without
-     naming the person who owes it. It is the **only** guest-PII surface in the
-     app. Conditions, all load-bearing:
-     - `/bea` stays PIN-gated (`BEA_PIN` or exec/CEO). Never relax that.
-     - The exception does **not** generalise. Any other surface wanting guest
-       names is a fresh decision, not covered by this one.
-     - **Consequence:** the standing "re-issue all 8 Cloudbeds keys without Guest
-       scope" security task **can no longer drop the Guest / Data Insights Guests
-       scopes.** Least privilege now stops one step short of where §6 aimed it.
-       That is a real, accepted reduction in the technical guardrail — the rule is
-       now enforced by code and the PIN gate rather than by the key.
-     - Implementation + the measurement behind the missing due-date column:
-       `lib/balance-due.ts`.
+2. **No guest PII on any ungated page — ever.** Guest names are visible to
+   **internal staff levels only**, and that decision lives in exactly one place:
+   **`lib/guest-pii.ts`** (`canViewGuestPii`). Import it; never re-derive the
+   judgement in a page or component.
+   - **Permitted:** `base`, `exec`, `admin`, `crystal`, `monica`, `bea`, `ops`.
+   - **Denied, and each for its own reason:**
+     - **`/elise`** — an *external vendor* level (EliseAI support), listed in
+       `RESTRICTED_LEVELS`. Guest names there would disclose Stayable guest data
+       to a third party.
+     - **`/report` and its file-token links** — `signFileToken` mints
+       **unauthenticated** 30-day links so the daily Teams card works without
+       handing the Revenue chat the MAIN pin. That is only safe while the report
+       is aggregate-only. `/report` stays aggregate-only.
+     - **Every MCP tool** — `lib/mcp/server.test.ts` enforces `assertNoGuestPii`
+       over every tool schema. External clients, different trust boundary. The
+       guard is not relaxed.
+     - **Anything posted to Teams** — `lib/due-outs.ts` is PII-free by
+       construction because a channel is a weaker gate than the PIN.
+   - The allowlist **fails closed**: a level added to `ALL_LEVELS` gets no guest
+     PII until someone adds it deliberately, and a test forces that decision.
+   - **Server-side stripping is mandatory.** Props handed to a client component
+     are serialized into the RSC payload and readable in the browser, so hiding
+     a column is not withholding data. When a level may not see names, the name
+     query is **never issued** (`lib/guest-movements.ts`).
+   - **Surfaces that currently name guests:** `/bea` §3 Balance due, and Home §5
+     Arrivals & departures.
+   - **Consequence, unchanged:** the standing "re-issue all 8 Cloudbeds keys
+     without Guest scope" security task **cannot drop the Guest / Data Insights
+     Guests scopes.** Least privilege stops one step short of where §6 aimed it;
+     the rule is enforced by code and the PIN gate rather than by the key.
+   - **History (superseded, kept so the reasoning is not lost).** Until 08/04/26
+     the rule was absolute. On 08/04/26 Kyle authorised ONE exception, `/bea` §3
+     Balance due, on the ground that chasing rent arrears is impossible without
+     naming who owes it; that text said the exception "does not generalise" and
+     that any other surface would be "a fresh decision". On **09/01/26** Kyle
+     made that fresh decision and widened it to the staff levels above, for the
+     Home arrivals & departures report. Implementation and the measurement
+     behind `/bea`'s missing due-date column: `lib/balance-due.ts`. Design
+     record: `docs/superpowers/specs/2026-09-01-guest-movements-design.md`.
 3. **Read-only.** This app never writes to Cloudbeds.
 4. Cache API responses server-side (short TTL, e.g. 5–15 min) to stay within
    Cloudbeds rate limits and keep the page fast.
@@ -164,13 +185,14 @@ range, not separate API calls.
 - **Auth: API key (scoped key set)** — chosen over OAuth. No redirect URI, no
   token rotation, no extra storage. Server-to-server, ideal for a BI dashboard.
   (OAuth's redirect-URI flow was the alternative; not used.)
-- **Scope rule: Read-only. Aggregate-only everywhere except `/bea` §3.** Least
-  privilege still applies to Write/Delete and to every scope below — but as of
-  **08/04/26** the guest read scope is **retained deliberately**, because `/bea`
-  §3 names guests against their outstanding balance (§5 rule 2, scoped
-  exception). The guardrail behind §5 rule 2 is therefore now **code + the PIN
-  gate**, not the key. Treat "no guest scopes" as historical wherever it appears
-  below or in `TODO.md`.
+- **Scope rule: Read-only. Aggregate-only except where §5 rule 2 permits guest
+  names.** Least privilege still applies to Write/Delete and to every scope below
+  — but as of **08/04/26** the guest read scope is **retained deliberately**, and
+  as of **09/01/26** two surfaces use it: `/bea` §3 (guest against outstanding
+  balance) and Home §5 (arrivals & departures). The guardrail behind §5 rule 2 is
+  therefore **code + the PIN gate**, not the key — specifically
+  `lib/guest-pii.ts`, which is the single definition of who may see names. Treat
+  "no guest scopes" as historical wherever it appears below or in `TODO.md`.
 
   **Scopes to enable (Read only):**
   - Data Insights Occupancy — occupancy %, ADR, RevPAR, rooms sold/available

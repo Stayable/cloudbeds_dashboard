@@ -1,13 +1,30 @@
 // Outstanding balances for in-house reservations — Bea's §3 table.
 //
-// CONTAINS GUEST NAMES. This is the one place in the app that requests guest
+// CONTAINS GUEST NAMES. This was the FIRST place in the app to request guest
 // PII, authorised by Kyle on 08/04/26 as an explicit amendment to CLAUDE.md §5
-// rule 2 (see that file, and TODO.md session 9d). Every other surface remains
-// aggregate-only. Consequences, recorded so they are not rediscovered:
+// rule 2 (see that file, and TODO.md session 9d).
+//
+// NO LONGER THE ONLY ONE — updated 09/01/26. Kyle widened §5 rule 2 to all
+// internal staff levels, and Home §5 (lib/guest-movements.ts) now also names
+// guests. Who may see names is decided in ONE place, lib/guest-pii.ts; this file
+// predates it and is still reached only through the `/bea` gate, which is a
+// subset of what that allowlist permits, so behaviour here is unchanged.
+//
+// Consequences, recorded so they are not rediscovered:
 //   - the standing "re-issue all 8 keys without Guest scope" task can no longer
 //     drop the Guest / Data Insights Guests scopes;
 //   - `/bea` is gated (BEA_PIN or exec/CEO) and must stay gated;
-//   - nothing here may be surfaced on `/` or any ungated route.
+//   - `/report`, `/elise`, the MCP tools and Teams remain aggregate-only —
+//     see lib/guest-pii.ts for why each is excluded.
+//
+// KNOWN DISPLAY DEFECT, NOT FIXED HERE (found 09/01/26): `primary_guest_full_name`
+// carries staff-entered markers — measured across 945 live names, 688 ended in
+// `*ML`/`*WL`/`*D`, 36 held a `[LTG RATE]`-style tag and 9 mentioned an eviction.
+// Nothing in this file strips them, so the Balance due table renders
+// "Fafa Prestil*ML" verbatim. lib/guest-movements.ts has a tested
+// `parseGuestName` that splits name / marker / note; reusing it here is a small
+// change that was deliberately left out of the 09/01 session rather than editing
+// a working collections surface to ship a Home feature. Reported to Kyle.
 //
 // WHY THERE IS NO DUE-DATE COLUMN (measured 08/04/26, do not re-derive):
 // neither DI dataset carries a rent/payment due date — a column dump of
