@@ -21,13 +21,21 @@ import {
   surfaceButton,
   thClass,
 } from "@/components/ui";
-import { isCountDependentRow, METHODOLOGY } from "@/lib/revenue-report";
+import {
+  fmtDayHeader,
+  isCountDependentRow,
+  METHODOLOGY,
+  periodBlockFor,
+  periodHeaderLabels,
+  portfolioRollup,
+} from "@/lib/revenue-report";
 import type {
   RevenueReport,
   PropertyActual,
   PropertyOnTheBooks,
   PeriodBlock,
   DerivedRow,
+  OverviewPeriod,
 } from "@/lib/revenue-report";
 
 // Interactive report explorer. All property/period data is fetched server-side
@@ -270,6 +278,73 @@ const asPct = (pOcc: number | null) => (pOcc == null ? null : pOcc * 100);
 
 type RailItem = { code: string; name: string; occ: number | null };
 
+type PeriodLabels = { short: string; range: string };
+
+/** Wording for the selected overview period. The MTD range comes from
+ *  `periodHeaderLabels` — the same function the detail tables and the Excel/PDF
+ *  exports use — so the toggle and the tables can never name different windows. */
+function periodLabels(asOf: string, period: OverviewPeriod): PeriodLabels {
+  return period === "mtd"
+    ? { short: "Month to date", range: periodHeaderLabels(asOf).mtd.current }
+    : { short: "Yesterday", range: fmtDayHeader(asOf) };
+}
+
+/** MTD sums out-of-order ROOM-NIGHTS across the month; Yesterday is a count of
+ *  rooms on one day. Same field, different unit — so the tile is relabelled
+ *  rather than left to imply 217 rooms are out of order right now. */
+function oooLabel(period: OverviewPeriod): string {
+  return period === "mtd" ? "Out-of-order room-nights" : "Rooms out of order";
+}
+
+/** Reporting-window switch for the whole overview. Only Yesterday and MTD — see
+ *  `OverviewPeriod` for why YTD is deliberately not offered here. */
+function PeriodToggle({
+  period,
+  onPeriod,
+  labels,
+}: {
+  period: OverviewPeriod;
+  onPeriod: (p: OverviewPeriod) => void;
+  labels: PeriodLabels;
+}) {
+  return (
+    <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="text-[11.5px] text-txt3">
+        Showing <span className="font-semibold text-txt2">{labels.short}</span> · {labels.range}
+      </div>
+      <SegTrack>
+        <button
+          type="button"
+          onClick={() => onPeriod("yesterday")}
+          className={segButton(period === "yesterday")}
+        >
+          Yesterday
+        </button>
+        <button
+          type="button"
+          onClick={() => onPeriod("mtd")}
+          className={segButton(period === "mtd")}
+        >
+          Month to date
+        </button>
+      </SegTrack>
+    </div>
+  );
+}
+
+/** Shown when a period's count snapshots do not cover its whole range. Names
+ *  exactly which figures are blank, because Room revenue and RevPAR beside them
+ *  ARE trustworthy — they come from the exact revenue backfill and the stored
+ *  inventory, not from accumulating counts. */
+function PartialCountsNotice() {
+  return (
+    <p className="mb-3.5 text-[11.5px] leading-relaxed text-warn">
+      Occupancy, ADR and out-of-order are blank for this period: daily counts do not yet cover its
+      full range. Room revenue and RevPAR are unaffected.
+    </p>
+  );
+}
+
 /** Property navigation. Each row carries its own occupancy figure and bar, so
  *  the rail doubles as an at-a-glance ranking while you're deep in one property. */
 function Rail({
@@ -339,15 +414,22 @@ function Rail({
 function Leaderboard({
   items,
   onSelect,
+  period,
 }: {
   items: (RailItem & {
-    roomRevYtd: number | null;
+    roomRev: number | null;
     adr: number | null;
     revpar: number | null;
     spark: { day: string; pOcc: number }[];
   })[];
   onSelect: (code: string) => void;
+  period: OverviewPeriod;
 }) {
+  const mtd = period === "mtd";
+  // Occupancy / ADR / RevPAR follow the toggle; Room Rev falls back to YTD in
+  // Yesterday mode, matching the portfolio tile above.
+  const tag = mtd ? "MTD" : "yest";
+  const revTag = mtd ? "MTD" : "YTD";
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
@@ -359,17 +441,19 @@ function Leaderboard({
             Select a property for its full Actual / On-the-Books detail
           </div>
         </div>
-        <div className="text-[11.5px] text-txt3">Occupancy, ADR and RevPAR are yesterday&apos;s</div>
+        <div className="text-[11.5px] text-txt3">
+          Occupancy, ADR and RevPAR are {mtd ? "month-to-date" : "yesterday's"}
+        </div>
       </div>
       <TableScroll>
         <table className="w-full min-w-[720px] border-collapse">
           <thead>
             <tr>
               <th className={thClass("left")}>Property</th>
-              <th className={thClass("left")}>% Occ (yest)</th>
-              <th className={thClass("right")}>Room Rev (YTD)</th>
-              <th className={thClass("right")}>ADR (yest)</th>
-              <th className={thClass("right")}>RevPAR (yest)</th>
+              <th className={thClass("left")}>% Occ ({tag})</th>
+              <th className={thClass("right")}>Room Rev ({revTag})</th>
+              <th className={thClass("right")}>ADR ({tag})</th>
+              <th className={thClass("right")}>RevPAR ({tag})</th>
               <th className={thClass("left")}>Occ trend (30d)</th>
               <th className={thClass("right")}></th>
             </tr>
@@ -398,7 +482,7 @@ function Leaderboard({
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-right text-[12.5px] font-semibold text-txt">
-                  {fmtCompactCurrency(p.roomRevYtd)}
+                  {fmtCompactCurrency(p.roomRev)}
                 </td>
                 <td className="px-4 py-2.5 text-right text-[12.5px] text-txt">
                   {fmtCompactCurrency(p.adr)}
@@ -433,54 +517,55 @@ function KpiTile({
   return <Kpi label={label} value={value} sub={sub} chip={chip} />;
 }
 
-/** Portfolio roll-up for the "All Properties" overview. Occupancy / ADR / RevPAR
- *  / OOO come from YESTERDAY (a real, complete day — not the partial MTD/YTD
- *  count accumulation); Room Revenue is the exact YTD total. */
-function portfolioSummary(props: PropertyActual[]) {
-  let occ = 0,
-    inv = 0,
-    revYest = 0,
-    ooo = 0,
-    revYtd = 0,
-    reporting = 0;
-  for (const p of props) {
-    const y = p.yesterday.actual;
-    if (y.pOcc != null) reporting += 1;
-    if (y.occupied != null) occ += y.occupied;
-    if (y.inventory != null) inv += y.inventory;
-    if (y.roomRev != null) revYest += y.roomRev;
-    if (y.ooo != null) ooo += y.ooo;
-    if (p.ytd.actual.roomRev != null) revYtd += p.ytd.actual.roomRev;
-  }
-  return {
-    pOcc: inv > 0 ? occ / inv : null,
-    adr: occ > 0 ? revYest / occ : null,
-    revpar: inv > 0 ? revYest / inv : null,
-    ooo,
-    revYtd,
-    reporting,
-    total: props.length,
-  };
+/** Total YTD room revenue across the portfolio. Deliberately NOT part of
+ *  `portfolioRollup`: year-to-date is not an overview period (its counts are
+ *  partial for as long as the snapshot store starts after Jan 1), and this is
+ *  the one YTD figure the overview still surfaces. */
+function ytdRoomRev(props: PropertyActual[]): number {
+  return props.reduce((total, p) => total + p.ytd.actual.roomRev, 0);
 }
 
-function PortfolioSummary({ props }: { props: PropertyActual[] }) {
-  const s = portfolioSummary(props);
+function PortfolioSummary({
+  props,
+  period,
+  labels,
+}: {
+  props: PropertyActual[];
+  period: OverviewPeriod;
+  labels: PeriodLabels;
+}) {
+  const s = portfolioRollup(props, period);
+  const mtd = period === "mtd";
   // No delta chips here on purpose: the dedicated "Revenue vs. Last Year" card
   // directly below is the like-for-like comparison (it excludes properties that
   // weren't operated last year). A second, differently-scoped delta up here
   // would read as a contradiction.
   return (
-    <div className="mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(168px,1fr))] gap-3">
-      <KpiNavy
-        label="Portfolio occupancy"
-        value={s.pOcc == null ? "—" : fmtPct(s.pOcc)}
-        sub={`${s.reporting} of ${s.total} reporting · yesterday`}
-      />
-      <KpiTile label="Room revenue" value={fmtCompactCurrency(s.revYtd)} sub="Year to date" />
-      <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub="Yesterday, combined" />
-      <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub="Yesterday" />
-      <KpiTile label="Rooms out of order" value={s.ooo.toLocaleString()} sub="Yesterday" />
-    </div>
+    <>
+      <div className="mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(168px,1fr))] gap-3">
+        <KpiNavy
+          label="Portfolio occupancy"
+          value={s.pOcc == null ? BLANKED : fmtPct(s.pOcc)}
+          sub={`${s.reporting} of ${s.total} reporting · ${labels.short.toLowerCase()}`}
+        />
+        {/* Room revenue is the one tile that does not follow the toggle in
+            Yesterday mode: a single day's revenue is not a useful headline, so
+            Yesterday keeps the YTD total it has always shown. */}
+        <KpiTile
+          label="Room revenue"
+          value={fmtCompactCurrency(mtd ? s.roomRev : ytdRoomRev(props))}
+          sub={mtd ? "Month to date" : "Year to date"}
+        />
+        <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub={`${labels.short}, combined`} />
+        <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub={labels.short} />
+        <KpiTile
+          label={oooLabel(period)}
+          value={s.ooo == null ? BLANKED : s.ooo.toLocaleString()}
+          sub={labels.short}
+        />
+      </div>
+      {s.countsPartial && <PartialCountsNotice />}
+    </>
   );
 }
 
@@ -489,62 +574,89 @@ function PropertyDetail({
   onTheBooks,
   view,
   onView,
+  period,
+  labels,
 }: {
   actual: PropertyActual;
   onTheBooks: PropertyOnTheBooks | undefined;
   view: "actual" | "onTheBooks";
   onView: (v: "actual" | "onTheBooks") => void;
+  period: OverviewPeriod;
+  labels: PeriodLabels;
 }) {
-  const y = actual.yesterday.actual;
-  const yLY = actual.yesterday.lastYear;
+  const block = periodBlockFor(actual, period);
+  const y = block.actual;
+  const yLY = block.lastYear;
   const ytd = actual.ytd.actual;
+  const mtd = period === "mtd";
+  // Count-dependent tiles are undermined when this block's count snapshots do
+  // not cover its whole range; RevPAR and Room revenue never are. Same rule the
+  // detail table below applies cell by cell, via isCountDependentRow.
+  const partial = block.countsPartial === true;
 
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(168px,1fr))] gap-3">
         <KpiTile
           label="% Occupied"
-          value={y.pOcc == null ? "—" : fmtPct(y.pOcc)}
-          sub="Yesterday"
+          value={partial ? BLANKED : fmtPct(y.pOcc)}
+          sub={labels.short}
           // Occupancy is already a percentage, so the movement is in points.
           chip={
-            y.pOcc != null && yLY?.pOcc != null ? (
+            !partial && yLY?.pOcc != null ? (
               <PointChipPct current={y.pOcc} prior={yLY.pOcc} />
             ) : undefined
           }
         />
+        {/* Yesterday keeps the YTD total it has always shown — one day's
+            revenue is not a useful headline. MTD shows the month. */}
         <KpiTile
           label="Room revenue"
-          value={fmtCompactCurrency(ytd.roomRev)}
+          value={fmtCompactCurrency(mtd ? y.roomRev : ytd.roomRev)}
           sub={
-            actual.ytd.lastYear?.roomRev != null
-              ? `LY ${fmtCompactCurrency(actual.ytd.lastYear.roomRev)}`
-              : "Year to date"
+            mtd
+              ? yLY?.roomRev != null
+                ? `LY ${fmtCompactCurrency(yLY.roomRev)}`
+                : "Month to date"
+              : actual.ytd.lastYear?.roomRev != null
+                ? `LY ${fmtCompactCurrency(actual.ytd.lastYear.roomRev)}`
+                : "Year to date"
           }
           chip={
-            <DeltaChip current={ytd.roomRev} prior={actual.ytd.lastYear?.roomRev ?? null} />
+            mtd ? (
+              <DeltaChip current={y.roomRev} prior={yLY?.roomRev ?? null} />
+            ) : (
+              <DeltaChip current={ytd.roomRev} prior={actual.ytd.lastYear?.roomRev ?? null} />
+            )
           }
         />
         <KpiTile
           label="ADR"
-          value={fmtCompactCurrency(y.adrCombined)}
-          sub="Yesterday, combined"
-          chip={<DeltaChip current={y.adrCombined} prior={yLY?.adrCombined ?? null} />}
+          value={partial ? BLANKED : fmtCompactCurrency(y.adrCombined)}
+          sub={`${labels.short}, combined`}
+          chip={
+            partial ? undefined : (
+              <DeltaChip current={y.adrCombined} prior={yLY?.adrCombined ?? null} />
+            )
+          }
         />
         <KpiTile
           label="RevPAR"
           value={fmtCompactCurrency(y.revpar)}
-          sub="Yesterday"
+          sub={labels.short}
           chip={<DeltaChip current={y.revpar} prior={yLY?.revpar ?? null} />}
         />
         <KpiTile
-          label="Out of order"
-          value={y.ooo == null ? "—" : y.ooo.toLocaleString()}
-          sub="Yesterday"
+          label={mtd ? "Out-of-order room-nights" : "Out of order"}
+          value={partial ? BLANKED : y.ooo.toLocaleString()}
+          sub={labels.short}
           // Fewer OOO rooms is better, hence inverse.
-          chip={<DeltaChip current={y.ooo} prior={yLY?.ooo ?? null} inverse />}
+          chip={
+            partial ? undefined : <DeltaChip current={y.ooo} prior={yLY?.ooo ?? null} inverse />
+          }
         />
       </div>
+      {partial && <PartialCountsNotice />}
 
       {(actual.spark?.length ?? 0) >= 2 && (
         <Card className="px-5 py-4">
@@ -961,22 +1073,35 @@ function YoyRevenue({ props }: { props: PropertyActual[] }) {
 export default function RevenueReportView({ report }: { report: RevenueReport }) {
   const [selected, setSelected] = useState<string>("all");
   const [view, setView] = useState<"actual" | "onTheBooks">("actual");
+  // Defaults to Yesterday: a complete, live-fetched day, and the figure every
+  // existing reader of this page is used to seeing on load.
+  const [period, setPeriod] = useState<OverviewPeriod>("yesterday");
 
-  const railItems: RailItem[] = report.actual.map((p) => ({
-    code: p.code,
-    name: p.name,
-    occ: p.yesterday.actual.pOcc,
-  }));
+  const labels = periodLabels(report.asOf, period);
 
-  const leaderboardItems = report.actual.map((p) => ({
-    code: p.code,
-    name: p.name,
-    occ: p.yesterday.actual.pOcc,
-    roomRevYtd: p.ytd.actual.roomRev,
-    adr: p.yesterday.actual.adrCombined,
-    revpar: p.yesterday.actual.revpar,
-    spark: p.spark ?? [],
-  }));
+  const railItems: RailItem[] = report.actual.map((p) => {
+    const block = periodBlockFor(p, period);
+    return {
+      code: p.code,
+      name: p.name,
+      occ: block.countsPartial === true ? null : block.actual.pOcc,
+    };
+  });
+
+  const leaderboardItems = report.actual.map((p) => {
+    const block = periodBlockFor(p, period);
+    const partial = block.countsPartial === true;
+    return {
+      code: p.code,
+      name: p.name,
+      occ: partial ? null : block.actual.pOcc,
+      roomRev: period === "mtd" ? block.actual.roomRev : p.ytd.actual.roomRev,
+      adr: partial ? null : block.actual.adrCombined,
+      // RevPAR is revenue over inventory — never undermined by partial counts.
+      revpar: block.actual.revpar,
+      spark: p.spark ?? [],
+    };
+  });
 
   const current = report.actual.find((p) => p.code === selected);
   const currentOtb = report.onTheBooks.find((p) => p.code === selected);
@@ -985,9 +1110,9 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
     return <Notice>No configured properties reported.</Notice>;
   }
 
-  // Portfolio occupancy for the rail's "All properties" row — same yesterday
-  // roll-up the summary tiles use, so the two never disagree.
-  const portfolioOcc = portfolioSummary(report.actual).pOcc;
+  // Portfolio occupancy for the rail's "All properties" row — the same roll-up
+  // the summary tiles use, for the same period, so the two never disagree.
+  const portfolioOcc = portfolioRollup(report.actual, period).pOcc;
 
   return (
     <div className="lg:flex lg:gap-[18px] lg:items-start">
@@ -999,14 +1124,22 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
       />
       <div className="min-w-0 flex-1">
         <FreshnessStamp report={report} />
+        <PeriodToggle period={period} onPeriod={setPeriod} labels={labels} />
         {selected === "all" || !current ? (
           <>
-            <PortfolioSummary props={report.actual} />
+            <PortfolioSummary props={report.actual} period={period} labels={labels} />
             <YoyRevenue props={report.actual} />
-            <Leaderboard items={leaderboardItems} onSelect={setSelected} />
+            <Leaderboard items={leaderboardItems} onSelect={setSelected} period={period} />
           </>
         ) : (
-          <PropertyDetail actual={current} onTheBooks={currentOtb} view={view} onView={setView} />
+          <PropertyDetail
+            actual={current}
+            onTheBooks={currentOtb}
+            view={view}
+            onView={setView}
+            period={period}
+            labels={labels}
+          />
         )}
         <Legend />
         <MethodologyFooter />

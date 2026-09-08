@@ -445,3 +445,78 @@ export const METHODOLOGY: { heading: string; points: string[] }[] = [
     ],
   },
 ];
+
+/** The reporting window the /report overview is currently showing. Deliberately
+ *  only two options: Yesterday (a complete, live-fetched single day) and
+ *  Month-to-date. YTD is NOT offered here — its counts are partial for as long
+ *  as the snapshot store starts after Jan 1, so a YTD occupancy tile would read
+ *  "—" for most of the year. YTD stays in the per-property detail table, where
+ *  the blanking rule is visible next to the figures it applies to. */
+export type OverviewPeriod = "yesterday" | "mtd";
+
+/** The PeriodBlock a property contributes for `period`. One-liner on purpose:
+ *  it exists so the rail, the KPI tiles and the leaderboard cannot disagree
+ *  about which block "MTD" means. */
+export function periodBlockFor(p: PropertyActual, period: OverviewPeriod): PeriodBlock {
+  return period === "mtd" ? p.mtd : p.yesterday;
+}
+
+export type PortfolioRollup = {
+  /** Count-dependent — null when `countsPartial`. */
+  pOcc: number | null;
+  adr: number | null;
+  ooo: number | null;
+  /** Exact regardless of count coverage — never nulled by partial counts. */
+  revpar: number | null;
+  roomRev: number;
+  /** Properties that contributed real inventory to this period. */
+  reporting: number;
+  total: number;
+  /** True when ANY contributing property's block has partial counts. One
+   *  property's gap undermines the portfolio percentage, so the taint spreads
+   *  to the whole roll-up rather than producing a quietly-wrong denominator.
+   *  Same rule lib/report-card.ts applies to the Teams card. */
+  countsPartial: boolean;
+};
+
+/**
+ * Portfolio roll-up across properties for one overview period.
+ *
+ * Sums the primitives (occupied nights, inventory, room revenue, OOO) and
+ * derives the percentages from those sums — never an average of per-property
+ * percentages, which would weight a 50-room property the same as a 160-room one.
+ *
+ * Partial counts blank exactly the cells `isCountDependentRow` covers: %Occ,
+ * ADR and OOO go null; Room revenue and RevPAR are kept because they come from
+ * the exact revenue backfill and the stored inventory, not from accumulating
+ * count snapshots.
+ */
+export function portfolioRollup(
+  props: PropertyActual[],
+  period: OverviewPeriod,
+): PortfolioRollup {
+  let occupied = 0, inventory = 0, roomRev = 0, ooo = 0, reporting = 0;
+  let countsPartial = false;
+
+  for (const p of props) {
+    const block = periodBlockFor(p, period);
+    const r = block.actual;
+    if (r.inventory > 0) reporting += 1;
+    occupied += r.occupied;
+    inventory += r.inventory;
+    roomRev += r.roomRev;
+    ooo += r.ooo;
+    if (block.countsPartial === true) countsPartial = true;
+  }
+
+  return {
+    pOcc: countsPartial || inventory <= 0 ? null : occupied / inventory,
+    adr: countsPartial || occupied <= 0 ? null : roomRev / occupied,
+    ooo: countsPartial ? null : ooo,
+    revpar: inventory > 0 ? roomRev / inventory : null,
+    roomRev,
+    reporting,
+    total: props.length,
+    countsPartial,
+  };
+}
