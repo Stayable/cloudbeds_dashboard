@@ -1,8 +1,8 @@
 ---
 title: Fee schedule
-source: rentstayable.com — Rules & Regulations (last updated 07/22/26)
+source: rentstayable.com — Rules & Regulations (last updated 07/22/26); FeeSchedule_RISE8_080726 (2).xlsx (SharePoint KB folder, edited 09/04/26)
 sourceUrl: https://rentstayable.com/rules-regulations/
-snapshotDate: 2026-08-10
+snapshotDate: 2026-09-08
 counties: [Polk, Osceola, Duval, St. Johns, Orange]
 ---
 
@@ -48,29 +48,46 @@ and are marked below.
 
 A 7-day notice to vacate may accompany a staff-residence-contact violation.
 
-## The room damage fee is set PER PROPERTY, and three are missing
+## The room damage fee is set PER PROPERTY, and the two schedules now DIVERGE
 
-From `FeeSchedule_RISE8_080726.xlsx` (effective 08/07/26). This is the amount
-assessed for room or unit damage, and it is **not** the $100 refundable deposit —
-it is a separate, much larger figure that varies by property. The same table
-applies to transient stays and to leases.
+From `FeeSchedule_RISE8_080726 (2).xlsx` in the SharePoint KB folder. The file
+header still reads "effective 08/07/26", but the workbook was **edited 09/04/26**
+and the header was not bumped — do not read the effective date as the currency of
+the figures. Re-read 09/08/26. This is the amount assessed for room or unit
+damage, and it is **not** the $100 refundable deposit — it is a separate, much
+larger figure that varies by property.
 
-| Property | Cloudbeds ID | Damage fee |
-|---|---|---|
-| Jacksonville West | 6802 | $1,000 |
-| Davenport | 44199 | $975 |
-| Lakeland | 4645 | $900 |
-| St. Augustine | 2535 | $875 |
-| Orlando OBT | 8700 | $700 |
-| Kissimmee East | 2295 | **Not on file** |
-| Kissimmee West | 5399 | **Not on file** |
-| Jacksonville North | 812 | **Not on file** |
+**The transient and leasing sheets no longer carry the same table.** They agreed
+as of 08/07/26 and this document used to say one table served both. That is no
+longer true. Read the column for the stay type in front of you.
 
-**Three properties have no figure**, and the source workbook says so itself
-rather than leaving the cell blank — "No amount provided — confirm." Do not
-substitute another property's number for them, and do not average. If a guest at
-Kissimmee East, Kissimmee West, or Jacksonville North needs a damage figure, it
-has to come from the property.
+| Property | Cloudbeds ID | Transient | Leasing |
+|---|---|---|---|
+| Jacksonville West | 6802 | $1,000 | $1,000 |
+| Davenport | 44199 | $975 | $975 |
+| Lakeland | 4645 | $900 | $900 |
+| St. Augustine | 2535 | $875 | $875 |
+| Orlando OBT | 8700 | $700 | $700 |
+| Kissimmee East | 2295 | **Not on file** | **$1,300** |
+| Kissimmee West | 5399 | **Not on file** | **$900 — do not quote, see below** |
+| Jacksonville North | 812 | **Not on file** | **Not on file** |
+
+**Kissimmee East (2295) leasing — $1,300, quotable.** New in the 09/04 edit. The
+workbook's note against it is the single phrase "Sliding Door", which reads as
+the reason the figure is higher than every other property rather than as a limit
+on what it covers. Do not narrow it to sliding-door damage on that basis.
+
+**Kissimmee West (5399) leasing — $900, NOT quotable yet.** The source
+contradicts itself: the amount cell says $900 while its own Notes cell still
+says "No amount provided — confirm." One of the two was left un-updated on
+09/04 and the file gives no way to tell which. Get the figure from the property.
+Raised 09/08/26.
+
+**Jacksonville North (812) has no figure on either sheet**, and Kissimmee East
+and Kissimmee West still have none on the transient sheet. The workbook says so
+itself rather than leaving the cell blank — "No amount provided — confirm." Do
+not substitute another property's number, and do not average. It has to come
+from the property.
 
 ## Two source documents disagree on the replacement key fee
 

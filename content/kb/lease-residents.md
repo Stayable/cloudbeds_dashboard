@@ -2,7 +2,7 @@
 title: Lease residents — rules, fees, and how they differ from a transient stay
 source: Lease Residents – House Rules & Guidelines; Leasing Fee Schedule (RISE8, effective 08/07/26); Bea 08/12/26
 sourceUrl: https://leadmanagement.sharepoint.com/sites/TheDrive/Shared%20Documents/Dashboard%20-%20Knowledgebase
-snapshotDate: 2026-08-18
+snapshotDate: 2026-09-08
 counties: [Polk, Osceola, Duval, St. Johns, Orange]
 ---
 
@@ -102,9 +102,12 @@ which differ from transient.
   stay is a public accommodation; they are governed differently and one desk
   rule cannot cover both. Referred for legal review 08/13/26 — see
   [Pet policy](/kb/pet-policy). Do not decide this at the desk.
-- **The per-property damage fee** is missing for Kissimmee East (2295),
-  Kissimmee West (5399), and Jacksonville North (812) on the leasing schedule
-  exactly as it is on the transient one. See [Fee schedule](/kb/fee-schedule).
+- **The per-property damage fee** is now **partly settled on the leasing
+  schedule** and still open on the transient one — the 09/04/26 edit to the fee
+  workbook broke them apart. Kissimmee East (2295) leasing is **$1,300** and
+  quotable. Kissimmee West (5399) leasing shows **$900** but the same row still
+  says "confirm", so it is not quotable. Jacksonville North (812) has nothing on
+  either sheet. See [Fee schedule](/kb/fee-schedule).
 - **Whether the deposit varies by property as well as by screening.** The
   workbook says it may be set higher "based on tenant screening or unit," which
   does not say which.
