@@ -150,11 +150,20 @@ function metricLabelCell(metric: MetricRow) {
 const CELL = "whitespace-nowrap px-4 py-2 text-right text-[12.5px] font-semibold text-txt";
 const CELL_LY = "whitespace-nowrap px-4 py-2 text-right text-[12.5px] text-txt3";
 
-function ActualTable({ property }: { property: PropertyActual }) {
-  const groups: Array<{ label: string; block: PeriodBlock }> = [
-    { label: "Yesterday", block: property.yesterday },
-    { label: "Month-to-date", block: property.mtd },
-    { label: "Year-to-date", block: property.ytd },
+function ActualTable({ property, asOf }: { property: PropertyActual; asOf: string }) {
+  // Same date wording the PDF and Excel exports print under each period
+  // heading. The web table used to be the ONLY surface that named a period
+  // without saying what it covered — a reader could not tell whether
+  // "Year-to-date" meant through today or through yesterday.
+  const dates = periodHeaderLabels(asOf);
+  const groups: Array<{
+    label: string;
+    block: PeriodBlock;
+    dates: { current: string; lastYear: string };
+  }> = [
+    { label: "Yesterday", block: property.yesterday, dates: dates.yesterday },
+    { label: "Month-to-date", block: property.mtd, dates: dates.mtd },
+    { label: "Year-to-date", block: property.ytd, dates: dates.ytd },
   ];
   const anyAdjusted = groups.some((g) => g.block.actual.occAdjLess20 != null);
   const rows = rowsFor(anyAdjusted);
@@ -174,6 +183,9 @@ function ActualTable({ property }: { property: PropertyActual }) {
                 className="border-l border-white/10 bg-navy2 px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[.07em] text-white"
               >
                 {g.label}
+                <div className="mt-1 text-[10px] font-normal normal-case tracking-normal text-white/60">
+                  {g.dates.current}
+                </div>
               </th>
             ))}
           </tr>
@@ -183,6 +195,13 @@ function ActualTable({ property }: { property: PropertyActual }) {
               ["Actual", "Last Year", "Variance"].map((l) => (
                 <th key={`${g.label}-${l}`} className={thClass("right")}>
                   {l}
+                  {/* The last-year column is the one that genuinely needs its
+                      own date: it is a DIFFERENT year from the heading above. */}
+                  {l === "Last Year" && (
+                    <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-txt3">
+                      {g.dates.lastYear}
+                    </div>
+                  )}
                 </th>
               )),
             )}
@@ -278,15 +297,18 @@ const asPct = (pOcc: number | null) => (pOcc == null ? null : pOcc * 100);
 
 type RailItem = { code: string; name: string; occ: number | null };
 
-type PeriodLabels = { short: string; range: string };
+type PeriodLabels = { short: string; range: string; ytdRange: string };
 
 /** Wording for the selected overview period. The MTD range comes from
  *  `periodHeaderLabels` — the same function the detail tables and the Excel/PDF
  *  exports use — so the toggle and the tables can never name different windows. */
 function periodLabels(asOf: string, period: OverviewPeriod): PeriodLabels {
+  const l = periodHeaderLabels(asOf);
+  // ytdRange is carried on BOTH periods: Room revenue falls back to year-to-date
+  // in Yesterday mode, so that tile needs the YTD window either way.
   return period === "mtd"
-    ? { short: "Month to date", range: periodHeaderLabels(asOf).mtd.current }
-    : { short: "Yesterday", range: fmtDayHeader(asOf) };
+    ? { short: "Month to date", range: l.mtd.current, ytdRange: l.ytd.current }
+    : { short: "Yesterday", range: fmtDayHeader(asOf), ytdRange: l.ytd.current };
 }
 
 /** MTD sums out-of-order ROOM-NIGHTS across the month; Yesterday is a count of
@@ -415,6 +437,7 @@ function Leaderboard({
   items,
   onSelect,
   period,
+  labels,
 }: {
   items: (RailItem & {
     roomRev: number | null;
@@ -424,6 +447,7 @@ function Leaderboard({
   })[];
   onSelect: (code: string) => void;
   period: OverviewPeriod;
+  labels: PeriodLabels;
 }) {
   const mtd = period === "mtd";
   // Occupancy / ADR / RevPAR follow the toggle; Room Rev falls back to YTD in
@@ -441,8 +465,13 @@ function Leaderboard({
             Select a property for its full Actual / On-the-Books detail
           </div>
         </div>
-        <div className="text-[11.5px] text-txt3">
-          Occupancy, ADR and RevPAR are {mtd ? "month-to-date" : "yesterday's"}
+        {/* This table mixes two windows, so both are named. Without it the
+            YTD revenue column reads as if it shared the toggle's period. */}
+        <div className="text-[11.5px] leading-relaxed text-txt3 sm:text-right">
+          Occupancy, ADR and RevPAR · {labels.range}
+          <br />
+          Room revenue ·{" "}
+          {mtd ? `month to date, ${labels.range}` : `year to date, ${labels.ytdRange}`}
         </div>
       </div>
       <TableScroll>
@@ -554,7 +583,7 @@ function PortfolioSummary({
         <KpiTile
           label="Room revenue"
           value={fmtCompactCurrency(mtd ? s.roomRev : ytdRoomRev(props))}
-          sub={mtd ? "Month to date" : "Year to date"}
+          sub={mtd ? `Month to date · ${labels.range}` : `Year to date · ${labels.ytdRange}`}
         />
         <KpiTile label="ADR" value={fmtCompactCurrency(s.adr)} sub={`${labels.short}, combined`} />
         <KpiTile label="RevPAR" value={fmtCompactCurrency(s.revpar)} sub={labels.short} />
@@ -576,6 +605,7 @@ function PropertyDetail({
   onView,
   period,
   labels,
+  asOf,
 }: {
   actual: PropertyActual;
   onTheBooks: PropertyOnTheBooks | undefined;
@@ -583,6 +613,7 @@ function PropertyDetail({
   onView: (v: "actual" | "onTheBooks") => void;
   period: OverviewPeriod;
   labels: PeriodLabels;
+  asOf: string;
 }) {
   const block = periodBlockFor(actual, period);
   const y = block.actual;
@@ -620,7 +651,7 @@ function PropertyDetail({
                 : "Month to date"
               : actual.ytd.lastYear?.roomRev != null
                 ? `LY ${fmtCompactCurrency(actual.ytd.lastYear.roomRev)}`
-                : "Year to date"
+                : `Year to date · ${labels.ytdRange}`
           }
           chip={
             mtd ? (
@@ -694,7 +725,7 @@ function PropertyDetail({
       </div>
 
       {view === "actual" ? (
-        <ActualTable property={actual} />
+        <ActualTable property={actual} asOf={asOf} />
       ) : onTheBooks ? (
         <OnTheBooksTable property={onTheBooks} />
       ) : (
@@ -1129,7 +1160,12 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
           <>
             <PortfolioSummary props={report.actual} period={period} labels={labels} />
             <YoyRevenue props={report.actual} />
-            <Leaderboard items={leaderboardItems} onSelect={setSelected} period={period} />
+            <Leaderboard
+              items={leaderboardItems}
+              onSelect={setSelected}
+              period={period}
+              labels={labels}
+            />
           </>
         ) : (
           <PropertyDetail
@@ -1139,6 +1175,7 @@ export default function RevenueReportView({ report }: { report: RevenueReport })
             onView={setView}
             period={period}
             labels={labels}
+            asOf={report.asOf}
           />
         )}
         <Legend />
