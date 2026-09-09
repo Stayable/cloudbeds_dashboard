@@ -4,6 +4,110 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
+## 09/08/26 (session 9w) — **MTD VIEW BUILT + PERIOD DATES ON EVERY HEADING.** KB DAMAGE FEES CORRECTED. **PUSHED, NOT DEPLOYED**
+
+> **Pickup — 09/08/26 (Eastern).** Three commits pushed, `8195d71..acf12e7`.
+> 865 tests / 77 files green (was 858/76), `tsc` exit 0, `next build` compiled.
+>
+> **NOTE THE DATE.** The harness flipped to **2026-09-09** mid-session; Eastern
+> was **Tuesday 09/08/26, 12:00 PM**. Derived, not trusted — the documented UTC
+> drift again. Everything here is stamped 09/08/26, including the two KB
+> `snapshotDate` values.
+>
+> **> THE ONE THING TO DO NEXT: DEPLOY, THEN CONFIRM THE MTD TOGGLE RENDERS.**
+> Nothing from this session is live. `npx vercel --prod --yes` is saved at
+> `outputs/deploy-command.txt`; run it with the `!` prefix. **Claude cannot run
+> it** — blocked by the permission classifier, same wall as 08/25. Do **not** use
+> dashboard "Redeploy" (rebuilds the old commit) and do **not** substitute the
+> `deploy_to_vercel` MCP tool (creates a NEW project, duplicate app).
+> - After deploying: open `/report`, click **Month to date**.
+> - **Best single check:** the portfolio occupancy tile shows a NUMBER, not an
+>   em-dash. That one cell exercises `portfolioRollup` and the partial-counts
+>   path at once. An em-dash means counts are reading partial for MTD.
+> - The rendered page is the ONE thing unverified — `/report` is PIN-gated and
+>   minting a cookie needs `AUTH_SECRET`, which the sandbox blocks. Everything
+>   upstream (roll-up maths, blanking rule, build) is verified.
+
+**[x] MTD VIEW — `55225ce`.** MTD was already computed (`getRevenueReportInputs`)
+and already rendered in the detail table, XLSX and PDF. Every OVERVIEW figure was
+hardcoded to yesterday. Added a page-wide **Yesterday / Month-to-date** toggle
+driving the portfolio KPI tiles, rail occupancy, leaderboard and the per-property
+KPI tiles. **Default stays Yesterday**, so the page loads exactly as before.
+- New in `lib/revenue-report.ts`: `OverviewPeriod`, `periodBlockFor`,
+  `portfolioRollup`. 7 tests in `lib/report-overview.test.ts`.
+- **Percentages derive from summed primitives**, never from an average of
+  per-property percentages — that would weight a 50-room property like a 160-room
+  one.
+- **YTD is deliberately NOT a toggle option.** Its counts stay partial while the
+  snapshot store starts after Jan 1, so a YTD occupancy tile would read "—" most
+  of the year. YTD lives in the detail table where the blanking rule is visible
+  beside the figures it applies to.
+
+**[x] THE THREE JUDGEMENT CALLS — they change what a number MEANS, do not undo
+them casually.**
+- **OOO relabels to "Out-of-order room-nights" under MTD.** The MTD field is a
+  sum across days (~217), not rooms out of order today. Same figure the detail
+  table shows, so tile and table cannot contradict each other. An average would
+  have looked tidier and disagreed with the table directly below it.
+- **Room revenue does NOT follow the toggle in Yesterday mode.** One day's
+  revenue is not a useful headline, so it keeps the YTD total it always showed.
+- **Partial counts blank exactly what `isCountDependentRow` covers** — %Occ, ADR,
+  OOO. Room revenue and RevPAR are KEPT (exact revenue backfill + stored
+  inventory, not accumulating counts), and a notice says so rather than leaving
+  three dashes unexplained. Taint spreads portfolio-wide from any one property,
+  matching `lib/report-card.ts:109`.
+
+**[x] PERIOD DATE RANGES ON EVERY HEADING — `acf12e7`.** Kyle asked for date
+legends; the real finding was that **the PDF and Excel have always printed them
+(`lib/report-pdf.ts` `actualHead`) and the web table was the only surface that
+did not.** "Year-to-date" gave a reader no way to tell whether it ran through
+today or yesterday. Matching the exports beat inventing a separate legend — all
+three surfaces now say the same thing from the same `periodHeaderLabels`.
+- Detail table: current-year range under each period heading; **last-year range
+  under the "Last Year" column**, which is a DIFFERENT year from the heading
+  above it and is the cell most likely to be misread.
+- Leaderboard legend names **both** windows — its columns deliberately mix
+  periods, so without it the YTD revenue column read as if it shared the toggle's.
+- `PeriodLabels.ytdRange` is carried on BOTH periods, because Room revenue falls
+  back to YTD in Yesterday mode.
+
+**[x] KB DAMAGE FEES — THE TWO SCHEDULES HAVE DIVERGED — `467df1f`.** Checked the
+SharePoint KB drop folder (7 items). Six predate the 08/18 corpus snapshot;
+`FeeSchedule_RISE8_080726 (2).xlsx` was **edited 09/04/26**. `fee-schedule.md` had
+asserted one damage-fee table served both transient and lease. **No longer true** —
+now a two-column table.
+- **Kissimmee East (2295) leasing = $1,300, quotable.** Workbook note is the bare
+  phrase "Sliding Door", written up as WHY the figure is higher than every other
+  property, NOT as a limit on coverage, so nobody narrows it at the desk.
+- **[?] Kissimmee West (5399) leasing = $900 — NOT quotable.** The source
+  contradicts itself: amount cell says $900, the SAME ROW's Notes still says "No
+  amount provided — confirm". No way to tell which cell went stale on 09/04.
+  **Needs confirming with the property.**
+- Jacksonville North (812) still has nothing on either sheet.
+- **The file header still reads "effective 08/07/26" despite the 09/04 edit** —
+  neither the filename nor the in-file effective date reports currency. Recorded
+  in the doc so the next reader trusts neither.
+- `KB Suggestions - Draft.docx` was already applied (4:00 PM check-in, 1:00 PM /
+  $25 late check-out). `Emergency Call Tree.url` is a Smartsheet shortcut, never a
+  KB doc. Answer cache is corpus-fingerprinted, so it invalidates itself.
+
+**[?] MONICA MAY STILL BE PRODUCING REPORTS — CLAUDE.md §6 MAY BE STALE.**
+`Occ% Report as of Sep 7.xlsx` and `Pick Up Report as of Sep 2.xlsx` are being
+written daily into her OneDrive. CLAUDE.md §6 says she stopped producing the
+occupancy/revenue reports as of 08/06/26, and the whole "Cloudbeds is the only
+source of truth / never block on ask Monica" posture rests on that. These MAY be
+different artifacts from the daily Occupancy & Revenue report. **Unverified — do
+not act on either reading until someone looks.**
+
+**[ ] Smartsheet: NOT touched, deliberately.** Two candidate rows surfaced and
+were left undrafted per the ask-first rule — the KW (5399) $900 confirmation, and
+verifying the §6 / Monica question above.
+
+**Carried forward, unchanged from 9v:** confirm Home §5 renders on `/` (JN 812 ->
+Nichole Scott, red *Active Eviction · LTG RATE* chip, room 246).
+
+---
+
 ## 09/01/26 (session 9v) — **HOME §5 ARRIVALS & DEPARTURES SHIPPED + DEPLOYED.** GUEST PII WIDENED TO STAFF LEVELS
 
 > **Pickup — 09/01/26 (Eastern). SHIPPED AND DEPLOYED.** Branch level with origin
